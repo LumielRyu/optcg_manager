@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/painting.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -7,6 +8,7 @@ import '../../core/constants/collection_types.dart';
 import '../../core/providers/collection_view_mode_provider.dart';
 import '../../core/providers/theme_mode_provider.dart';
 import '../../data/models/card_record.dart';
+import '../../data/repositories/collection_repository.dart';
 import '../../data/services/op_api_service.dart';
 import '../../data/services/translation_service.dart';
 import 'collection_controller.dart';
@@ -733,6 +735,7 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
   bool _isTranslating = false;
   String? _translatedText;
   bool _showTranslated = false;
+  bool _isSharingSaleBusy = false;
 
   Future<void> _translateText() async {
     if (widget.card.text.trim().isEmpty) return;
@@ -757,6 +760,74 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
     } finally {
       setState(() {
         _isTranslating = false;
+      });
+    }
+  }
+
+  Future<void> _shareSaleCard() async {
+    setState(() {
+      _isSharingSaleBusy = true;
+    });
+
+    try {
+      final repo = ref.read(collectionRepositoryProvider);
+      final shareCode = await repo.enableSaleCardSharing(widget.card.id);
+      final link = '${Uri.base.origin}/shared/sale/$shareCode';
+
+      await Clipboard.setData(ClipboardData(text: link));
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Link da carta à venda copiado.'),
+        ),
+      );
+
+      setState(() {});
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao compartilhar carta: $e'),
+        ),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _isSharingSaleBusy = false;
+      });
+    }
+  }
+
+  Future<void> _disableSaleSharing() async {
+    setState(() {
+      _isSharingSaleBusy = true;
+    });
+
+    try {
+      await ref.read(collectionRepositoryProvider).disableSaleCardSharing(
+            widget.card.id,
+          );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Compartilhamento da carta desativado.'),
+        ),
+      );
+
+      setState(() {});
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao desativar compartilhamento: $e'),
+        ),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _isSharingSaleBusy = false;
       });
     }
   }
@@ -803,13 +874,14 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
   @override
   Widget build(BuildContext context) {
     final card = widget.card;
+    final repo = ref.read(collectionRepositoryProvider);
 
     return Dialog(
       insetPadding: const EdgeInsets.all(16),
       child: ConstrainedBox(
         constraints: const BoxConstraints(
           maxWidth: 560,
-          maxHeight: 820,
+          maxHeight: 860,
         ),
         child: Column(
           children: [
@@ -855,6 +927,29 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
                     ),
                     if (card.deckName != null && card.deckName!.trim().isNotEmpty)
                       _infoRow('Deck', card.deckName!),
+                    if (card.collectionType == CollectionTypes.forSale) ...[
+                      const SizedBox(height: 8),
+                      FutureBuilder(
+                        future: repo.getSaleCardShareInfo(card.id),
+                        builder: (context, snapshot) {
+                          final info = snapshot.data;
+                          if (info == null ||
+                              !info.isPublic ||
+                              info.shareCode == null) {
+                            return const Text(
+                              'Carta privada',
+                              textAlign: TextAlign.center,
+                            );
+                          }
+
+                          return Text(
+                            'Carta pública • código: ${info.shareCode}',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          );
+                        },
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     Row(
                       children: [
@@ -881,6 +976,39 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
                       icon: const Icon(Icons.delete_outline),
                       label: const Text('Remover grupo'),
                     ),
+                    if (card.collectionType == CollectionTypes.forSale) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: FilledButton.tonalIcon(
+                              onPressed:
+                                  _isSharingSaleBusy ? null : _shareSaleCard,
+                              icon: _isSharingSaleBusy
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.share_outlined),
+                              label: const Text('Compartilhar'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: FilledButton.tonalIcon(
+                              onPressed: _isSharingSaleBusy
+                                  ? null
+                                  : _disableSaleSharing,
+                              icon: const Icon(Icons.link_off),
+                              label: const Text('Desativar link'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     const Text(
                       'Texto da carta',

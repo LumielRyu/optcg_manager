@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../features/auth/auth_gate.dart';
 import '../features/auth/register_screen.dart';
 import '../features/collection/collection_screen.dart';
+import '../features/collection/shared_sale_card_screen.dart';
 import '../features/decks/shared_deck_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/imports/camera_import/camera_import_screen.dart';
@@ -13,8 +14,16 @@ final appRouter = GoRouter(
   initialLocation: '/',
   routes: [
     GoRoute(
-      path: '/',
-      builder: (context, state) => const AuthGate(),
+      path: '/shared/deck/:shareCode',
+      builder: (context, state) => SharedDeckScreen(
+        shareCode: state.pathParameters['shareCode']!,
+      ),
+    ),
+    GoRoute(
+      path: '/shared/sale/:shareCode',
+      builder: (context, state) => SharedSaleCardScreen(
+        shareCode: state.pathParameters['shareCode']!,
+      ),
     ),
     GoRoute(
       path: '/home',
@@ -43,10 +52,8 @@ final appRouter = GoRouter(
       builder: (context, state) => const CameraImportScreen(),
     ),
     GoRoute(
-      path: '/shared/deck/:shareCode',
-      builder: (context, state) => SharedDeckScreen(
-        shareCode: state.pathParameters['shareCode']!,
-      ),
+      path: '/',
+      builder: (context, state) => const AuthGate(),
     ),
   ],
 );

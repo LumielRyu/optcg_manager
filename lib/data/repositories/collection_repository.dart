@@ -38,6 +38,26 @@ class SharedDeckData {
   });
 }
 
+class SaleCardShareInfo {
+  final bool isPublic;
+  final String? shareCode;
+
+  const SaleCardShareInfo({
+    required this.isPublic,
+    required this.shareCode,
+  });
+}
+
+class SharedSaleCardData {
+  final String shareCode;
+  final CardRecord item;
+
+  const SharedSaleCardData({
+    required this.shareCode,
+    required this.item,
+  });
+}
+
 class CollectionRepository {
   final SupabaseClient _client;
   final OpApiService _opApi;
@@ -385,6 +405,113 @@ class CollectionRepository {
       deckName: deckName,
       shareCode: (row['share_code'] ?? shareCode).toString(),
       items: items,
+    );
+  }
+
+  Future<SaleCardShareInfo?> getSaleCardShareInfo(String itemId) async {
+    final user = _client.auth.currentUser;
+    if (user == null || !_isValidUuid(itemId)) return null;
+
+    final row = await _client
+        .from('collection_items')
+        .select('is_public, share_code')
+        .eq('user_id', user.id)
+        .eq('id', itemId)
+        .eq('collection_type', CollectionTypes.forSale)
+        .maybeSingle();
+
+    if (row == null) return null;
+
+    return SaleCardShareInfo(
+      isPublic: (row['is_public'] as bool?) ?? false,
+      shareCode: row['share_code']?.toString(),
+    );
+  }
+
+  Future<String> enableSaleCardSharing(String itemId) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw Exception('Usuário não autenticado.');
+    }
+
+    if (!_isValidUuid(itemId)) {
+      throw Exception('Item inválido para compartilhamento.');
+    }
+
+    final row = await _client
+        .from('collection_items')
+        .select('id, share_code')
+        .eq('user_id', user.id)
+        .eq('id', itemId)
+        .eq('collection_type', CollectionTypes.forSale)
+        .maybeSingle();
+
+    if (row == null) {
+      throw Exception('Carta à venda não encontrada.');
+    }
+
+    final shareCode =
+        (row['share_code']?.toString().trim().isNotEmpty ?? false)
+            ? row['share_code'].toString()
+            : _generateShareCode();
+
+    await _client.from('collection_items').update({
+      'is_public': true,
+      'share_code': shareCode,
+    }).eq('id', itemId);
+
+    return shareCode;
+  }
+
+  Future<void> disableSaleCardSharing(String itemId) async {
+    final user = _client.auth.currentUser;
+    if (user == null || !_isValidUuid(itemId)) return;
+
+    await _client.from('collection_items').update({
+      'is_public': false,
+    }).eq('user_id', user.id).eq('id', itemId);
+  }
+
+  Future<SharedSaleCardData?> getSharedSaleCard(String shareCode) async {
+    await _opApi.preload();
+
+    final row = await _client
+        .from('collection_items')
+        .select('id, card_code, quantity, is_favorite, created_at, share_code')
+        .eq('share_code', shareCode)
+        .eq('is_public', true)
+        .eq('collection_type', CollectionTypes.forSale)
+        .maybeSingle();
+
+    if (row == null) return null;
+
+    final cardCode = (row['card_code'] ?? '').toString().trim().toUpperCase();
+    final apiCard = await _opApi.findCardByCode(cardCode);
+
+    final item = CardRecord(
+      id: row['id'].toString(),
+      cardCode: cardCode,
+      name: apiCard?.name ?? cardCode,
+      imageUrl: apiCard?.image ?? '',
+      dateAddedUtc: DateTime.tryParse(
+            (row['created_at'] ?? '').toString(),
+          ) ??
+          DateTime.now(),
+      setName: apiCard?.setName ?? '',
+      rarity: apiCard?.rarity ?? '',
+      color: apiCard?.color ?? '',
+      type: apiCard?.type ?? '',
+      text: apiCard?.text ?? '',
+      attribute: apiCard?.attribute ?? '',
+      quantity: (row['quantity'] as num?)?.toInt() ?? 1,
+      collectionType: CollectionTypes.forSale,
+      deckName: null,
+      isFavorite: (row['is_favorite'] as bool?) ?? false,
+    );
+
+    return SharedSaleCardData(
+      shareCode: (row['share_code'] ?? shareCode).toString(),
+      item: item,
     );
   }
 
