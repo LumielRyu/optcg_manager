@@ -18,10 +18,10 @@ class OpApiService {
       'https://www.optcgapi.com/api/allPromos/?format=json';
 
   List<OpCard>? _cache;
-  Map<String, OpCard>? _byCode;
+  Map<String, List<OpCard>>? _byCodeMulti;
 
   Future<void> preload() async {
-    if (_cache != null && _byCode != null) return;
+    if (_cache != null && _byCodeMulti != null) return;
 
     final responses = await Future.wait([
       _getJson(_mainSetUrl),
@@ -35,42 +35,51 @@ class OpApiService {
       allCards.addAll(list.map(OpCard.fromJson));
     }
 
-    final deduped = <String, OpCard>{};
+    final grouped = <String, List<OpCard>>{};
 
     for (final card in allCards) {
       final key = _normalizeCode(card.code);
       if (key.isEmpty) continue;
 
-      final existing = deduped[key];
-      if (existing == null) {
-        deduped[key] = card;
-        continue;
-      }
-
-      final existingHasImage = existing.image.trim().isNotEmpty;
-      final currentHasImage = card.image.trim().isNotEmpty;
-
-      if (!existingHasImage && currentHasImage) {
-        deduped[key] = card;
-      }
+      grouped.putIfAbsent(key, () => []).add(card);
     }
 
-    _cache = deduped.values.toList()
-      ..sort((a, b) => a.code.compareTo(b.code));
+    for (final entry in grouped.entries) {
+      entry.value.sort((a, b) {
+        final aHasImage = a.image.trim().isNotEmpty;
+        final bHasImage = b.image.trim().isNotEmpty;
 
-    _byCode = {
-      for (final card in _cache!) _normalizeCode(card.code): card,
-    };
+        if (aHasImage != bHasImage) {
+          return bHasImage ? 1 : -1;
+        }
+
+        final aRarity = a.rarity.trim().toLowerCase();
+        final bRarity = b.rarity.trim().toLowerCase();
+        return aRarity.compareTo(bRarity);
+      });
+    }
+
+    _byCodeMulti = grouped;
+    _cache = allCards
+      ..sort((a, b) => a.code.compareTo(b.code));
+  }
+
+  Future<List<OpCard>> findAllByCode(String code) async {
+    await preload();
+    return List<OpCard>.from(
+      _byCodeMulti![_normalizeCode(code)] ?? const [],
+    );
   }
 
   Future<OpCard?> findCardByCode(String code) async {
-    await preload();
-    return _byCode![_normalizeCode(code)];
+    final list = await findAllByCode(code);
+    if (list.isEmpty) return null;
+    return list.first;
   }
 
   Future<List<OpCard>> loadAllCards() async {
     await preload();
-    return _cache!;
+    return List<OpCard>.from(_cache!);
   }
 
   Future<List<Map<String, dynamic>>> _getJson(String url) async {
@@ -98,6 +107,8 @@ class OpApiService {
         .map((e) => Map<String, dynamic>.from(e))
         .toList();
   }
+
+  String normalizeCode(String input) => _normalizeCode(input);
 
   String _normalizeCode(String input) {
     var code = input.trim().toUpperCase();

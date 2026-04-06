@@ -18,6 +18,7 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
 
   String _selectedDestination = CollectionTypes.owned;
   int _singleCodeQuantity = 1;
+  String? _lastHandledSelectionId;
 
   @override
   void dispose() {
@@ -38,6 +39,16 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
     final state = ref.watch(codeImportControllerProvider);
     final notifier = ref.read(codeImportControllerProvider.notifier);
 
+    final pendingSelection = state.pendingSelection;
+    if (pendingSelection != null &&
+        pendingSelection.requestId != _lastHandledSelectionId) {
+      _lastHandledSelectionId = pendingSelection.requestId;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _showVariantSelector(pendingSelection);
+      });
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Importar por código'),
@@ -53,8 +64,7 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
                   maxLines: 10,
                   onChanged: (_) => setState(() {}),
                   decoration: InputDecoration(
-                    hintText:
-                        'Use de dois jeitos:\n\n'
+                    hintText: 'Use de dois jeitos:\n\n'
                         '1) Lista completa:\n1xOP14-020\n4xEB01-015\n4xST02-007\n\n'
                         '2) Código único:\nOP12-027',
                     border: OutlineInputBorder(
@@ -122,6 +132,7 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
                     onPressed: state.isBusy
                         ? null
                         : () async {
+                            _lastHandledSelectionId = null;
                             await notifier.analyzeText(
                               _controller.text,
                               singleCodeQuantity: _singleCodeQuantity,
@@ -138,7 +149,7 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
           Expanded(
             child: state.isBusy
                 ? const Center(child: CircularProgressIndicator())
-                : state.error != null
+                : state.error != null && state.candidates.isEmpty
                     ? Center(
                         child: Padding(
                           padding: const EdgeInsets.all(16),
@@ -163,8 +174,8 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
                               return Card(
                                 child: ListTile(
                                   leading: SizedBox(
-                                    width: 48,
-                                    height: 48,
+                                    width: 56,
+                                    height: 56,
                                     child: item.found
                                         ? _ImportPreviewImage(
                                             imageUrl: item.imageUrl,
@@ -174,7 +185,7 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
                                   title: Text(item.name ?? item.code),
                                   subtitle: Text(
                                     item.found
-                                        ? '${item.code} • Quantidade: ${item.quantity}x'
+                                        ? '${item.code} • ${item.setName ?? '-'} • ${item.rarity ?? '-'} • Quantidade: ${item.quantity}x'
                                         : '${item.code} • Não encontrada • Quantidade: ${item.quantity}x',
                                   ),
                                   trailing: IconButton(
@@ -230,13 +241,105 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
       ),
     );
   }
+
+  Future<void> _showVariantSelector(
+    CodeImportVariantSelection selection,
+  ) async {
+    final notifier = ref.read(codeImportControllerProvider.notifier);
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) {
+        return AlertDialog(
+          title: Text('Escolha a versão de ${selection.code}'),
+          content: SizedBox(
+            width: 760,
+            height: 520,
+            child: GridView.builder(
+              itemCount: selection.options.length,
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 170,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 0.58,
+              ),
+              itemBuilder: (_, index) {
+                final option = selection.options[index];
+
+                return InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: () async {
+                    Navigator.of(context).pop();
+                    await notifier.selectVariant(option);
+                  },
+                  child: Card(
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: _ImportPreviewImage(
+                              imageUrl: option.imageUrl,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(8, 0, 8, 10),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                option.name,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                option.variantLabel,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 11),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await notifier.cancelVariantSelection();
+              },
+              child: const Text('Cancelar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
 
 class _ImportPreviewImage extends StatelessWidget {
   final String? imageUrl;
+  final BoxFit fit;
 
   const _ImportPreviewImage({
     required this.imageUrl,
+    this.fit = BoxFit.cover,
   });
 
   @override
@@ -253,7 +356,7 @@ class _ImportPreviewImage extends StatelessWidget {
         url,
         width: 48,
         height: 48,
-        fit: BoxFit.cover,
+        fit: fit,
         webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
         errorBuilder: (_, __, ___) {
           return const Icon(Icons.broken_image_outlined);

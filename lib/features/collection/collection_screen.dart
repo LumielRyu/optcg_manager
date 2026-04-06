@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/painting.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -8,7 +7,6 @@ import '../../core/constants/collection_types.dart';
 import '../../core/providers/collection_view_mode_provider.dart';
 import '../../core/providers/theme_mode_provider.dart';
 import '../../data/models/card_record.dart';
-import '../../data/services/op_api_service.dart';
 import '../../data/services/translation_service.dart';
 import 'collection_controller.dart';
 import 'deck_details_dialog.dart';
@@ -350,7 +348,7 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-class _StandardLibraryView extends ConsumerWidget {
+class _StandardLibraryView extends StatelessWidget {
   final List<CardRecord> items;
   final CollectionViewMode viewMode;
 
@@ -365,7 +363,7 @@ class _StandardLibraryView extends ConsumerWidget {
   static const double _gridAspectRatio = 0.56;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     if (items.isEmpty) {
       return const _EmptyState(
         title: 'Nenhuma carta encontrada.',
@@ -408,7 +406,7 @@ class _StandardLibraryView extends ConsumerWidget {
                       child: SizedBox(
                         width: 82,
                         height: 112,
-                        child: _ResolvedCardImage(
+                        child: _CollectionCardImage(
                           key: ValueKey(
                             'list-image-${item.id}-${item.cardCode}-${item.imageUrl}',
                           ),
@@ -463,74 +461,76 @@ class _StandardLibraryView extends ConsumerWidget {
       itemBuilder: (context, index) {
         final item = items[index];
 
-        return InkWell(
-          key: ValueKey('grid-card-${item.id}-${item.cardCode}'),
-          onTap: () {
-            showDialog(
-              context: context,
-              builder: (_) => _CardDetailsDialog(
-                card: item,
-                sourceRecords: [item],
+        return RepaintBoundary(
+          child: InkWell(
+            key: ValueKey('grid-card-${item.id}-${item.cardCode}'),
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (_) => _CardDetailsDialog(
+                  card: item,
+                  sourceRecords: [item],
+                ),
+              );
+            },
+            child: Card(
+              clipBehavior: Clip.antiAlias,
+              elevation: 1.5,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
               ),
-            );
-          },
-          child: Card(
-            clipBehavior: Clip.antiAlias,
-            elevation: 1.5,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest
-                            .withOpacity(0.35),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.all(8),
-                      child: _ResolvedCardImage(
-                        key: ValueKey(
-                          'grid-image-${item.id}-${item.cardCode}-${item.imageUrl}',
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest
+                              .withOpacity(0.35),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        imageUrl: item.imageUrl,
-                        cardCode: item.cardCode,
-                        fit: BoxFit.contain,
+                        padding: const EdgeInsets.all(8),
+                        child: _CollectionCardImage(
+                          key: ValueKey(
+                            'grid-image-${item.id}-${item.cardCode}-${item.imageUrl}',
+                          ),
+                          imageUrl: item.imageUrl,
+                          cardCode: item.cardCode,
+                          fit: BoxFit.contain,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    item.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
+                    const SizedBox(height: 10),
+                    Text(
+                      item.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    item.cardCode,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade700,
+                    const SizedBox(height: 6),
+                    Text(
+                      item.cardCode,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade700,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Quantidade: ${item.quantity}x',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ],
+                    const SizedBox(height: 6),
+                    Text(
+                      'Quantidade: ${item.quantity}x',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -594,13 +594,13 @@ class _DeckLibraryView extends StatelessWidget {
   }
 }
 
-class _ResolvedCardImage extends ConsumerWidget {
+class _CollectionCardImage extends StatelessWidget {
   final String imageUrl;
   final String cardCode;
   final BoxFit fit;
   final double? height;
 
-  const _ResolvedCardImage({
+  const _CollectionCardImage({
     super.key,
     required this.imageUrl,
     required this.cardCode,
@@ -609,100 +609,55 @@ class _ResolvedCardImage extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final directUrl = imageUrl.trim();
 
-    if (directUrl.isNotEmpty) {
-      return Image.network(
-        directUrl,
-        key: ValueKey('direct-image-$cardCode-$directUrl'),
-        height: height,
-        fit: fit,
-        gaplessPlayback: false,
-        webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-        errorBuilder: (_, __, ___) {
-          return _ResolvedCardImageFromApi(
-            key: ValueKey('fallback-api-$cardCode'),
-            cardCode: cardCode,
-            fit: fit,
-            height: height,
-          );
-        },
-      );
+    if (directUrl.isEmpty) {
+      return _ImagePlaceholder(height: height);
     }
 
-    return _ResolvedCardImageFromApi(
-      key: ValueKey('api-image-$cardCode'),
-      cardCode: cardCode,
-      fit: fit,
+    return Image.network(
+      directUrl,
+      key: ValueKey('collection-image-$cardCode-$directUrl'),
       height: height,
+      fit: fit,
+      gaplessPlayback: false,
+      webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+      filterQuality: FilterQuality.low,
+      errorBuilder: (_, __, ___) {
+        return _ImagePlaceholder(height: height);
+      },
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+
+        return SizedBox(
+          height: height,
+          child: const Center(
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        );
+      },
     );
   }
 }
 
-class _ResolvedCardImageFromApi extends ConsumerWidget {
-  final String cardCode;
-  final BoxFit fit;
+class _ImagePlaceholder extends StatelessWidget {
   final double? height;
 
-  const _ResolvedCardImageFromApi({
-    super.key,
-    required this.cardCode,
-    required this.fit,
+  const _ImagePlaceholder({
     this.height,
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final api = ref.read(opApiServiceProvider);
-
-    return FutureBuilder(
-      key: ValueKey('future-image-$cardCode'),
-      future: api.findCardByCode(cardCode),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return SizedBox(
-            height: height,
-            child: const Center(
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          );
-        }
-
-        final resolvedUrl = snapshot.data?.image.trim() ?? '';
-
-        if (resolvedUrl.isEmpty) {
-          return SizedBox(
-            height: height,
-            child: Container(
-              color: Colors.grey.shade200,
-              child: const Center(
-                child: Icon(Icons.image_not_supported_outlined),
-              ),
-            ),
-          );
-        }
-
-        return Image.network(
-          resolvedUrl,
-          key: ValueKey('resolved-image-$cardCode-$resolvedUrl'),
-          height: height,
-          fit: fit,
-          gaplessPlayback: false,
-          webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-          errorBuilder: (_, __, ___) {
-            return SizedBox(
-              height: height,
-              child: Container(
-                color: Colors.grey.shade200,
-                child: const Center(
-                  child: Icon(Icons.broken_image_outlined),
-                ),
-              ),
-            );
-          },
-        );
-      },
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: height,
+      child: Container(
+        color: Colors.grey.shade200,
+        child: const Center(
+          child: Icon(Icons.image_not_supported_outlined),
+        ),
+      ),
     );
   }
 }
@@ -794,6 +749,90 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
     }
   }
 
+  void _openImagePreview() {
+    final card = widget.card;
+
+    if (card.imageUrl.trim().isEmpty) return;
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.92),
+      builder: (_) {
+        return Dialog.fullscreen(
+          backgroundColor: Colors.black,
+          child: Stack(
+            children: [
+              Center(
+                child: InteractiveViewer(
+                  minScale: 0.8,
+                  maxScale: 5,
+                  child: Image.network(
+                    card.imageUrl,
+                    fit: BoxFit.contain,
+                    webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+                    errorBuilder: (_, __, ___) {
+                      return const Center(
+                        child: Icon(
+                          Icons.broken_image_outlined,
+                          color: Colors.white70,
+                          size: 60,
+                        ),
+                      );
+                    },
+                    loadingBuilder: (context, child, progress) {
+                      if (progress == null) return child;
+                      return const Center(
+                        child: CircularProgressIndicator(),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 20,
+                right: 20,
+                child: SafeArea(
+                  child: IconButton.filled(
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.black54,
+                    ),
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 20,
+                bottom: 20,
+                right: 20,
+                child: SafeArea(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Text(
+                      '${card.name} • ${card.cardCode}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _changeQuantity(int delta) async {
     if (widget.sourceRecords.isEmpty) return;
 
@@ -866,14 +905,44 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
-                    ClipRRect(
+                    InkWell(
+                      onTap: _openImagePreview,
                       borderRadius: BorderRadius.circular(16),
-                      child: _ResolvedCardImage(
-                        imageUrl: card.imageUrl,
-                        cardCode: card.cardCode,
-                        height: 320,
-                        fit: BoxFit.contain,
+                      child: Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: _CollectionCardImage(
+                              imageUrl: card.imageUrl,
+                              cardCode: card.cardCode,
+                              height: 320,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                          Positioned(
+                            right: 10,
+                            top: 10,
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.55),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: const Icon(
+                                Icons.zoom_in,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Toque na imagem para ampliar',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12),
                     ),
                     const SizedBox(height: 16),
                     _infoRow('Quantidade', '${card.quantity}x'),

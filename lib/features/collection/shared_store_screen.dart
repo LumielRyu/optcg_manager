@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/painting.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/card_record.dart';
 import '../../data/repositories/collection_repository.dart';
+import '../../data/services/op_api_service.dart';
 
 class SharedStoreScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -37,8 +39,21 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
     super.dispose();
   }
 
+  String _buildPublicStoreLink() {
+    final base = Uri.base;
+    final origin = '${base.scheme}://${base.authority}';
+    final usesHashRouting = base.hasFragment && base.fragment.startsWith('/');
+
+    if (usesHashRouting) {
+      return '$origin/#/shared/store/${widget.userId}';
+    }
+
+    return '$origin/shared/store/${widget.userId}';
+  }
+
   Future<void> _copyStoreLink() async {
-    final link = '${Uri.base.origin}/shared/store/${widget.userId}';
+    final link = _buildPublicStoreLink();
+
     await Clipboard.setData(ClipboardData(text: link));
 
     if (!mounted) return;
@@ -162,7 +177,8 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                                     )
                                   : null,
                               filled: true,
-                              fillColor: theme.colorScheme.surface.withOpacity(0.9),
+                              fillColor:
+                                  theme.colorScheme.surface.withOpacity(0.9),
                             ),
                           ),
                         ),
@@ -202,7 +218,9 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                           final item = items[index];
 
                           return Card(
-                            key: ValueKey('store-${item.id}'),
+                            key: ValueKey(
+                              'shared-store-card-${item.id}-${item.cardCode}',
+                            ),
                             clipBehavior: Clip.antiAlias,
                             elevation: 1.5,
                             shape: RoundedRectangleBorder(
@@ -218,16 +236,13 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                                         .surfaceContainerHighest
                                         .withOpacity(0.35),
                                     padding: const EdgeInsets.all(8),
-                                    child: Image.network(
-                                      item.imageUrl,
+                                    child: _SharedStoreResolvedCardImage(
+                                      key: ValueKey(
+                                        'shared-store-image-${item.id}-${item.cardCode}-${item.imageUrl}',
+                                      ),
+                                      imageUrl: item.imageUrl,
+                                      cardCode: item.cardCode,
                                       fit: BoxFit.contain,
-                                      errorBuilder: (_, __, ___) {
-                                        return const Center(
-                                          child: Icon(
-                                            Icons.image_not_supported_outlined,
-                                          ),
-                                        );
-                                      },
                                     ),
                                   ),
                                 ),
@@ -347,6 +362,119 @@ class _MarketStatCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _SharedStoreResolvedCardImage extends ConsumerWidget {
+  final String imageUrl;
+  final String cardCode;
+  final BoxFit fit;
+  final double? height;
+
+  const _SharedStoreResolvedCardImage({
+    super.key,
+    required this.imageUrl,
+    required this.cardCode,
+    this.fit = BoxFit.contain,
+    this.height,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final directUrl = imageUrl.trim();
+
+    if (directUrl.isNotEmpty) {
+      return Image.network(
+        directUrl,
+        key: ValueKey('shared-direct-image-$cardCode-$directUrl'),
+        height: height,
+        fit: fit,
+        gaplessPlayback: false,
+        webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+        errorBuilder: (_, __, ___) {
+          return _SharedStoreResolvedCardImageFromApi(
+            key: ValueKey('shared-fallback-api-$cardCode'),
+            cardCode: cardCode,
+            fit: fit,
+            height: height,
+          );
+        },
+      );
+    }
+
+    return _SharedStoreResolvedCardImageFromApi(
+      key: ValueKey('shared-api-image-$cardCode'),
+      cardCode: cardCode,
+      fit: fit,
+      height: height,
+    );
+  }
+}
+
+class _SharedStoreResolvedCardImageFromApi extends ConsumerWidget {
+  final String cardCode;
+  final BoxFit fit;
+  final double? height;
+
+  const _SharedStoreResolvedCardImageFromApi({
+    super.key,
+    required this.cardCode,
+    required this.fit,
+    this.height,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final api = ref.read(opApiServiceProvider);
+
+    return FutureBuilder(
+      key: ValueKey('shared-future-image-$cardCode'),
+      future: api.findCardByCode(cardCode),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return SizedBox(
+            height: height,
+            child: const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        }
+
+        final resolvedUrl = snapshot.data?.image.trim() ?? '';
+
+        if (resolvedUrl.isEmpty) {
+          return SizedBox(
+            height: height,
+            child: Container(
+              color: Colors.grey.shade200,
+              child: const Center(
+                child: Icon(Icons.image_not_supported_outlined),
+              ),
+            ),
+          );
+        }
+
+        return Image.network(
+          resolvedUrl,
+          key: ValueKey('shared-resolved-image-$cardCode-$resolvedUrl'),
+          height: height,
+          fit: fit,
+          gaplessPlayback: false,
+          webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+          errorBuilder: (_, __, ___) {
+            return SizedBox(
+              height: height,
+              child: Container(
+                color: Colors.grey.shade200,
+                child: const Center(
+                  child: Icon(Icons.broken_image_outlined),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
