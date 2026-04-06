@@ -3,17 +3,14 @@ import 'package:flutter/painting.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/models/card_record.dart';
-import '../../data/repositories/collection_repository.dart';
+import '../../data/models/marketplace_listing.dart';
+import '../../data/repositories/marketplace_repository.dart';
 import '../../data/services/op_api_service.dart';
 
 class SharedStoreScreen extends ConsumerStatefulWidget {
   final String userId;
 
-  const SharedStoreScreen({
-    super.key,
-    required this.userId,
-  });
+  const SharedStoreScreen({super.key, required this.userId});
 
   @override
   ConsumerState<SharedStoreScreen> createState() => _SharedStoreScreenState();
@@ -57,16 +54,14 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
     await Clipboard.setData(ClipboardData(text: link));
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Link da vitrine copiado.'),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Link da vitrine copiado.')));
   }
 
   @override
   Widget build(BuildContext context) {
-    final repo = ref.read(collectionRepositoryProvider);
+    final repo = ref.read(marketplaceRepositoryProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -80,13 +75,11 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
           ),
         ],
       ),
-      body: FutureBuilder<List<CardRecord>>(
-        future: repo.getPublicSaleCardsByUser(widget.userId),
+      body: FutureBuilder<List<MarketplaceListing>>(
+        future: repo.getPublicListingsByUser(widget.userId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
           if (snapshot.hasError) {
@@ -172,13 +165,15 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                               prefixIcon: const Icon(Icons.search),
                               suffixIcon: _searchController.text.isNotEmpty
                                   ? IconButton(
-                                      onPressed: () => _searchController.clear(),
+                                      onPressed: () =>
+                                          _searchController.clear(),
                                       icon: const Icon(Icons.close),
                                     )
                                   : null,
                               filled: true,
-                              fillColor:
-                                  theme.colorScheme.surface.withOpacity(0.9),
+                              fillColor: theme.colorScheme.surface.withOpacity(
+                                0.9,
+                              ),
                             ),
                           ),
                         ),
@@ -208,11 +203,11 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                         padding: const EdgeInsets.all(12),
                         gridDelegate:
                             const SliverGridDelegateWithMaxCrossAxisExtent(
-                          maxCrossAxisExtent: 220,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: 0.58,
-                        ),
+                              maxCrossAxisExtent: 220,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                              childAspectRatio: 0.58,
+                            ),
                         itemCount: items.length,
                         itemBuilder: (context, index) {
                           final item = items[index];
@@ -247,8 +242,12 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                                   ),
                                 ),
                                 Padding(
-                                  padding:
-                                      const EdgeInsets.fromLTRB(10, 10, 10, 12),
+                                  padding: const EdgeInsets.fromLTRB(
+                                    10,
+                                    10,
+                                    10,
+                                    12,
+                                  ),
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
@@ -284,26 +283,102 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                                           ),
                                         ),
                                       const SizedBox(height: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 6,
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: theme
+                                                  .colorScheme
+                                                  .primaryContainer,
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
+                                            ),
+                                            child: Text(
+                                              'Quantidade: ${item.quantity}x',
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: theme
+                                                  .colorScheme
+                                                  .tertiaryContainer,
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
+                                            ),
+                                            child: Text(
+                                              item.formattedPrice,
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      if (item.hasContactInfo) ...[
+                                        const SizedBox(height: 10),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                item.contactInfo,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ),
+                                            IconButton(
+                                              tooltip: 'Copiar contato',
+                                              onPressed: () async {
+                                                await Clipboard.setData(
+                                                  ClipboardData(
+                                                    text: item.contactInfo,
+                                                  ),
+                                                );
+                                                if (!context.mounted) return;
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                      'Contato copiado.',
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                              icon: const Icon(
+                                                Icons.copy_outlined,
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                        decoration: BoxDecoration(
-                                          color: theme
-                                              .colorScheme
-                                              .primaryContainer,
-                                          borderRadius:
-                                              BorderRadius.circular(999),
-                                        ),
-                                        child: Text(
-                                          'Quantidade: ${item.quantity}x',
-                                          style: const TextStyle(
+                                      ],
+                                      if (item.hasNotes)
+                                        Text(
+                                          item.notes,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
                                             fontSize: 12,
-                                            fontWeight: FontWeight.w600,
+                                            color: Colors.grey.shade700,
                                           ),
                                         ),
-                                      ),
                                     ],
                                   ),
                                 ),
@@ -467,9 +542,7 @@ class _SharedStoreResolvedCardImageFromApi extends ConsumerWidget {
               height: height,
               child: Container(
                 color: Colors.grey.shade200,
-                child: const Center(
-                  child: Icon(Icons.broken_image_outlined),
-                ),
+                child: const Center(child: Icon(Icons.broken_image_outlined)),
               ),
             );
           },

@@ -253,17 +253,13 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
           children: [
             TextField(
               controller: _codeController,
-              decoration: const InputDecoration(
-                labelText: 'Código da carta',
-              ),
+              decoration: const InputDecoration(labelText: 'Código da carta'),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _quantityController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Quantidade',
-              ),
+              decoration: const InputDecoration(labelText: 'Quantidade'),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
@@ -279,16 +275,12 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
                   _destination = value!;
                 });
               },
-              decoration: const InputDecoration(
-                labelText: 'Destino',
-              ),
+              decoration: const InputDecoration(labelText: 'Destino'),
             ),
             if (_destination == CollectionTypes.deck) ...[
               const SizedBox(height: 12),
               TextField(
-                decoration: const InputDecoration(
-                  labelText: 'Nome do deck',
-                ),
+                decoration: const InputDecoration(labelText: 'Nome do deck'),
                 onChanged: (value) {
                   _deckName = value.trim();
                 },
@@ -296,10 +288,7 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
             ],
             if (_error != null) ...[
               const SizedBox(height: 12),
-              Text(
-                _error!,
-                style: const TextStyle(color: Colors.red),
-              ),
+              Text(_error!, style: const TextStyle(color: Colors.red)),
             ],
           ],
         ),
@@ -328,10 +317,7 @@ class _VariantPreviewImage extends StatelessWidget {
   final String imageUrl;
   final BoxFit fit;
 
-  const _VariantPreviewImage({
-    required this.imageUrl,
-    this.fit = BoxFit.cover,
-  });
+  const _VariantPreviewImage({required this.imageUrl, this.fit = BoxFit.cover});
 
   @override
   Widget build(BuildContext context) {

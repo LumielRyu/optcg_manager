@@ -8,11 +8,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/collection_types.dart';
 import '../../core/providers/collection_view_mode_provider.dart';
 import '../../core/providers/theme_mode_provider.dart';
-import '../../data/models/card_record.dart';
-import '../../data/repositories/collection_repository.dart';
+import '../../data/models/marketplace_listing.dart';
+import '../../data/repositories/marketplace_repository.dart';
 import '../../data/services/op_api_service.dart';
 import '../../data/services/translation_service.dart';
-import '../collection/collection_controller.dart';
 import '../collection/manual_add_dialog.dart';
 
 class SalesScreen extends ConsumerStatefulWidget {
@@ -26,6 +25,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
   bool _isSharingBusy = false;
+  int _reloadSeed = 0;
 
   @override
   void initState() {
@@ -41,6 +41,13 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _reloadListings() {
+    if (!mounted) return;
+    setState(() {
+      _reloadSeed++;
+    });
   }
 
   String _buildPublicStoreLink(String userId) {
@@ -61,7 +68,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     });
 
     try {
-      final repo = ref.read(collectionRepositoryProvider);
+      final repo = ref.read(marketplaceRepositoryProvider);
       await repo.enablePublicStoreSharingForUser();
 
       final user = Supabase.instance.client.auth.currentUser;
@@ -75,21 +82,18 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Link da vitrine copiado:\n$link'),
-        ),
+        SnackBar(content: Text('Link da vitrine copiado:\n$link')),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro ao copiar link: $e'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro ao copiar link: $e')));
     } finally {
       if (mounted) {
         setState(() {
           _isSharingBusy = false;
+          _reloadSeed++;
         });
       }
     }
@@ -101,25 +105,24 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     });
 
     try {
-      await ref.read(collectionRepositoryProvider).disableSaleSharingForUser();
+      await ref
+          .read(marketplaceRepositoryProvider)
+          .disablePublicStoreSharingForUser();
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vitrine pública desativada.'),
-        ),
+        const SnackBar(content: Text('Vitrine pública desativada.')),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro ao desativar vitrine: $e'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro ao desativar vitrine: $e')));
     } finally {
       if (mounted) {
         setState(() {
           _isSharingBusy = false;
+          _reloadSeed++;
         });
       }
     }
@@ -127,27 +130,11 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final allItems = ref.watch(collectionControllerProvider);
     final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
     final viewMode = ref.watch(collectionViewModeProvider);
-
-    final saleItems = allItems.where((card) {
-      return card.collectionType == CollectionTypes.forSale;
-    }).toList();
-
-    final filteredItems = saleItems.where((card) {
-      if (_query.isEmpty) return true;
-
-      return card.name.toLowerCase().contains(_query) ||
-          card.cardCode.toLowerCase().contains(_query) ||
-          card.setName.toLowerCase().contains(_query);
-    }).toList();
-
-    final totalUnique = filteredItems.map((e) => e.cardCode).toSet().length;
-    final totalCards = filteredItems.fold<int>(
-      0,
-      (sum, item) => sum + item.quantity,
-    );
+    final listingsFuture = ref
+        .read(marketplaceRepositoryProvider)
+        .getMyListings();
 
     return Scaffold(
       appBar: AppBar(
@@ -164,17 +151,26 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
           ),
           IconButton(
             tooltip: 'Importar por código',
-            onPressed: () => context.push('/code-import?destination=forSale'),
+            onPressed: () async {
+              await context.push('/code-import?destination=forSale');
+              _reloadListings();
+            },
             icon: const Icon(Icons.content_paste_outlined),
           ),
           IconButton(
             tooltip: 'Importar por imagem',
-            onPressed: () => context.push('/image-import?destination=forSale'),
+            onPressed: () async {
+              await context.push('/image-import?destination=forSale');
+              _reloadListings();
+            },
             icon: const Icon(Icons.image_outlined),
           ),
           IconButton(
             tooltip: 'Importar com câmera',
-            onPressed: () => context.push('/camera-import'),
+            onPressed: () async {
+              await context.push('/camera-import?destination=forSale');
+              _reloadListings();
+            },
             icon: const Icon(Icons.camera_alt_outlined),
           ),
           IconButton(
@@ -186,32 +182,74 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                   initialDestination: CollectionTypes.forSale,
                 ),
               );
+              _reloadListings();
             },
             icon: const Icon(Icons.add),
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _SalesHeaderSection(
-            totalUnique: totalUnique,
-            totalCards: totalCards,
-            searchController: _searchController,
-            viewMode: viewMode,
-            isSharingBusy: _isSharingBusy,
-            onViewModeChanged: (mode) {
-              ref.read(collectionViewModeProvider.notifier).setMode(mode);
-            },
-            onCopyLink: _copyStoreLink,
-            onDisableLink: _disableStoreLink,
-          ),
-          Expanded(
-            child: _SalesLibraryView(
-              items: filteredItems,
-              viewMode: viewMode,
-            ),
-          ),
-        ],
+      body: FutureBuilder<List<MarketplaceListing>>(
+        key: ValueKey('sales-listings-$_reloadSeed'),
+        future: listingsFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  'Erro ao carregar vendas:\n${snapshot.error}',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          }
+
+          final allItems = snapshot.data ?? const <MarketplaceListing>[];
+          final filteredItems = allItems.where((card) {
+            if (_query.isEmpty) return true;
+
+            return card.name.toLowerCase().contains(_query) ||
+                card.cardCode.toLowerCase().contains(_query) ||
+                card.setName.toLowerCase().contains(_query);
+          }).toList();
+
+          final totalUnique = filteredItems
+              .map((e) => e.cardCode)
+              .toSet()
+              .length;
+          final totalCards = filteredItems.fold<int>(
+            0,
+            (sum, item) => sum + item.quantity,
+          );
+
+          return Column(
+            children: [
+              _SalesHeaderSection(
+                totalUnique: totalUnique,
+                totalCards: totalCards,
+                searchController: _searchController,
+                viewMode: viewMode,
+                isSharingBusy: _isSharingBusy,
+                onViewModeChanged: (mode) {
+                  ref.read(collectionViewModeProvider.notifier).setMode(mode);
+                },
+                onCopyLink: _copyStoreLink,
+                onDisableLink: _disableStoreLink,
+              ),
+              Expanded(
+                child: _SalesLibraryView(
+                  items: filteredItems,
+                  viewMode: viewMode,
+                  onChanged: _reloadListings,
+                ),
+              ),
+            ],
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
@@ -221,6 +259,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
               initialDestination: CollectionTypes.forSale,
             ),
           );
+          _reloadListings();
         },
         icon: const Icon(Icons.add),
         label: const Text('Adicionar'),
@@ -399,13 +438,15 @@ class _SalesStatCard extends StatelessWidget {
 }
 
 class _SalesLibraryView extends ConsumerWidget {
-  final List<CardRecord> items;
+  final List<MarketplaceListing> items;
   final CollectionViewMode viewMode;
+  final VoidCallback onChanged;
 
   const _SalesLibraryView({
     super.key,
     required this.items,
     required this.viewMode,
+    required this.onChanged,
   });
 
   static const double _cardMaxWidth = 210;
@@ -417,7 +458,8 @@ class _SalesLibraryView extends ConsumerWidget {
     if (items.isEmpty) {
       return const _SalesEmptyState(
         title: 'Nenhuma carta à venda encontrada.',
-        subtitle: 'Adicione cartas na biblioteca de vendas para visualizar aqui.',
+        subtitle:
+            'Adicione cartas na biblioteca de vendas para visualizar aqui.',
       );
     }
 
@@ -441,10 +483,8 @@ class _SalesLibraryView extends ConsumerWidget {
               onTap: () {
                 showDialog(
                   context: context,
-                  builder: (_) => _SalesCardDetailsDialog(
-                    card: item,
-                    sourceRecords: [item],
-                  ),
+                  builder: (_) =>
+                      _SalesCardDetailsDialog(card: item, onChanged: onChanged),
                 );
               },
               child: Padding(
@@ -483,7 +523,11 @@ class _SalesLibraryView extends ConsumerWidget {
                           const SizedBox(height: 6),
                           Text(item.cardCode),
                           const SizedBox(height: 6),
-                          Text('Set: ${item.setName.isEmpty ? '-' : item.setName}'),
+                          Text(
+                            'Set: ${item.setName.isEmpty ? '-' : item.setName}',
+                          ),
+                          const SizedBox(height: 6),
+                          Text(item.formattedPrice),
                           const SizedBox(height: 6),
                           Text('Quantidade: ${item.quantity}x'),
                         ],
@@ -516,10 +560,8 @@ class _SalesLibraryView extends ConsumerWidget {
           onTap: () {
             showDialog(
               context: context,
-              builder: (_) => _SalesCardDetailsDialog(
-                card: item,
-                sourceRecords: [item],
-              ),
+              builder: (_) =>
+                  _SalesCardDetailsDialog(card: item, onChanged: onChanged),
             );
           },
           child: Card(
@@ -536,10 +578,9 @@ class _SalesLibraryView extends ConsumerWidget {
                   Expanded(
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest
-                            .withOpacity(0.35),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest.withOpacity(0.35),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       padding: const EdgeInsets.all(8),
@@ -568,15 +609,20 @@ class _SalesLibraryView extends ConsumerWidget {
                     item.cardCode,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade700,
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     'Quantidade: ${item.quantity}x',
                     style: const TextStyle(fontSize: 12),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    item.formattedPrice,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
@@ -689,9 +735,7 @@ class _SalesResolvedCardImageFromApi extends ConsumerWidget {
               height: height,
               child: Container(
                 color: Colors.grey.shade200,
-                child: const Center(
-                  child: Icon(Icons.broken_image_outlined),
-                ),
+                child: const Center(child: Icon(Icons.broken_image_outlined)),
               ),
             );
           },
@@ -705,10 +749,7 @@ class _SalesEmptyState extends StatelessWidget {
   final String title;
   final String subtitle;
 
-  const _SalesEmptyState({
-    required this.title,
-    required this.subtitle,
-  });
+  const _SalesEmptyState({required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
@@ -730,10 +771,7 @@ class _SalesEmptyState extends StatelessWidget {
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-            ),
+            Text(subtitle, textAlign: TextAlign.center),
           ],
         ),
       ),
@@ -742,13 +780,10 @@ class _SalesEmptyState extends StatelessWidget {
 }
 
 class _SalesCardDetailsDialog extends ConsumerStatefulWidget {
-  final CardRecord card;
-  final List<CardRecord> sourceRecords;
+  final MarketplaceListing card;
+  final VoidCallback onChanged;
 
-  const _SalesCardDetailsDialog({
-    required this.card,
-    required this.sourceRecords,
-  });
+  const _SalesCardDetailsDialog({required this.card, required this.onChanged});
 
   @override
   ConsumerState<_SalesCardDetailsDialog> createState() =>
@@ -758,10 +793,34 @@ class _SalesCardDetailsDialog extends ConsumerStatefulWidget {
 class _SalesCardDetailsDialogState
     extends ConsumerState<_SalesCardDetailsDialog> {
   final TranslationService _translationService = TranslationService();
+  late final TextEditingController _priceController;
+  late final TextEditingController _contactController;
+  late final TextEditingController _notesController;
 
   bool _isTranslating = false;
+  bool _isSavingListing = false;
   String? _translatedText;
   bool _showTranslated = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _priceController = TextEditingController(
+      text: widget.card.hasPrice
+          ? (widget.card.priceInCents! / 100).toStringAsFixed(2)
+          : '',
+    );
+    _contactController = TextEditingController(text: widget.card.contactInfo);
+    _notesController = TextEditingController(text: widget.card.notes);
+  }
+
+  @override
+  void dispose() {
+    _priceController.dispose();
+    _contactController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
 
   Future<void> _translateText() async {
     if (widget.card.text.trim().isEmpty) return;
@@ -771,8 +830,9 @@ class _SalesCardDetailsDialogState
     });
 
     try {
-      final translated =
-          await _translationService.translateToPortuguese(widget.card.text);
+      final translated = await _translationService.translateToPortuguese(
+        widget.card.text,
+      );
 
       setState(() {
         _translatedText = translated;
@@ -791,42 +851,75 @@ class _SalesCardDetailsDialogState
   }
 
   Future<void> _changeQuantity(int delta) async {
-    if (widget.sourceRecords.isEmpty) return;
-
-    final base = widget.sourceRecords.first;
-    final currentTotal =
-        widget.sourceRecords.fold<int>(0, (sum, item) => sum + item.quantity);
-    final newTotal = currentTotal + delta;
+    final newTotal = widget.card.quantity + delta;
 
     if (newTotal <= 0) {
-      for (final item in widget.sourceRecords) {
-        await ref.read(collectionControllerProvider.notifier).delete(item.id);
-      }
+      await ref
+          .read(marketplaceRepositoryProvider)
+          .deleteListing(widget.card.id);
+      widget.onChanged();
       if (mounted) Navigator.of(context).pop();
       return;
     }
 
-    if (widget.sourceRecords.length > 1) {
-      for (int i = 1; i < widget.sourceRecords.length; i++) {
-        await ref.read(collectionControllerProvider.notifier).delete(
-              widget.sourceRecords[i].id,
-            );
-      }
-    }
+    await ref
+        .read(marketplaceRepositoryProvider)
+        .updateQuantity(id: widget.card.id, quantity: newTotal);
 
-    await ref.read(collectionControllerProvider.notifier).update(
-          base.copyWith(quantity: newTotal),
-        );
-
+    widget.onChanged();
     if (mounted) Navigator.of(context).pop();
   }
 
   Future<void> _removeGroup() async {
-    for (final item in widget.sourceRecords) {
-      await ref.read(collectionControllerProvider.notifier).delete(item.id);
-    }
+    await ref.read(marketplaceRepositoryProvider).deleteListing(widget.card.id);
 
+    widget.onChanged();
     if (mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _saveListingDetails() async {
+    setState(() {
+      _isSavingListing = true;
+    });
+
+    try {
+      final normalizedPrice = _priceController.text.trim().replaceAll(',', '.');
+      final parsedPrice = normalizedPrice.isEmpty
+          ? null
+          : (double.tryParse(normalizedPrice) ?? -1);
+
+      if (parsedPrice != null && parsedPrice < 0) {
+        throw Exception('Preco invalido.');
+      }
+
+      await ref
+          .read(marketplaceRepositoryProvider)
+          .updateListingDetails(
+            id: widget.card.id,
+            priceInCents: parsedPrice == null
+                ? null
+                : (parsedPrice * 100).round(),
+            contactInfo: _contactController.text,
+            notes: _notesController.text,
+          );
+
+      widget.onChanged();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Dados do anuncio atualizados.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro ao salvar anuncio: $e')));
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _isSavingListing = false;
+      });
+    }
   }
 
   @override
@@ -836,10 +929,7 @@ class _SalesCardDetailsDialogState
     return Dialog(
       insetPadding: const EdgeInsets.all(16),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 560,
-          maxHeight: 860,
-        ),
+        constraints: const BoxConstraints(maxWidth: 560, maxHeight: 860),
         child: Column(
           children: [
             Expanded(
@@ -851,16 +941,12 @@ class _SalesCardDetailsDialogState
                     Text(
                       card.name,
                       textAlign: TextAlign.center,
-                      style:
-                          Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w800,
-                              ),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      card.cardCode,
-                      textAlign: TextAlign.center,
-                    ),
+                    Text(card.cardCode, textAlign: TextAlign.center),
                     const SizedBox(height: 16),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(16),
@@ -873,11 +959,56 @@ class _SalesCardDetailsDialogState
                     ),
                     const SizedBox(height: 16),
                     _infoRow('Quantidade', '${card.quantity}x'),
+                    _infoRow('Preco', card.formattedPrice),
                     _infoRow('Set', card.setName),
                     _infoRow('Raridade', card.rarity),
                     _infoRow('Cor', card.color),
                     _infoRow('Tipo', card.type),
                     _infoRow('Atributo', card.attribute),
+                    if (card.hasContactInfo)
+                      _infoRow('Contato', card.contactInfo),
+                    if (card.hasNotes) _infoRow('Observacoes', card.notes),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Dados do anuncio',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _priceController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Preco (ex: 12.50)',
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _contactController,
+                      decoration: const InputDecoration(labelText: 'Contato'),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _notesController,
+                      minLines: 2,
+                      maxLines: 4,
+                      decoration: const InputDecoration(
+                        labelText: 'Observacoes do anuncio',
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    FilledButton.icon(
+                      onPressed: _isSavingListing ? null : _saveListingDetails,
+                      icon: _isSavingListing
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.save_outlined),
+                      label: const Text('Salvar anuncio'),
+                    ),
                     const SizedBox(height: 16),
                     Row(
                       children: [
@@ -925,8 +1056,8 @@ class _SalesCardDetailsDialogState
                         _isTranslating
                             ? 'Traduzindo...'
                             : (_showTranslated
-                                ? 'Traduzir novamente'
-                                : 'Traduzir texto'),
+                                  ? 'Traduzir novamente'
+                                  : 'Traduzir texto'),
                       ),
                     ),
                     if (_showTranslated) ...[

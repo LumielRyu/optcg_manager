@@ -68,10 +68,7 @@ final GoRouter appRouter = GoRouter(
     return null;
   },
   routes: [
-    GoRoute(
-      path: '/',
-      builder: (context, state) => const AuthGate(),
-    ),
+    GoRoute(path: '/', builder: (context, state) => const AuthGate()),
     GoRoute(
       path: '/register',
       builder: (context, state) => const RegisterScreen(),
@@ -97,18 +94,12 @@ final GoRouter appRouter = GoRouter(
         return SharedStoreScreen(userId: userId);
       },
     ),
-    GoRoute(
-      path: '/home',
-      builder: (context, state) => const HomeScreen(),
-    ),
+    GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
     GoRoute(
       path: '/collection',
       builder: (context, state) => const CollectionScreen(),
     ),
-    GoRoute(
-      path: '/sales',
-      builder: (context, state) => const SalesScreen(),
-    ),
+    GoRoute(path: '/sales', builder: (context, state) => const SalesScreen()),
     GoRoute(
       path: '/code-import',
       builder: (context, state) => CodeImportScreen(
@@ -128,7 +119,11 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/camera-import',
-      builder: (context, state) => const CameraImportScreen(),
+      builder: (context, state) => CameraImportScreen(
+        initialDestination: _parseDestination(
+          state.uri.queryParameters['destination'],
+        ),
+      ),
     ),
   ],
 );

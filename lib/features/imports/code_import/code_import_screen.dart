@@ -28,7 +28,8 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedDestination = CollectionTypes.all.contains(widget.initialDestination)
+    _selectedDestination =
+        CollectionTypes.all.contains(widget.initialDestination)
         ? widget.initialDestination
         : CollectionTypes.owned;
   }
@@ -63,9 +64,7 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Importar por código'),
-      ),
+      appBar: AppBar(title: const Text('Importar por código')),
       body: Column(
         children: [
           Padding(
@@ -77,7 +76,8 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
                   maxLines: 10,
                   onChanged: (_) => setState(() {}),
                   decoration: InputDecoration(
-                    hintText: 'Use de dois jeitos:\n\n'
+                    hintText:
+                        'Use de dois jeitos:\n\n'
                         '1) Lista completa:\n1xOP14-020\n4xEB01-015\n4xST02-007\n\n'
                         '2) Código único:\nOP12-027',
                     border: OutlineInputBorder(
@@ -95,10 +95,7 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
                       border: OutlineInputBorder(),
                     ),
                     items: List.generate(20, (index) => index + 1).map((q) {
-                      return DropdownMenuItem<int>(
-                        value: q,
-                        child: Text('$q'),
-                      );
+                      return DropdownMenuItem<int>(value: q, child: Text('$q'));
                     }).toList(),
                     onChanged: (value) {
                       if (value == null) return;
@@ -163,53 +160,44 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
             child: state.isBusy
                 ? const Center(child: CircularProgressIndicator())
                 : state.error != null && state.candidates.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Text(
-                            state.error!,
-                            textAlign: TextAlign.center,
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(state.error!, textAlign: TextAlign.center),
+                    ),
+                  )
+                : state.candidates.isEmpty
+                ? const Center(child: Text('Nenhuma carta analisada ainda.'))
+                : ListView.separated(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: state.candidates.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final item = state.candidates[index];
+
+                      return Card(
+                        child: ListTile(
+                          leading: SizedBox(
+                            width: 56,
+                            height: 56,
+                            child: item.found
+                                ? _ImportPreviewImage(imageUrl: item.imageUrl)
+                                : const Icon(Icons.error_outline),
+                          ),
+                          title: Text(item.name ?? item.code),
+                          subtitle: Text(
+                            item.found
+                                ? '${item.code} • ${item.setName ?? '-'} • ${item.rarity ?? '-'} • Quantidade: ${item.quantity}x'
+                                : '${item.code} • Não encontrada • Quantidade: ${item.quantity}x',
+                          ),
+                          trailing: IconButton(
+                            onPressed: () => notifier.removeCandidate(index),
+                            icon: const Icon(Icons.delete_outline),
                           ),
                         ),
-                      )
-                    : state.candidates.isEmpty
-                        ? const Center(
-                            child: Text('Nenhuma carta analisada ainda.'),
-                          )
-                        : ListView.separated(
-                            padding: const EdgeInsets.all(12),
-                            itemCount: state.candidates.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(height: 10),
-                            itemBuilder: (context, index) {
-                              final item = state.candidates[index];
-
-                              return Card(
-                                child: ListTile(
-                                  leading: SizedBox(
-                                    width: 56,
-                                    height: 56,
-                                    child: item.found
-                                        ? _ImportPreviewImage(
-                                            imageUrl: item.imageUrl,
-                                          )
-                                        : const Icon(Icons.error_outline),
-                                  ),
-                                  title: Text(item.name ?? item.code),
-                                  subtitle: Text(
-                                    item.found
-                                        ? '${item.code} • ${item.setName ?? '-'} • ${item.rarity ?? '-'} • Quantidade: ${item.quantity}x'
-                                        : '${item.code} • Não encontrada • Quantidade: ${item.quantity}x',
-                                  ),
-                                  trailing: IconButton(
-                                    onPressed: () =>
-                                        notifier.removeCandidate(index),
-                                    icon: const Icon(Icons.delete_outline),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -223,9 +211,7 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
                     if (_selectedDestination == CollectionTypes.deck &&
                         _deckNameController.text.trim().isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Digite o nome do deck.'),
-                        ),
+                        const SnackBar(content: Text('Digite o nome do deck.')),
                       );
                       return;
                     }
@@ -242,9 +228,9 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
                     if (error == null) {
                       Navigator.of(context).pop();
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(error)),
-                      );
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text(error)));
                     }
                   },
             icon: const Icon(Icons.playlist_add_check),
@@ -350,10 +336,7 @@ class _ImportPreviewImage extends StatelessWidget {
   final String? imageUrl;
   final BoxFit fit;
 
-  const _ImportPreviewImage({
-    required this.imageUrl,
-    this.fit = BoxFit.cover,
-  });
+  const _ImportPreviewImage({required this.imageUrl, this.fit = BoxFit.cover});
 
   @override
   Widget build(BuildContext context) {

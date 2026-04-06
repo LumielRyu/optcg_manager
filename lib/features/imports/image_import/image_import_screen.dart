@@ -33,7 +33,8 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedDestination = CollectionTypes.all.contains(widget.initialDestination)
+    _selectedDestination =
+        CollectionTypes.all.contains(widget.initialDestination)
         ? widget.initialDestination
         : CollectionTypes.owned;
 
@@ -61,9 +62,7 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
     final notifier = ref.read(imageImportControllerProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Importar por imagem'),
-      ),
+      appBar: AppBar(title: const Text('Importar por imagem')),
       body: Column(
         children: [
           Expanded(
@@ -144,18 +143,13 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
                 const SizedBox(height: 8),
                 const Text(
                   'Resultado da análise',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
                 ),
                 const SizedBox(height: 12),
                 if (state.isBusy)
                   const Padding(
                     padding: EdgeInsets.all(24),
-                    child: Center(
-                      child: CircularProgressIndicator(),
-                    ),
+                    child: Center(child: CircularProgressIndicator()),
                   )
                 else if (state.error != null && state.error!.trim().isNotEmpty)
                   Padding(
@@ -217,9 +211,7 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
                     if (_selectedDestination == CollectionTypes.deck &&
                         _deckNameController.text.trim().isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Digite o nome do deck.'),
-                        ),
+                        const SnackBar(content: Text('Digite o nome do deck.')),
                       );
                       return;
                     }
@@ -236,9 +228,9 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
                     if (error == null) {
                       Navigator.of(context).pop();
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(error)),
-                      );
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text(error)));
                     }
                   },
             icon: const Icon(Icons.playlist_add_check),
@@ -262,10 +254,7 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
 
       return InteractiveViewer(
         child: Center(
-          child: Image.memory(
-            _webImageBytes!,
-            fit: BoxFit.contain,
-          ),
+          child: Image.memory(_webImageBytes!, fit: BoxFit.contain),
         ),
       );
     }
@@ -281,10 +270,7 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
 
     return InteractiveViewer(
       child: Center(
-        child: Image.file(
-          File(state.imagePath!),
-          fit: BoxFit.contain,
-        ),
+        child: Image.file(File(state.imagePath!), fit: BoxFit.contain),
       ),
     );
   }
@@ -293,9 +279,7 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
 class _ImageImportPreviewCard extends StatelessWidget {
   final String? imageUrl;
 
-  const _ImageImportPreviewCard({
-    required this.imageUrl,
-  });
+  const _ImageImportPreviewCard({required this.imageUrl});
 
   @override
   Widget build(BuildContext context) {

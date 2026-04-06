@@ -7,7 +7,9 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 class CameraImportScreen extends StatefulWidget {
-  const CameraImportScreen({super.key});
+  final String initialDestination;
+
+  const CameraImportScreen({super.key, this.initialDestination = 'owned'});
 
   @override
   State<CameraImportScreen> createState() => _CameraImportScreenState();
@@ -96,9 +98,7 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Não foi possível inicializar a câmera.'),
-        ),
+        const SnackBar(content: Text('Não foi possível inicializar a câmera.')),
       );
     }
   }
@@ -130,9 +130,7 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Não foi possível capturar a foto.'),
-        ),
+        const SnackBar(content: Text('Não foi possível capturar a foto.')),
       );
     } finally {
       if (!mounted) return;
@@ -194,7 +192,7 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
     if (_isWebMode) {
       if (_webCapturedBytes == null) return;
       context.push(
-        '/image-import',
+        '/image-import?destination=${widget.initialDestination}',
         extra: _webCapturedBytes,
       );
       return;
@@ -203,7 +201,7 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
     if (_capturedImagePath == null || _capturedImagePath!.isEmpty) return;
 
     context.push(
-      '/image-import',
+      '/image-import?destination=${widget.initialDestination}',
       extra: _capturedImagePath,
     );
   }
@@ -215,14 +213,10 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
         : (_capturedImagePath != null && _capturedImagePath!.isNotEmpty);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Importar com câmera'),
-      ),
+      appBar: AppBar(title: const Text('Importar com câmera')),
       body: Column(
         children: [
-          Expanded(
-            child: _buildBodyPreview(),
-          ),
+          Expanded(child: _buildBodyPreview()),
           SafeArea(
             top: false,
             child: Padding(
@@ -258,7 +252,9 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
                               : const Icon(Icons.camera_alt_outlined),
                           label: Text(
                             _hasStartedCameraFlow
-                                ? (_isWebMode ? 'Abrir câmera' : 'Capturar foto')
+                                ? (_isWebMode
+                                      ? 'Abrir câmera'
+                                      : 'Capturar foto')
                                 : 'Usar câmera',
                           ),
                         ),
@@ -299,9 +295,7 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
     }
 
     if (_isInitializingCamera) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (!_isCameraReady) {
@@ -335,10 +329,7 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
       return Container(
         color: Colors.black,
         alignment: Alignment.center,
-        child: Image.memory(
-          _webCapturedBytes!,
-          fit: BoxFit.contain,
-        ),
+        child: Image.memory(_webCapturedBytes!, fit: BoxFit.contain),
       );
     }
 
@@ -346,18 +337,13 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
       return Container(
         color: Colors.black,
         alignment: Alignment.center,
-        child: Image.file(
-          File(_capturedImagePath!),
-          fit: BoxFit.contain,
-        ),
+        child: Image.file(File(_capturedImagePath!), fit: BoxFit.contain),
       );
     }
 
     final controller = _cameraController;
     if (controller == null || !controller.value.isInitialized) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     return CameraPreview(controller);
