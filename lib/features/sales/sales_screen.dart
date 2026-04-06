@@ -4,6 +4,7 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/collection_types.dart';
 import '../../core/providers/collection_view_mode_provider.dart';
@@ -73,7 +74,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) {
-        throw Exception('Usuário não autenticado.');
+        throw Exception('UsuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o autenticado.');
       }
 
       final link = _buildPublicStoreLink(user.id);
@@ -111,7 +112,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vitrine pública desativada.')),
+        const SnackBar(content: Text('Vitrine pÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºblica desativada.')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -138,7 +139,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Cartas à venda'),
+        title: const Text('Cartas ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  venda'),
         actions: [
           IconButton(
             tooltip: isDark ? 'Modo claro' : 'Modo escuro',
@@ -150,7 +151,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
             ),
           ),
           IconButton(
-            tooltip: 'Importar por código',
+            tooltip: 'Importar por cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³digo',
             onPressed: () async {
               await context.push('/code-import?destination=forSale');
               _reloadListings();
@@ -166,7 +167,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
             icon: const Icon(Icons.image_outlined),
           ),
           IconButton(
-            tooltip: 'Importar com câmera',
+            tooltip: 'Importar com cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢mera',
             onPressed: () async {
               await context.push('/camera-import?destination=forSale');
               _reloadListings();
@@ -225,12 +226,14 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
             0,
             (sum, item) => sum + item.quantity,
           );
+          final pricedItems = filteredItems.where((item) => item.hasPrice).length;
 
           return Column(
             children: [
               _SalesHeaderSection(
                 totalUnique: totalUnique,
                 totalCards: totalCards,
+                pricedItems: pricedItems,
                 searchController: _searchController,
                 viewMode: viewMode,
                 isSharingBusy: _isSharingBusy,
@@ -271,6 +274,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 class _SalesHeaderSection extends StatelessWidget {
   final int totalUnique;
   final int totalCards;
+  final int pricedItems;
   final TextEditingController searchController;
   final CollectionViewMode viewMode;
   final ValueChanged<CollectionViewMode> onViewModeChanged;
@@ -281,6 +285,7 @@ class _SalesHeaderSection extends StatelessWidget {
   const _SalesHeaderSection({
     required this.totalUnique,
     required this.totalCards,
+    required this.pricedItems,
     required this.searchController,
     required this.viewMode,
     required this.onViewModeChanged,
@@ -316,7 +321,7 @@ class _SalesHeaderSection extends StatelessWidget {
                   runSpacing: 12,
                   children: [
                     _SalesStatCard(
-                      label: 'Cartas únicas',
+                      label: 'Cartas ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºnicas',
                       value: '$totalUnique',
                       icon: Icons.style_outlined,
                     ),
@@ -324,6 +329,11 @@ class _SalesHeaderSection extends StatelessWidget {
                       label: 'Total geral',
                       value: '$totalCards',
                       icon: Icons.format_list_numbered,
+                    ),
+                    _SalesStatCard(
+                      label: 'Com preÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o',
+                      value: '$pricedItems',
+                      icon: Icons.sell_outlined,
                     ),
                   ],
                 ),
@@ -356,7 +366,7 @@ class _SalesHeaderSection extends StatelessWidget {
                 child: TextField(
                   controller: searchController,
                   decoration: InputDecoration(
-                    hintText: 'Buscar por nome, código ou set',
+                    hintText: 'Buscar por nome, cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³digo ou set',
                     prefixIcon: const Icon(Icons.search),
                     suffixIcon: searchController.text.isNotEmpty
                         ? IconButton(
@@ -457,7 +467,7 @@ class _SalesLibraryView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
       return const _SalesEmptyState(
-        title: 'Nenhuma carta à venda encontrada.',
+        title: 'Nenhuma carta ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  venda encontrada.',
         subtitle:
             'Adicione cartas na biblioteca de vendas para visualizar aqui.',
       );
@@ -529,7 +539,21 @@ class _SalesLibraryView extends ConsumerWidget {
                           const SizedBox(height: 6),
                           Text(item.formattedPrice),
                           const SizedBox(height: 6),
+                          Text('Status: ${item.statusLabel}'),
+                          const SizedBox(height: 6),
+                          Text('CondiÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o: ${item.conditionLabel}'),
+                          const SizedBox(height: 6),
                           Text('Quantidade: ${item.quantity}x'),
+                          if (item.hasContactInfo) ...[
+                            const SizedBox(height: 6),
+                            const Text(
+                              'Contato configurado',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -618,12 +642,35 @@ class _SalesLibraryView extends ConsumerWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
+                    item.statusLabel,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    item.conditionLabel,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
                     item.formattedPrice,
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
+                  if (item.hasContactInfo) ...[
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Contato configurado',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -745,6 +792,173 @@ class _SalesResolvedCardImageFromApi extends ConsumerWidget {
   }
 }
 
+class _SalesZoomableCardImage extends ConsumerWidget {
+  final String imageUrl;
+  final String cardCode;
+  final String title;
+  final BoxFit fit;
+  final double? height;
+
+  const _SalesZoomableCardImage({
+    required this.imageUrl,
+    required this.cardCode,
+    required this.title,
+    this.fit = BoxFit.contain,
+    this.height,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final directUrl = imageUrl.trim();
+
+    if (directUrl.isNotEmpty) {
+      return _buildTapWrapper(
+        context,
+        _SalesResolvedCardImage(
+          imageUrl: directUrl,
+          cardCode: cardCode,
+          height: height,
+          fit: fit,
+        ),
+        directUrl,
+      );
+    }
+
+    final api = ref.read(opApiServiceProvider);
+
+    return FutureBuilder(
+      future: api.findCardByCode(cardCode),
+      builder: (context, snapshot) {
+        final resolvedUrl = snapshot.data?.image.trim() ?? '';
+
+        return _buildTapWrapper(
+          context,
+          _SalesResolvedCardImage(
+            imageUrl: imageUrl,
+            cardCode: cardCode,
+            height: height,
+            fit: fit,
+          ),
+          resolvedUrl,
+        );
+      },
+    );
+  }
+
+  Widget _buildTapWrapper(
+    BuildContext context,
+    Widget child,
+    String resolvedUrl,
+  ) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: resolvedUrl.trim().isEmpty
+            ? null
+            : () {
+                showDialog(
+                  context: context,
+                  barrierColor: Colors.black.withOpacity(0.92),
+                  builder: (_) => _SalesCardImageFullscreenDialog(
+                    imageUrl: resolvedUrl,
+                    title: title,
+                    cardCode: cardCode,
+                  ),
+                );
+              },
+        child: child,
+      ),
+    );
+  }
+}
+
+class _SalesCardImageFullscreenDialog extends StatelessWidget {
+  final String imageUrl;
+  final String title;
+  final String cardCode;
+
+  const _SalesCardImageFullscreenDialog({
+    required this.imageUrl,
+    required this.title,
+    required this.cardCode,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog.fullscreen(
+      backgroundColor: Colors.black,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: InteractiveViewer(
+              minScale: 0.8,
+              maxScale: 5,
+              panEnabled: true,
+              child: Center(
+                child: Image.network(
+                  imageUrl,
+                  fit: BoxFit.contain,
+                  webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+                  errorBuilder: (_, __, ___) {
+                    return const Center(
+                      child: Icon(
+                        Icons.broken_image_outlined,
+                        color: Colors.white70,
+                        size: 56,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 16,
+            left: 16,
+            right: 16,
+            child: SafeArea(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          cardCode,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  IconButton.filledTonal(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SalesEmptyState extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -796,6 +1010,8 @@ class _SalesCardDetailsDialogState
   late final TextEditingController _priceController;
   late final TextEditingController _contactController;
   late final TextEditingController _notesController;
+  late String _saleStatus;
+  late String _cardCondition;
 
   bool _isTranslating = false;
   bool _isSavingListing = false;
@@ -812,6 +1028,8 @@ class _SalesCardDetailsDialogState
     );
     _contactController = TextEditingController(text: widget.card.contactInfo);
     _notesController = TextEditingController(text: widget.card.notes);
+    _saleStatus = widget.card.saleStatus;
+    _cardCondition = widget.card.cardCondition;
   }
 
   @override
@@ -840,7 +1058,7 @@ class _SalesCardDetailsDialogState
       });
     } catch (_) {
       setState(() {
-        _translatedText = 'Não foi possível traduzir o texto da carta.';
+        _translatedText = 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o foi possÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel traduzir o texto da carta.';
         _showTranslated = true;
       });
     } finally {
@@ -889,7 +1107,7 @@ class _SalesCardDetailsDialogState
           : (double.tryParse(normalizedPrice) ?? -1);
 
       if (parsedPrice != null && parsedPrice < 0) {
-        throw Exception('Preco invalido.');
+        throw Exception('PreÃƒÆ’Ã‚Â§o invÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡lido.');
       }
 
       await ref
@@ -901,19 +1119,21 @@ class _SalesCardDetailsDialogState
                 : (parsedPrice * 100).round(),
             contactInfo: _contactController.text,
             notes: _notesController.text,
+            saleStatus: _saleStatus,
+            cardCondition: _cardCondition,
           );
 
       widget.onChanged();
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Dados do anuncio atualizados.')),
+        const SnackBar(content: Text('Dados do anÃƒÂºncio atualizados.')),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Erro ao salvar anuncio: $e')));
+      ).showSnackBar(SnackBar(content: Text('Erro ao salvar anÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºncio: $e')));
     } finally {
       if (!mounted) return;
       setState(() {
@@ -950,28 +1170,62 @@ class _SalesCardDetailsDialogState
                     const SizedBox(height: 16),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(16),
-                      child: _SalesResolvedCardImage(
+                      child: _SalesZoomableCardImage(
                         imageUrl: card.imageUrl,
                         cardCode: card.cardCode,
+                        title: card.name,
                         height: 320,
                         fit: BoxFit.contain,
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Toque na imagem para ampliar',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.black54,
+                      ),
+                    ),
                     const SizedBox(height: 16),
                     _infoRow('Quantidade', '${card.quantity}x'),
-                    _infoRow('Preco', card.formattedPrice),
+                    _infoRow('Preço', card.formattedPrice),
+                    _infoRow('Status', card.statusLabel),
                     _infoRow('Set', card.setName),
                     _infoRow('Raridade', card.rarity),
+                    _infoRow('Condição', card.conditionLabel),
                     _infoRow('Cor', card.color),
                     _infoRow('Tipo', card.type),
                     _infoRow('Atributo', card.attribute),
                     if (card.hasContactInfo)
                       _infoRow('Contato', card.contactInfo),
-                    if (card.hasNotes) _infoRow('Observacoes', card.notes),
+                    if (card.hasNotes)
+                      _infoRow('Observações', card.notes),
+                    if (card.hasWhatsAppContact) ...[
+                      const SizedBox(height: 8),
+                      FilledButton.icon(
+                        onPressed: () async {
+                          final uri = Uri.parse(card.whatsappUrl);
+                          final launched = await launchUrl(
+                            uri,
+                            mode: LaunchMode.externalApplication,
+                          );
+                          if (!launched && mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Não foi possível abrir o WhatsApp.',
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.open_in_new),
+                        label: const Text('Abrir no WhatsApp'),
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     const Text(
-                      'Dados do anuncio',
-                      style: TextStyle(fontWeight: FontWeight.w700),
+                      'Dados do anúncio',
                     ),
                     const SizedBox(height: 8),
                     TextField(
@@ -980,7 +1234,7 @@ class _SalesCardDetailsDialogState
                         decimal: true,
                       ),
                       decoration: const InputDecoration(
-                        labelText: 'Preco (ex: 12.50)',
+                        labelText: 'Preço (ex: 12.50)',
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -989,12 +1243,62 @@ class _SalesCardDetailsDialogState
                       decoration: const InputDecoration(labelText: 'Contato'),
                     ),
                     const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: _saleStatus,
+                      decoration: const InputDecoration(
+                        labelText: 'Status do anúncio',
+                      ),
+                      items: MarketplaceListing.saleStatuses.map((status) {
+                        final label = switch (status) {
+                          'reserved' => 'Reservada',
+                          'sold' => 'Vendida',
+                          _ => 'Ativa',
+                        };
+                        return DropdownMenuItem<String>(
+                          value: status,
+                          child: Text(label),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setState(() {
+                          _saleStatus = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: _cardCondition,
+                      decoration: const InputDecoration(
+                        labelText: 'Condição da carta',
+                      ),
+                      items: MarketplaceListing.cardConditions.map((condition) {
+                        final label = switch (condition) {
+                          'near_mint' => 'Near Mint',
+                          'lightly_played' => 'Light Play',
+                          'played' => 'Played',
+                          'damaged' => 'Damaged',
+                          _ => 'Mint',
+                        };
+                        return DropdownMenuItem<String>(
+                          value: condition,
+                          child: Text(label),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setState(() {
+                          _cardCondition = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 8),
                     TextField(
                       controller: _notesController,
                       minLines: 2,
                       maxLines: 4,
                       decoration: const InputDecoration(
-                        labelText: 'Observacoes do anuncio',
+                        labelText: 'Observações do anúncio',
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -1007,7 +1311,7 @@ class _SalesCardDetailsDialogState
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.save_outlined),
-                      label: const Text('Salvar anuncio'),
+                      label: const Text('Salvar anÃƒÆ’Ã‚Âºncio'),
                     ),
                     const SizedBox(height: 16),
                     Row(
@@ -1070,7 +1374,7 @@ class _SalesCardDetailsDialogState
                       Text(
                         (_translatedText == null ||
                                 _translatedText!.trim().isEmpty)
-                            ? 'Sem tradução disponível.'
+                            ? 'Sem traduÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£o disponÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­vel.'
                             : _translatedText!,
                       ),
                     ],

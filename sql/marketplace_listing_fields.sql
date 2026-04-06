@@ -6,3 +6,9 @@ add column if not exists sale_contact_info text;
 
 alter table public.collection_items
 add column if not exists sale_notes text;
+
+alter table public.collection_items
+add column if not exists sale_status text default 'active';
+
+alter table public.collection_items
+add column if not exists card_condition text default 'mint';

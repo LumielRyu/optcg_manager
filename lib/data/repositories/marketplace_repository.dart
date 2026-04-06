@@ -32,10 +32,37 @@ class MarketplaceRepository {
     return _fetchListings(userId: userId, onlyPublic: true);
   }
 
+  Future<MarketplaceListing?> getPublicListingByShareCode(
+    String shareCode,
+  ) async {
+    await _opApi.preload();
+
+    final row = await _client
+        .from('collection_items')
+        .select()
+        .eq('share_code', shareCode)
+        .eq('is_public', true)
+        .eq('collection_type', 'forSale')
+        .maybeSingle();
+
+    if (row == null) {
+      return null;
+    }
+
+    final map = Map<String, dynamic>.from(row);
+    final cardCode = (map['card_code'] ?? '').toString().trim().toUpperCase();
+
+    if (!_apiCardCache.containsKey(cardCode)) {
+      _apiCardCache[cardCode] = await _opApi.findCardByCode(cardCode);
+    }
+
+    return _mapRowToListing(map);
+  }
+
   Future<void> enablePublicStoreSharingForUser() async {
     final user = _client.auth.currentUser;
     if (user == null) {
-      throw Exception('Usuario nao autenticado.');
+      throw Exception('Usuário não autenticado.');
     }
 
     await _client
@@ -61,15 +88,19 @@ class MarketplaceRepository {
     required int? priceInCents,
     required String contactInfo,
     required String notes,
+    required String saleStatus,
+    required String cardCondition,
   }) async {
-    await _client
-        .from('collection_items')
-        .update({
-          'sale_price_cents': priceInCents,
-          'sale_contact_info': contactInfo.trim(),
-          'sale_notes': notes.trim(),
-        })
-        .eq('id', id);
+    final payload = <String, dynamic>{
+      'sale_contact_info': contactInfo.trim(),
+      'sale_notes': notes.trim(),
+      'sale_status': saleStatus,
+      'card_condition': cardCondition,
+    };
+
+    payload['sale_price_cents'] = priceInCents;
+
+    await _client.from('collection_items').update(payload).eq('id', id);
   }
 
   Future<void> updateQuantity({
@@ -172,6 +203,11 @@ class MarketplaceRepository {
       priceInCents: (map['sale_price_cents'] as num?)?.toInt(),
       contactInfo: (map['sale_contact_info'] ?? '').toString(),
       notes: (map['sale_notes'] ?? '').toString(),
+      saleStatus: (map['sale_status'] ?? MarketplaceListing.activeStatus)
+          .toString(),
+      cardCondition:
+          (map['card_condition'] ?? MarketplaceListing.mintCondition)
+              .toString(),
     );
   }
 }

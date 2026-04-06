@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/models/marketplace_listing.dart';
 import '../../data/repositories/marketplace_repository.dart';
@@ -144,7 +145,8 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                       children: [
                         _MarketStatCard(
                           title: 'Cartas únicas',
-                          value: '${allItems.length}',
+                          value:
+                              '${allItems.map((item) => item.cardCode).toSet().length}',
                           icon: Icons.style_outlined,
                         ),
                         _MarketStatCard(
@@ -293,6 +295,48 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                                               vertical: 6,
                                             ),
                                             decoration: BoxDecoration(
+                                              color: item.isSold
+                                                  ? Colors.grey.shade300
+                                                  : item.isReserved
+                                                      ? Colors.amber.shade100
+                                                      : theme.colorScheme
+                                                          .secondaryContainer,
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
+                                            ),
+                                            child: Text(
+                                              item.statusLabel,
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: theme.colorScheme
+                                                  .surfaceContainerHighest,
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
+                                            ),
+                                            child: Text(
+                                              item.conditionLabel,
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
                                               color: theme
                                                   .colorScheme
                                                   .primaryContainer,
@@ -366,6 +410,36 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                                                 Icons.copy_outlined,
                                               ),
                                             ),
+                                            if (item.hasWhatsAppContact)
+                                              IconButton(
+                                                tooltip: 'Abrir WhatsApp',
+                                                onPressed: () async {
+                                                  final uri = Uri.parse(
+                                                    item.whatsappUrl,
+                                                  );
+                                                  final launched =
+                                                      await launchUrl(
+                                                    uri,
+                                                    mode: LaunchMode
+                                                        .externalApplication,
+                                                  );
+                                                  if (!launched &&
+                                                      context.mounted) {
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      const SnackBar(
+                                                        content: Text(
+                                                          'NÃ£o foi possÃ­vel abrir o WhatsApp.',
+                                                        ),
+                                                      ),
+                                                    );
+                                                  }
+                                                },
+                                                icon: const Icon(
+                                                  Icons.open_in_new,
+                                                ),
+                                              ),
                                           ],
                                         ),
                                       ],

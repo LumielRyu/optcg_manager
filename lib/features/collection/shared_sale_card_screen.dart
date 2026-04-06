@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/painting.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-import '../../data/repositories/collection_repository.dart';
+import '../../data/models/marketplace_listing.dart';
+import '../../data/repositories/marketplace_repository.dart';
 import '../../data/services/op_api_service.dart';
 
 class SharedSaleCardScreen extends ConsumerWidget {
@@ -15,14 +18,14 @@ class SharedSaleCardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final repo = ref.read(collectionRepositoryProvider);
+    final repo = ref.read(marketplaceRepositoryProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Carta à venda'),
+        title: const Text('Carta ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  venda'),
       ),
-      body: FutureBuilder(
-        future: repo.getSharedSaleCard(shareCode),
+      body: FutureBuilder<MarketplaceListing?>(
+        future: repo.getPublicListingByShareCode(shareCode),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
@@ -39,18 +42,17 @@ class SharedSaleCardScreen extends ConsumerWidget {
             );
           }
 
-          final shared = snapshot.data;
+          final item = snapshot.data;
 
-          if (shared == null) {
+          if (item == null) {
             return const Center(
               child: Padding(
                 padding: EdgeInsets.all(24),
-                child: Text('Carta não encontrada ou não está pública.'),
+                child: Text('Carta nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o encontrada ou nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ pÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºblica.'),
               ),
             );
           }
 
-          final item = shared.item;
 
           return Center(
             child: ConstrainedBox(
@@ -101,6 +103,64 @@ class SharedSaleCardScreen extends ConsumerWidget {
                         _row('Cor', item.color),
                         _row('Tipo', item.type),
                         _row('Atributo', item.attribute),
+                        _row('Preço', item.formattedPrice),
+                        _row('Status', item.statusLabel),
+                        _row('Condição', item.conditionLabel),
+                        if (item.hasContactInfo)
+                          _row('Contato', item.contactInfo),
+                        if (item.hasNotes)
+                          _row('Observações', item.notes),
+                        if (item.hasContactInfo) ...[
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: FilledButton.icon(
+                                  onPressed: () async {
+                                    await Clipboard.setData(
+                                      ClipboardData(text: item.contactInfo),
+                                    );
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Contato copiado.'),
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.copy_outlined),
+                                  label: const Text('Copiar contato'),
+                                ),
+                              ),
+                              if (item.hasWhatsAppContact) ...[
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: FilledButton.tonalIcon(
+                                    onPressed: () async {
+                                      final uri = Uri.parse(item.whatsappUrl);
+                                      final launched = await launchUrl(
+                                        uri,
+                                        mode: LaunchMode.externalApplication,
+                                      );
+                                      if (!launched && context.mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'NÃƒÂ£o foi possÃƒÂ­vel abrir o WhatsApp.',
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                    icon: const Icon(Icons.open_in_new),
+                                    label: const Text('WhatsApp'),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
                         const SizedBox(height: 12),
                         Align(
                           alignment: Alignment.centerLeft,

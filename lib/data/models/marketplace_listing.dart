@@ -17,6 +17,8 @@ class MarketplaceListing {
   final int? priceInCents;
   final String contactInfo;
   final String notes;
+  final String saleStatus;
+  final String cardCondition;
 
   const MarketplaceListing({
     required this.id,
@@ -37,6 +39,8 @@ class MarketplaceListing {
     required this.priceInCents,
     required this.contactInfo,
     required this.notes,
+    required this.saleStatus,
+    required this.cardCondition,
   });
 
   MarketplaceListing copyWith({
@@ -59,6 +63,8 @@ class MarketplaceListing {
     bool clearPrice = false,
     String? contactInfo,
     String? notes,
+    String? saleStatus,
+    String? cardCondition,
   }) {
     return MarketplaceListing(
       id: id ?? this.id,
@@ -79,13 +85,15 @@ class MarketplaceListing {
       priceInCents: clearPrice ? null : (priceInCents ?? this.priceInCents),
       contactInfo: contactInfo ?? this.contactInfo,
       notes: notes ?? this.notes,
+      saleStatus: saleStatus ?? this.saleStatus,
+      cardCondition: cardCondition ?? this.cardCondition,
     );
   }
 
   String get formattedPrice {
     final value = priceInCents;
     if (value == null || value <= 0) {
-      return 'Sem preco';
+      return 'Sem Pre\u00E7o';
     }
 
     final reais = value ~/ 100;
@@ -107,4 +115,73 @@ class MarketplaceListing {
   bool get hasContactInfo => contactInfo.trim().isNotEmpty;
   bool get hasNotes => notes.trim().isNotEmpty;
   bool get hasPrice => (priceInCents ?? 0) > 0;
+
+  bool get isSold => saleStatus == soldStatus;
+  bool get isReserved => saleStatus == reservedStatus;
+  bool get isActive => saleStatus == activeStatus;
+
+  bool get hasWhatsAppContact => normalizedWhatsAppNumber.isNotEmpty;
+
+  String get normalizedWhatsAppNumber {
+    final digits = contactInfo.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) return '';
+    if (digits.startsWith('55')) return digits;
+    return '55$digits';
+  }
+
+  String get whatsappUrl {
+    final phone = normalizedWhatsAppNumber;
+    if (phone.isEmpty) return '';
+    return 'https://wa.me/$phone';
+  }
+
+  String get statusLabel {
+    switch (saleStatus) {
+      case reservedStatus:
+        return 'Reservada';
+      case soldStatus:
+        return 'Vendida';
+      default:
+        return 'Ativa';
+    }
+  }
+
+  String get conditionLabel {
+    switch (cardCondition) {
+      case nearMintCondition:
+        return 'Near Mint';
+      case lightlyPlayedCondition:
+        return 'Light Play';
+      case playedCondition:
+        return 'Played';
+      case damagedCondition:
+        return 'Damaged';
+      default:
+        return 'Mint';
+    }
+  }
+
+  static const String activeStatus = 'active';
+  static const String reservedStatus = 'reserved';
+  static const String soldStatus = 'sold';
+
+  static const String mintCondition = 'mint';
+  static const String nearMintCondition = 'near_mint';
+  static const String lightlyPlayedCondition = 'lightly_played';
+  static const String playedCondition = 'played';
+  static const String damagedCondition = 'damaged';
+
+  static const List<String> saleStatuses = [
+    activeStatus,
+    reservedStatus,
+    soldStatus,
+  ];
+
+  static const List<String> cardConditions = [
+    mintCondition,
+    nearMintCondition,
+    lightlyPlayedCondition,
+    playedCondition,
+    damagedCondition,
+  ];
 }
