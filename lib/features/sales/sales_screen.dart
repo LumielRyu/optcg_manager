@@ -164,12 +164,12 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
           ),
           IconButton(
             tooltip: 'Importar por código',
-            onPressed: () => context.push('/code-import'),
+            onPressed: () => context.push('/code-import?destination=forSale'),
             icon: const Icon(Icons.content_paste_outlined),
           ),
           IconButton(
             tooltip: 'Importar por imagem',
-            onPressed: () => context.push('/image-import'),
+            onPressed: () => context.push('/image-import?destination=forSale'),
             icon: const Icon(Icons.image_outlined),
           ),
           IconButton(
@@ -182,7 +182,9 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
             onPressed: () async {
               await showDialog(
                 context: context,
-                builder: (_) => const ManualAddDialog(),
+                builder: (_) => const ManualAddDialog(
+                  initialDestination: CollectionTypes.forSale,
+                ),
               );
             },
             icon: const Icon(Icons.add),
@@ -215,7 +217,9 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
         onPressed: () async {
           await showDialog(
             context: context,
-            builder: (_) => const ManualAddDialog(),
+            builder: (_) => const ManualAddDialog(
+              initialDestination: CollectionTypes.forSale,
+            ),
           );
         },
         icon: const Icon(Icons.add),

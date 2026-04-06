@@ -12,7 +12,12 @@ import '../../data/services/op_api_service.dart';
 import 'collection_controller.dart';
 
 class ManualAddDialog extends ConsumerStatefulWidget {
-  const ManualAddDialog({super.key});
+  final String initialDestination;
+
+  const ManualAddDialog({
+    super.key,
+    this.initialDestination = CollectionTypes.owned,
+  });
 
   @override
   ConsumerState<ManualAddDialog> createState() => _ManualAddDialogState();
@@ -22,11 +27,19 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
   final _codeController = TextEditingController();
   final _quantityController = TextEditingController(text: '1');
 
-  String _destination = CollectionTypes.owned;
+  late String _destination;
   String? _deckName;
 
   bool _isLoading = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _destination = CollectionTypes.all.contains(widget.initialDestination)
+        ? widget.initialDestination
+        : CollectionTypes.owned;
+  }
 
   Future<void> _save() async {
     final api = ref.read(opApiServiceProvider);

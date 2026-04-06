@@ -11,10 +11,12 @@ import 'image_import_controller.dart';
 
 class ImageImportScreen extends ConsumerStatefulWidget {
   final Object? initialImageSource;
+  final String initialDestination;
 
   const ImageImportScreen({
     super.key,
     this.initialImageSource,
+    this.initialDestination = CollectionTypes.owned,
   });
 
   @override
@@ -25,12 +27,15 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
   final TextEditingController _codesController = TextEditingController();
   final TextEditingController _deckNameController = TextEditingController();
 
-  String _selectedDestination = CollectionTypes.owned;
+  late String _selectedDestination;
   Uint8List? _webImageBytes;
 
   @override
   void initState() {
     super.initState();
+    _selectedDestination = CollectionTypes.all.contains(widget.initialDestination)
+        ? widget.initialDestination
+        : CollectionTypes.owned;
 
     final source = widget.initialImageSource;
 

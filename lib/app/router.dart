@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/constants/collection_types.dart';
 import '../features/auth/auth_gate.dart';
 import '../features/auth/register_screen.dart';
 import '../features/collection/collection_screen.dart';
@@ -110,12 +111,19 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/code-import',
-      builder: (context, state) => const CodeImportScreen(),
+      builder: (context, state) => CodeImportScreen(
+        initialDestination: _parseDestination(
+          state.uri.queryParameters['destination'],
+        ),
+      ),
     ),
     GoRoute(
       path: '/image-import',
       builder: (context, state) => ImageImportScreen(
         initialImageSource: state.extra,
+        initialDestination: _parseDestination(
+          state.uri.queryParameters['destination'],
+        ),
       ),
     ),
     GoRoute(
@@ -124,3 +132,11 @@ final GoRouter appRouter = GoRouter(
     ),
   ],
 );
+
+String _parseDestination(String? rawDestination) {
+  if (CollectionTypes.all.contains(rawDestination)) {
+    return rawDestination!;
+  }
+
+  return CollectionTypes.owned;
+}

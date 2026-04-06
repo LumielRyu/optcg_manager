@@ -6,7 +6,12 @@ import '../../../core/constants/collection_types.dart';
 import 'code_import_controller.dart';
 
 class CodeImportScreen extends ConsumerStatefulWidget {
-  const CodeImportScreen({super.key});
+  final String initialDestination;
+
+  const CodeImportScreen({
+    super.key,
+    this.initialDestination = CollectionTypes.owned,
+  });
 
   @override
   ConsumerState<CodeImportScreen> createState() => _CodeImportScreenState();
@@ -16,9 +21,17 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
   final TextEditingController _controller = TextEditingController();
   final TextEditingController _deckNameController = TextEditingController();
 
-  String _selectedDestination = CollectionTypes.owned;
+  late String _selectedDestination;
   int _singleCodeQuantity = 1;
   String? _lastHandledSelectionId;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDestination = CollectionTypes.all.contains(widget.initialDestination)
+        ? widget.initialDestination
+        : CollectionTypes.owned;
+  }
 
   @override
   void dispose() {
