@@ -6,8 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../main.dart';
-
 class CameraImportScreen extends StatefulWidget {
   const CameraImportScreen({super.key});
 
@@ -56,20 +54,22 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
       return;
     }
 
-    if (appCameras.isEmpty) {
-      if (!mounted) return;
-      setState(() {
-        _isWebMode = false;
-        _isCameraReady = false;
-        _isInitializingCamera = false;
-      });
-      return;
-    }
-
     try {
-      final backCamera = appCameras.firstWhere(
+      final cameras = await availableCameras();
+
+      if (cameras.isEmpty) {
+        if (!mounted) return;
+        setState(() {
+          _isWebMode = false;
+          _isCameraReady = false;
+          _isInitializingCamera = false;
+        });
+        return;
+      }
+
+      final backCamera = cameras.firstWhere(
         (camera) => camera.lensDirection == CameraLensDirection.back,
-        orElse: () => appCameras.first,
+        orElse: () => cameras.first,
       );
 
       final controller = CameraController(
@@ -81,7 +81,6 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
       await controller.initialize();
 
       if (!mounted) return;
-
       setState(() {
         _cameraController = controller;
         _isWebMode = false;
@@ -125,13 +124,11 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
       final file = await controller.takePicture();
 
       if (!mounted) return;
-
       setState(() {
         _capturedImagePath = file.path;
       });
     } catch (_) {
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Não foi possível capturar a foto.'),
@@ -166,16 +163,13 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
 
       if (kIsWeb) {
         final bytes = await file.readAsBytes();
-
         if (!mounted) return;
-
         setState(() {
           _webCapturedBytes = bytes;
           _capturedImagePath = null;
         });
       } else {
         if (!mounted) return;
-
         setState(() {
           _capturedImagePath = file.path;
           _webCapturedBytes = null;
@@ -183,7 +177,6 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
       }
     } catch (_) {
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Não foi possível abrir a câmera do navegador.'),
@@ -200,7 +193,6 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
   void _goToImageImport() {
     if (_isWebMode) {
       if (_webCapturedBytes == null) return;
-
       context.push(
         '/image-import',
         extra: _webCapturedBytes,
@@ -266,9 +258,7 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
                               : const Icon(Icons.camera_alt_outlined),
                           label: Text(
                             _hasStartedCameraFlow
-                                ? (_isWebMode
-                                    ? 'Abrir câmera'
-                                    : 'Capturar foto')
+                                ? (_isWebMode ? 'Abrir câmera' : 'Capturar foto')
                                 : 'Usar câmera',
                           ),
                         ),

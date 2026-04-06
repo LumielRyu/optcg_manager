@@ -1,35 +1,31 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/painting.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/painting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/constants/collection_types.dart';
 import '../../core/providers/collection_view_mode_provider.dart';
 import '../../core/providers/theme_mode_provider.dart';
 import '../../data/models/card_record.dart';
+import '../../data/repositories/collection_repository.dart';
 import '../../data/services/op_api_service.dart';
 import '../../data/services/translation_service.dart';
-import 'collection_controller.dart';
-import 'deck_details_dialog.dart';
-import 'manual_add_dialog.dart';
+import '../collection/collection_controller.dart';
+import '../collection/manual_add_dialog.dart';
 
-class CollectionScreen extends ConsumerStatefulWidget {
-  const CollectionScreen({super.key});
+class SalesScreen extends ConsumerStatefulWidget {
+  const SalesScreen({super.key});
 
   @override
-  ConsumerState<CollectionScreen> createState() => _CollectionScreenState();
+  ConsumerState<SalesScreen> createState() => _SalesScreenState();
 }
 
-class _CollectionScreenState extends ConsumerState<CollectionScreen> {
-  String _selectedLibrary = CollectionTypes.owned;
+class _SalesScreenState extends ConsumerState<SalesScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
-
-  static const List<String> _collectionLibraries = [
-    CollectionTypes.owned,
-    CollectionTypes.deck,
-  ];
+  bool _isSharingBusy = false;
 
   @override
   void initState() {
@@ -47,29 +43,107 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
     super.dispose();
   }
 
+  String _buildPublicStoreLink(String userId) {
+    final base = Uri.base;
+    final origin = '${base.scheme}://${base.authority}';
+    final usesHashRouting = base.hasFragment && base.fragment.startsWith('/');
+
+    if (usesHashRouting) {
+      return '$origin/#/shared/store/$userId';
+    }
+
+    return '$origin/shared/store/$userId';
+  }
+
+  Future<void> _copyStoreLink() async {
+    setState(() {
+      _isSharingBusy = true;
+    });
+
+    try {
+      final repo = ref.read(collectionRepositoryProvider);
+      await repo.enablePublicStoreSharingForUser();
+
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        throw Exception('Usuário não autenticado.');
+      }
+
+      final link = _buildPublicStoreLink(user.id);
+
+      await Clipboard.setData(ClipboardData(text: link));
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Link da vitrine copiado:\n$link'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao copiar link: $e'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSharingBusy = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _disableStoreLink() async {
+    setState(() {
+      _isSharingBusy = true;
+    });
+
+    try {
+      await ref.read(collectionRepositoryProvider).disableSaleSharingForUser();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vitrine pública desativada.'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao desativar vitrine: $e'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSharingBusy = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final allItems = ref.watch(collectionControllerProvider);
     final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
     final viewMode = ref.watch(collectionViewModeProvider);
 
-    final libraryItems = allItems.where((card) {
-      return card.collectionType == _selectedLibrary;
+    final saleItems = allItems.where((card) {
+      return card.collectionType == CollectionTypes.forSale;
     }).toList();
 
-    final filteredItems = libraryItems.where((card) {
+    final filteredItems = saleItems.where((card) {
       if (_query.isEmpty) return true;
 
       return card.name.toLowerCase().contains(_query) ||
           card.cardCode.toLowerCase().contains(_query) ||
-          card.setName.toLowerCase().contains(_query) ||
-          (card.deckName?.toLowerCase().contains(_query) ?? false);
+          card.setName.toLowerCase().contains(_query);
     }).toList();
 
-    final totalUnique = _selectedLibrary == CollectionTypes.deck
-        ? _countUniqueDecks(filteredItems)
-        : _countUniqueCards(filteredItems);
-
+    final totalUnique = filteredItems.map((e) => e.cardCode).toSet().length;
     final totalCards = filteredItems.fold<int>(
       0,
       (sum, item) => sum + item.quantity,
@@ -77,7 +151,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Minha coleção'),
+        title: const Text('Cartas à venda'),
         actions: [
           IconButton(
             tooltip: isDark ? 'Modo claro' : 'Modo escuro',
@@ -117,40 +191,23 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
       ),
       body: Column(
         children: [
-          _HeaderSection(
-            selectedLibrary: _selectedLibrary,
-            libraryOptions: _collectionLibraries,
-            onLibraryChanged: (value) {
-              setState(() {
-                _selectedLibrary = value;
-              });
-            },
+          _SalesHeaderSection(
             totalUnique: totalUnique,
             totalCards: totalCards,
             searchController: _searchController,
             viewMode: viewMode,
+            isSharingBusy: _isSharingBusy,
             onViewModeChanged: (mode) {
               ref.read(collectionViewModeProvider.notifier).setMode(mode);
             },
+            onCopyLink: _copyStoreLink,
+            onDisableLink: _disableStoreLink,
           ),
           Expanded(
-            child: _selectedLibrary == CollectionTypes.deck
-                ? _DeckLibraryView(
-                    items: filteredItems,
-                    onOpenDeck: (deckName, deckItems) {
-                      showDialog(
-                        context: context,
-                        builder: (_) => DeckDetailsDialog(
-                          deckName: deckName,
-                          items: deckItems,
-                        ),
-                      );
-                    },
-                  )
-                : _StandardLibraryView(
-                    items: filteredItems,
-                    viewMode: viewMode,
-                  ),
+            child: _SalesLibraryView(
+              items: filteredItems,
+              viewMode: viewMode,
+            ),
           ),
         ],
       ),
@@ -166,40 +223,27 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
       ),
     );
   }
-
-  int _countUniqueCards(List<CardRecord> items) {
-    final codes = items.map((e) => e.cardCode).toSet();
-    return codes.length;
-  }
-
-  int _countUniqueDecks(List<CardRecord> items) {
-    final decks = items
-        .map((e) => (e.deckName ?? '').trim())
-        .where((e) => e.isNotEmpty)
-        .toSet();
-    return decks.length;
-  }
 }
 
-class _HeaderSection extends StatelessWidget {
-  final String selectedLibrary;
-  final List<String> libraryOptions;
-  final ValueChanged<String> onLibraryChanged;
+class _SalesHeaderSection extends StatelessWidget {
   final int totalUnique;
   final int totalCards;
   final TextEditingController searchController;
   final CollectionViewMode viewMode;
   final ValueChanged<CollectionViewMode> onViewModeChanged;
+  final VoidCallback onCopyLink;
+  final VoidCallback onDisableLink;
+  final bool isSharingBusy;
 
-  const _HeaderSection({
-    required this.selectedLibrary,
-    required this.libraryOptions,
-    required this.onLibraryChanged,
+  const _SalesHeaderSection({
     required this.totalUnique,
     required this.totalCards,
     required this.searchController,
     required this.viewMode,
     required this.onViewModeChanged,
+    required this.onCopyLink,
+    required this.onDisableLink,
+    required this.isSharingBusy,
   });
 
   @override
@@ -215,8 +259,8 @@ class _HeaderSection extends StatelessWidget {
             theme.colorScheme.primaryContainer,
             theme.colorScheme.surface,
           ],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
       ),
       child: Column(
@@ -225,81 +269,80 @@ class _HeaderSection extends StatelessWidget {
             children: [
               Expanded(
                 child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: libraryOptions.map((type) {
-                    final selected = selectedLibrary == type;
-
-                    return ChoiceChip(
-                      label: Text(CollectionTypes.label(type)),
-                      selected: selected,
-                      onSelected: (_) => onLibraryChanged(type),
-                    );
-                  }).toList(),
-                ),
-              ),
-              if (selectedLibrary != CollectionTypes.deck) ...[
-                const SizedBox(width: 12),
-                SegmentedButton<CollectionViewMode>(
-                  segments: const [
-                    ButtonSegment(
-                      value: CollectionViewMode.grid,
-                      icon: Icon(Icons.grid_view_outlined),
-                      label: Text('Grade'),
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    _SalesStatCard(
+                      label: 'Cartas únicas',
+                      value: '$totalUnique',
+                      icon: Icons.style_outlined,
                     ),
-                    ButtonSegment(
-                      value: CollectionViewMode.list,
-                      icon: Icon(Icons.view_list_outlined),
-                      label: Text('Lista'),
+                    _SalesStatCard(
+                      label: 'Total geral',
+                      value: '$totalCards',
+                      icon: Icons.format_list_numbered,
                     ),
                   ],
-                  selected: {viewMode},
-                  onSelectionChanged: (selection) {
-                    onViewModeChanged(selection.first);
-                  },
                 ),
-              ],
+              ),
+              const SizedBox(width: 12),
+              SegmentedButton<CollectionViewMode>(
+                segments: const [
+                  ButtonSegment(
+                    value: CollectionViewMode.grid,
+                    icon: Icon(Icons.grid_view_outlined),
+                    label: Text('Grade'),
+                  ),
+                  ButtonSegment(
+                    value: CollectionViewMode.list,
+                    icon: Icon(Icons.view_list_outlined),
+                    label: Text('Lista'),
+                  ),
+                ],
+                selected: {viewMode},
+                onSelectionChanged: (selection) {
+                  onViewModeChanged(selection.first);
+                },
+              ),
             ],
           ),
           const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
-                child: _StatCard(
-                  label: selectedLibrary == CollectionTypes.deck
-                      ? 'Decks'
-                      : 'Cartas únicas',
-                  value: '$totalUnique',
-                  icon: selectedLibrary == CollectionTypes.deck
-                      ? Icons.dashboard_customize_outlined
-                      : Icons.style_outlined,
+                child: TextField(
+                  controller: searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Buscar por nome, código ou set',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: searchController.text.isNotEmpty
+                        ? IconButton(
+                            onPressed: () => searchController.clear(),
+                            icon: const Icon(Icons.close),
+                          )
+                        : null,
+                  ),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _StatCard(
-                  label: 'Total geral',
-                  value: '$totalCards',
-                  icon: Icons.format_list_numbered,
-                ),
+              const SizedBox(width: 8),
+              FilledButton.icon(
+                onPressed: isSharingBusy ? null : onCopyLink,
+                icon: isSharingBusy
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.copy_outlined),
+                label: const Text('Copiar link'),
+              ),
+              const SizedBox(width: 8),
+              FilledButton.tonalIcon(
+                onPressed: isSharingBusy ? null : onDisableLink,
+                icon: const Icon(Icons.link_off),
+                label: const Text('Desativar'),
               ),
             ],
-          ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: searchController,
-            decoration: InputDecoration(
-              hintText: selectedLibrary == CollectionTypes.deck
-                  ? 'Buscar por deck, carta ou set'
-                  : 'Buscar por nome, código ou set',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: searchController.text.isNotEmpty
-                  ? IconButton(
-                      onPressed: () => searchController.clear(),
-                      icon: const Icon(Icons.close),
-                    )
-                  : null,
-            ),
           ),
         ],
       ),
@@ -307,12 +350,12 @@ class _HeaderSection extends StatelessWidget {
   }
 }
 
-class _StatCard extends StatelessWidget {
+class _SalesStatCard extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
 
-  const _StatCard({
+  const _SalesStatCard({
     required this.label,
     required this.value,
     required this.icon,
@@ -329,6 +372,7 @@ class _StatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon),
           const SizedBox(width: 10),
@@ -350,11 +394,11 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-class _StandardLibraryView extends ConsumerWidget {
+class _SalesLibraryView extends ConsumerWidget {
   final List<CardRecord> items;
   final CollectionViewMode viewMode;
 
-  const _StandardLibraryView({
+  const _SalesLibraryView({
     super.key,
     required this.items,
     required this.viewMode,
@@ -367,9 +411,9 @@ class _StandardLibraryView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
-      return const _EmptyState(
-        title: 'Nenhuma carta encontrada.',
-        subtitle: 'Adicione cartas ou ajuste sua busca.',
+      return const _SalesEmptyState(
+        title: 'Nenhuma carta à venda encontrada.',
+        subtitle: 'Adicione cartas na biblioteca de vendas para visualizar aqui.',
       );
     }
 
@@ -379,7 +423,7 @@ class _StandardLibraryView extends ConsumerWidget {
 
     if (viewMode == CollectionViewMode.list) {
       return ListView.separated(
-        key: ValueKey('collection-list-$itemsSignature'),
+        key: ValueKey('sales-list-$itemsSignature'),
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
         itemCount: items.length,
         separatorBuilder: (_, __) => const SizedBox(height: 10),
@@ -387,13 +431,13 @@ class _StandardLibraryView extends ConsumerWidget {
           final item = items[index];
 
           return Card(
-            key: ValueKey('list-card-${item.id}-${item.cardCode}'),
+            key: ValueKey('sales-list-card-${item.id}-${item.cardCode}'),
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
               onTap: () {
                 showDialog(
                   context: context,
-                  builder: (_) => _CardDetailsDialog(
+                  builder: (_) => _SalesCardDetailsDialog(
                     card: item,
                     sourceRecords: [item],
                   ),
@@ -408,9 +452,9 @@ class _StandardLibraryView extends ConsumerWidget {
                       child: SizedBox(
                         width: 82,
                         height: 112,
-                        child: _ResolvedCardImage(
+                        child: _SalesResolvedCardImage(
                           key: ValueKey(
-                            'list-image-${item.id}-${item.cardCode}-${item.imageUrl}',
+                            'sales-list-image-${item.id}-${item.cardCode}-${item.imageUrl}',
                           ),
                           imageUrl: item.imageUrl,
                           cardCode: item.cardCode,
@@ -451,7 +495,7 @@ class _StandardLibraryView extends ConsumerWidget {
     }
 
     return GridView.builder(
-      key: ValueKey('collection-grid-$itemsSignature'),
+      key: ValueKey('sales-grid-$itemsSignature'),
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: _cardMaxWidth,
@@ -464,11 +508,11 @@ class _StandardLibraryView extends ConsumerWidget {
         final item = items[index];
 
         return InkWell(
-          key: ValueKey('grid-card-${item.id}-${item.cardCode}'),
+          key: ValueKey('sales-grid-card-${item.id}-${item.cardCode}'),
           onTap: () {
             showDialog(
               context: context,
-              builder: (_) => _CardDetailsDialog(
+              builder: (_) => _SalesCardDetailsDialog(
                 card: item,
                 sourceRecords: [item],
               ),
@@ -495,9 +539,9 @@ class _StandardLibraryView extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       padding: const EdgeInsets.all(8),
-                      child: _ResolvedCardImage(
+                      child: _SalesResolvedCardImage(
                         key: ValueKey(
-                          'grid-image-${item.id}-${item.cardCode}-${item.imageUrl}',
+                          'sales-grid-image-${item.id}-${item.cardCode}-${item.imageUrl}',
                         ),
                         imageUrl: item.imageUrl,
                         cardCode: item.cardCode,
@@ -540,67 +584,13 @@ class _StandardLibraryView extends ConsumerWidget {
   }
 }
 
-class _DeckLibraryView extends StatelessWidget {
-  final List<CardRecord> items;
-  final void Function(String deckName, List<CardRecord> deckItems) onOpenDeck;
-
-  const _DeckLibraryView({
-    required this.items,
-    required this.onOpenDeck,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (items.isEmpty) {
-      return const _EmptyState(
-        title: 'Nenhum deck encontrado.',
-        subtitle: 'Adicione cartas em um deck para visualizar aqui.',
-      );
-    }
-
-    final grouped = <String, List<CardRecord>>{};
-
-    for (final item in items) {
-      final name = (item.deckName ?? 'Sem nome').trim();
-      grouped.putIfAbsent(name, () => []).add(item);
-    }
-
-    final decks = grouped.entries.toList()
-      ..sort((a, b) => a.key.toLowerCase().compareTo(b.key.toLowerCase()));
-
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
-      itemCount: decks.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        final deck = decks[index];
-        final totalCards =
-            deck.value.fold<int>(0, (sum, item) => sum + item.quantity);
-
-        return Card(
-          child: ListTile(
-            leading: const CircleAvatar(
-              child: Icon(Icons.dashboard_customize_outlined),
-            ),
-            title: Text(deck.key),
-            subtitle: Text(
-              '${deck.value.length} cartas únicas • $totalCards cartas no total',
-            ),
-            onTap: () => onOpenDeck(deck.key, deck.value),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _ResolvedCardImage extends ConsumerWidget {
+class _SalesResolvedCardImage extends ConsumerWidget {
   final String imageUrl;
   final String cardCode;
   final BoxFit fit;
   final double? height;
 
-  const _ResolvedCardImage({
+  const _SalesResolvedCardImage({
     super.key,
     required this.imageUrl,
     required this.cardCode,
@@ -615,14 +605,14 @@ class _ResolvedCardImage extends ConsumerWidget {
     if (directUrl.isNotEmpty) {
       return Image.network(
         directUrl,
-        key: ValueKey('direct-image-$cardCode-$directUrl'),
+        key: ValueKey('sales-direct-image-$cardCode-$directUrl'),
         height: height,
         fit: fit,
         gaplessPlayback: false,
         webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
         errorBuilder: (_, __, ___) {
-          return _ResolvedCardImageFromApi(
-            key: ValueKey('fallback-api-$cardCode'),
+          return _SalesResolvedCardImageFromApi(
+            key: ValueKey('sales-fallback-api-$cardCode'),
             cardCode: cardCode,
             fit: fit,
             height: height,
@@ -631,8 +621,8 @@ class _ResolvedCardImage extends ConsumerWidget {
       );
     }
 
-    return _ResolvedCardImageFromApi(
-      key: ValueKey('api-image-$cardCode'),
+    return _SalesResolvedCardImageFromApi(
+      key: ValueKey('sales-api-image-$cardCode'),
       cardCode: cardCode,
       fit: fit,
       height: height,
@@ -640,12 +630,12 @@ class _ResolvedCardImage extends ConsumerWidget {
   }
 }
 
-class _ResolvedCardImageFromApi extends ConsumerWidget {
+class _SalesResolvedCardImageFromApi extends ConsumerWidget {
   final String cardCode;
   final BoxFit fit;
   final double? height;
 
-  const _ResolvedCardImageFromApi({
+  const _SalesResolvedCardImageFromApi({
     super.key,
     required this.cardCode,
     required this.fit,
@@ -657,7 +647,7 @@ class _ResolvedCardImageFromApi extends ConsumerWidget {
     final api = ref.read(opApiServiceProvider);
 
     return FutureBuilder(
-      key: ValueKey('future-image-$cardCode'),
+      key: ValueKey('sales-future-image-$cardCode'),
       future: api.findCardByCode(cardCode),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -685,7 +675,7 @@ class _ResolvedCardImageFromApi extends ConsumerWidget {
 
         return Image.network(
           resolvedUrl,
-          key: ValueKey('resolved-image-$cardCode-$resolvedUrl'),
+          key: ValueKey('sales-resolved-image-$cardCode-$resolvedUrl'),
           height: height,
           fit: fit,
           gaplessPlayback: false,
@@ -707,11 +697,11 @@ class _ResolvedCardImageFromApi extends ConsumerWidget {
   }
 }
 
-class _EmptyState extends StatelessWidget {
+class _SalesEmptyState extends StatelessWidget {
   final String title;
   final String subtitle;
 
-  const _EmptyState({
+  const _SalesEmptyState({
     required this.title,
     required this.subtitle,
   });
@@ -725,7 +715,7 @@ class _EmptyState extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.inbox_outlined,
+              Icons.storefront_outlined,
               size: 60,
               color: Colors.grey.shade500,
             ),
@@ -747,20 +737,22 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-class _CardDetailsDialog extends ConsumerStatefulWidget {
+class _SalesCardDetailsDialog extends ConsumerStatefulWidget {
   final CardRecord card;
   final List<CardRecord> sourceRecords;
 
-  const _CardDetailsDialog({
+  const _SalesCardDetailsDialog({
     required this.card,
     required this.sourceRecords,
   });
 
   @override
-  ConsumerState<_CardDetailsDialog> createState() => _CardDetailsDialogState();
+  ConsumerState<_SalesCardDetailsDialog> createState() =>
+      _SalesCardDetailsDialogState();
 }
 
-class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
+class _SalesCardDetailsDialogState
+    extends ConsumerState<_SalesCardDetailsDialog> {
   final TranslationService _translationService = TranslationService();
 
   bool _isTranslating = false;
@@ -868,7 +860,7 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
                     const SizedBox(height: 16),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(16),
-                      child: _ResolvedCardImage(
+                      child: _SalesResolvedCardImage(
                         imageUrl: card.imageUrl,
                         cardCode: card.cardCode,
                         height: 320,
@@ -882,12 +874,6 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
                     _infoRow('Cor', card.color),
                     _infoRow('Tipo', card.type),
                     _infoRow('Atributo', card.attribute),
-                    _infoRow(
-                      'Biblioteca',
-                      CollectionTypes.label(card.collectionType),
-                    ),
-                    if (card.deckName != null && card.deckName!.trim().isNotEmpty)
-                      _infoRow('Deck', card.deckName!),
                     const SizedBox(height: 16),
                     Row(
                       children: [

@@ -463,6 +463,76 @@ class CollectionRepository {
     return shareCode;
   }
 
+  Future<void> enablePublicStoreSharingForUser() async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw Exception('Usuário não autenticado.');
+    }
+
+    await _client.from('collection_items').update({
+      'is_public': true,
+    }).eq('user_id', user.id).eq('collection_type', CollectionTypes.forSale);
+
+    await refreshAll();
+  }
+
+  Future<void> disableSaleSharingForUser() async {
+    final user = _client.auth.currentUser;
+    if (user == null) return;
+
+    await _client.from('collection_items').update({
+      'is_public': false,
+    }).eq('user_id', user.id).eq('collection_type', CollectionTypes.forSale);
+
+    await refreshAll();
+  }
+
+  Future<List<CardRecord>> getPublicSaleCardsByUser(String userId) async {
+    await _opApi.preload();
+
+    final response = await _client
+        .from('collection_items')
+        .select('id, card_code, quantity, is_favorite, created_at')
+        .eq('user_id', userId)
+        .eq('is_public', true)
+        .eq('collection_type', CollectionTypes.forSale)
+        .order('created_at', ascending: false);
+
+    final items = <CardRecord>[];
+
+    for (final raw in (response as List)) {
+      final map = Map<String, dynamic>.from(raw);
+      final cardCode =
+          (map['card_code'] ?? '').toString().trim().toUpperCase();
+      final apiCard = await _opApi.findCardByCode(cardCode);
+
+      items.add(
+        CardRecord(
+          id: map['id'].toString(),
+          cardCode: cardCode,
+          name: apiCard?.name ?? cardCode,
+          imageUrl: apiCard?.image ?? '',
+          dateAddedUtc: DateTime.tryParse(
+                (map['created_at'] ?? '').toString(),
+              ) ??
+              DateTime.now(),
+          setName: apiCard?.setName ?? '',
+          rarity: apiCard?.rarity ?? '',
+          color: apiCard?.color ?? '',
+          type: apiCard?.type ?? '',
+          text: apiCard?.text ?? '',
+          attribute: apiCard?.attribute ?? '',
+          quantity: (map['quantity'] as num?)?.toInt() ?? 1,
+          collectionType: CollectionTypes.forSale,
+          deckName: null,
+          isFavorite: (map['is_favorite'] as bool?) ?? false,
+        ),
+      );
+    }
+
+    return items;
+  }
+
   Future<void> disableSaleCardSharing(String itemId) async {
     final user = _client.auth.currentUser;
     if (user == null || !_isValidUuid(itemId)) return;
@@ -470,6 +540,8 @@ class CollectionRepository {
     await _client.from('collection_items').update({
       'is_public': false,
     }).eq('user_id', user.id).eq('id', itemId);
+
+    await refreshAll();
   }
 
   Future<SharedSaleCardData?> getSharedSaleCard(String shareCode) async {

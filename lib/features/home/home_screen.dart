@@ -37,15 +37,14 @@ class HomeScreen extends ConsumerWidget {
       ),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 920),
+          constraints: const BoxConstraints(maxWidth: 1040),
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(22),
+                  padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
@@ -69,7 +68,7 @@ class HomeScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        'Gerencie coleção, decks e importações em um só lugar.',
+                        'Gerencie sua coleção, organize decks e publique sua vitrine de vendas em um só lugar.',
                         style: Theme.of(context).textTheme.bodyMedium,
                         textAlign: TextAlign.center,
                       ),
@@ -77,36 +76,88 @@ class HomeScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 24),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  alignment: WrapAlignment.center,
-                  children: [
-                    FilledButton.icon(
-                      onPressed: () => context.push('/collection'),
-                      icon: const Icon(Icons.collections_bookmark_outlined),
-                      label: const Text('Abrir coleção'),
-                    ),
-                    FilledButton.tonalIcon(
-                      onPressed: () => context.push('/code-import'),
-                      icon: const Icon(Icons.content_paste_outlined),
-                      label: const Text('Importar por código'),
-                    ),
-                    FilledButton.tonalIcon(
-                      onPressed: () => context.push('/image-import'),
-                      icon: const Icon(Icons.image_outlined),
-                      label: const Text('Importar por imagem'),
-                    ),
-                    FilledButton.tonalIcon(
-                      onPressed: () => context.push('/camera-import'),
-                      icon: const Icon(Icons.camera_alt_outlined),
-                      label: const Text('Importar com câmera'),
-                    ),
-                  ],
+                Expanded(
+                  child: GridView.count(
+                    crossAxisCount:
+                        MediaQuery.of(context).size.width > 900 ? 2 : 1,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 1.65,
+                    children: [
+                      _HomeFeatureCard(
+                        icon: Icons.collections_bookmark_outlined,
+                        title: 'Abrir coleção',
+                        subtitle:
+                            'Acesse cartas obtidas e decks montados, além das ferramentas de importação.',
+                        buttonLabel: 'Abrir coleção',
+                        onPressed: () => context.push('/collection'),
+                      ),
+                      _HomeFeatureCard(
+                        icon: Icons.storefront_outlined,
+                        title: 'Cartas à venda',
+                        subtitle:
+                            'Gerencie sua área de vendas e copie o link da sua vitrine pública.',
+                        buttonLabel: 'Abrir vendas',
+                        onPressed: () => context.push('/sales'),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeFeatureCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String buttonLabel;
+  final VoidCallback onPressed;
+
+  const _HomeFeatureCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.buttonLabel,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      elevation: 1.5,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(22),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 32),
+            const SizedBox(height: 18),
+            Text(
+              title,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(subtitle),
+            const Spacer(),
+            FilledButton.icon(
+              onPressed: onPressed,
+              icon: const Icon(Icons.arrow_forward),
+              label: Text(buttonLabel),
+            ),
+          ],
         ),
       ),
     );
