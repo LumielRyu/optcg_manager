@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
@@ -24,6 +25,7 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
   bool _isWebMode = false;
   bool _hasStartedCameraFlow = false;
   bool _isInitializingCamera = false;
+  bool _isOpeningImport = false;
 
   String? _capturedImagePath;
   Uint8List? _webCapturedBytes;
@@ -98,7 +100,7 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Não foi possível inicializar a câmera.')),
+        const SnackBar(content: Text('Nao foi possivel inicializar a camera.')),
       );
     }
   }
@@ -127,10 +129,12 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
       setState(() {
         _capturedImagePath = file.path;
       });
+
+      await _openImageImport();
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Não foi possível capturar a foto.')),
+        const SnackBar(content: Text('Nao foi possivel capturar a foto.')),
       );
     } finally {
       if (!mounted) return;
@@ -173,11 +177,13 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
           _webCapturedBytes = null;
         });
       }
+
+      await _openImageImport();
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Não foi possível abrir a câmera do navegador.'),
+          content: Text('Nao foi possivel abrir a camera do navegador.'),
         ),
       );
     } finally {
@@ -188,22 +194,18 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
     }
   }
 
-  void _goToImageImport() {
-    if (_isWebMode) {
-      if (_webCapturedBytes == null) return;
-      context.push(
-        '/image-import?destination=${widget.initialDestination}',
-        extra: _webCapturedBytes,
-      );
-      return;
-    }
+  Future<void> _openImageImport() async {
+    if (_isOpeningImport) return;
 
-    if (_capturedImagePath == null || _capturedImagePath!.isEmpty) return;
+    final extra = _isWebMode ? _webCapturedBytes : _capturedImagePath;
+    if (extra == null) return;
 
+    _isOpeningImport = true;
     context.push(
       '/image-import?destination=${widget.initialDestination}',
-      extra: _capturedImagePath,
+      extra: extra,
     );
+    _isOpeningImport = false;
   }
 
   @override
@@ -213,7 +215,7 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
         : (_capturedImagePath != null && _capturedImagePath!.isNotEmpty);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Importar com câmera')),
+      appBar: AppBar(title: const Text('Importar com camera')),
       body: Column(
         children: [
           Expanded(child: _buildBodyPreview()),
@@ -229,8 +231,8 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Text(
                         canContinue
-                            ? 'Foto capturada. Continue para importar.'
-                            : 'No navegador, a captura usa a câmera do próprio navegador.',
+                            ? 'Foto capturada. A analise sera aberta em seguida.'
+                            : 'No navegador, a captura usa a camera do proprio navegador.',
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -253,17 +255,27 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
                           label: Text(
                             _hasStartedCameraFlow
                                 ? (_isWebMode
-                                      ? 'Abrir câmera'
+                                      ? 'Abrir camera'
                                       : 'Capturar foto')
-                                : 'Usar câmera',
+                                : 'Usar camera',
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: FilledButton.icon(
-                          onPressed: canContinue ? _goToImageImport : null,
-                          icon: const Icon(Icons.arrow_forward),
+                          onPressed: canContinue && !_isOpeningImport
+                              ? _openImageImport
+                              : null,
+                          icon: _isOpeningImport
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.arrow_forward),
                           label: const Text('Continuar'),
                         ),
                       ),
@@ -286,7 +298,7 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
         child: const Padding(
           padding: EdgeInsets.all(24),
           child: Text(
-            'A câmera só será solicitada quando você clicar em "Usar câmera".',
+            'A camera so sera solicitada quando voce clicar em \"Usar camera\".',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.white),
           ),
@@ -303,7 +315,7 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
         child: Padding(
           padding: EdgeInsets.all(24),
           child: Text(
-            'Câmera indisponível neste dispositivo.',
+            'Camera indisponivel neste dispositivo.',
             textAlign: TextAlign.center,
           ),
         ),
@@ -318,7 +330,7 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
           child: const Padding(
             padding: EdgeInsets.all(24),
             child: Text(
-              'Clique em "Abrir câmera" para tirar uma foto no navegador.',
+              'Clique em \"Abrir camera\" para tirar uma foto no navegador.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.white),
             ),

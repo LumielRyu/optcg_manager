@@ -29,6 +29,7 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
 
   late String _selectedDestination;
   Uint8List? _webImageBytes;
+  bool _autoScanTriggered = false;
 
   @override
   void initState() {
@@ -42,9 +43,13 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
 
     if (source is Uint8List) {
       _webImageBytes = source;
+      Future.microtask(() async {
+        await _autoDetectFromBytes(source);
+      });
     } else if (source is String && source.isNotEmpty) {
-      Future.microtask(() {
+      Future.microtask(() async {
         ref.read(imageImportControllerProvider.notifier).setImagePath(source);
+        await _autoDetectFromImage(source);
       });
     }
   }
@@ -54,6 +59,30 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
     _codesController.dispose();
     _deckNameController.dispose();
     super.dispose();
+  }
+
+  Future<void> _autoDetectFromImage(String path) async {
+    if (_autoScanTriggered) return;
+    _autoScanTriggered = true;
+
+    final detected = await ref
+        .read(imageImportControllerProvider.notifier)
+        .analyzeImagePath(path);
+
+    if (!mounted || detected == null || detected.trim().isEmpty) return;
+    _codesController.text = detected;
+  }
+
+  Future<void> _autoDetectFromBytes(Uint8List bytes) async {
+    if (_autoScanTriggered) return;
+    _autoScanTriggered = true;
+
+    final detected = await ref
+        .read(imageImportControllerProvider.notifier)
+        .analyzeImageBytes(bytes);
+
+    if (!mounted || detected == null || detected.trim().isEmpty) return;
+    _codesController.text = detected;
   }
 
   @override
@@ -79,13 +108,32 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
                   child: _buildImagePreview(state),
                 ),
                 const SizedBox(height: 16),
+                if ((widget.initialImageSource is String ||
+                        widget.initialImageSource is Uint8List) &&
+                    state.detectedInput != null &&
+                    state.detectedInput!.trim().isNotEmpty) ...[
+                  _InfoBanner(
+                    icon: Icons.auto_awesome_outlined,
+                    text:
+                        'A imagem foi escaneada automaticamente. Revise os codigos detectados antes de importar.',
+                  ),
+                  const SizedBox(height: 12),
+                ] else if (widget.initialImageSource is Uint8List) ...[
+                  _InfoBanner(
+                    icon: Icons.info_outline,
+                    text:
+                        'No navegador, a foto agora tambem passa por OCR. Se ainda falhar, revise o debug abaixo e ajuste o enquadramento.',
+                    useSecondary: true,
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 TextField(
                   controller: _codesController,
                   minLines: 6,
                   maxLines: 10,
                   decoration: InputDecoration(
                     hintText:
-                        'Digite ou cole os códigos identificados.\n\n'
+                        'Digite ou revise os codigos identificados.\n\n'
                         'Exemplo:\n'
                         '1xOP12-027\n'
                         '2xOP09-062',
@@ -139,10 +187,12 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                _OcrDebugPanel(state: state),
+                const SizedBox(height: 16),
                 const Divider(),
                 const SizedBox(height: 8),
                 const Text(
-                  'Resultado da análise',
+                  'Resultado da analise',
                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
                 ),
                 const SizedBox(height: 12),
@@ -185,8 +235,8 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
                           title: Text(item.name ?? item.code),
                           subtitle: Text(
                             item.found
-                                ? '${item.code} • Quantidade: ${item.quantity}x'
-                                : '${item.code} • Não encontrada • Quantidade: ${item.quantity}x',
+                                ? '${item.code} - Quantidade: ${item.quantity}x'
+                                : '${item.code} - Nao encontrada - Quantidade: ${item.quantity}x',
                           ),
                           trailing: IconButton(
                             onPressed: () => notifier.removeCandidate(index),
@@ -234,7 +284,11 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
                     }
                   },
             icon: const Icon(Icons.playlist_add_check),
-            label: const Text('Adicionar à coleção'),
+            label: Text(
+              _selectedDestination == CollectionTypes.forSale
+                  ? 'Adicionar as cartas a venda'
+                  : 'Adicionar a colecao',
+            ),
           ),
         ),
       ),
@@ -271,6 +325,115 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
     return InteractiveViewer(
       child: Center(
         child: Image.file(File(state.imagePath!), fit: BoxFit.contain),
+      ),
+    );
+  }
+}
+
+class _InfoBanner extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final bool useSecondary;
+
+  const _InfoBanner({
+    required this.icon,
+    required this.text,
+    this.useSecondary = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: useSecondary ? scheme.secondaryContainer : scheme.primaryContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(icon),
+          const SizedBox(width: 8),
+          Expanded(child: Text(text)),
+        ],
+      ),
+    );
+  }
+}
+
+class _OcrDebugPanel extends StatelessWidget {
+  final ImageImportState state;
+
+  const _OcrDebugPanel({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final hasDebugInfo =
+        (state.debugMessage?.trim().isNotEmpty ?? false) ||
+        (state.rawOcrText?.trim().isNotEmpty ?? false) ||
+        state.extractedLines.isNotEmpty ||
+        (state.detectedInput?.trim().isNotEmpty ?? false);
+
+    if (!hasDebugInfo) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.45),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Debug OCR',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (state.debugMessage?.trim().isNotEmpty ?? false) ...[
+            const SizedBox(height: 8),
+            Text('Status: ${state.debugMessage!}'),
+          ],
+          if (state.extractedLines.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text('Codigos extraidos: ${state.extractedLines.join(', ')}'),
+          ],
+          if (state.candidateNames.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text('Nomes candidatos: ${state.candidateNames.join(', ')}'),
+          ],
+          if (state.detectedInput?.trim().isNotEmpty ?? false) ...[
+            const SizedBox(height: 8),
+            Text('Entrada normalizada:'),
+            const SizedBox(height: 4),
+            SelectableText(state.detectedInput!),
+          ],
+          if (state.candidates.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              "Cartas resolvidas: ${state.candidates.map((item) => '${item.code}${item.matchedBy == null ? '' : ' (${item.matchedBy})'}').join(', ')}",
+            ),
+            if (state.candidates.any((item) => item.matchedBy == 'visual+name')) ...[
+              const SizedBox(height: 4),
+              const Text(
+                'O reconhecimento final foi confirmado pela imagem inteira da carta.',
+              ),
+            ],
+          ],
+          if (state.rawOcrText?.trim().isNotEmpty ?? false) ...[
+            const SizedBox(height: 8),
+            Text('Texto bruto lido da imagem:'),
+            const SizedBox(height: 4),
+            SelectableText(state.rawOcrText!),
+          ],
+        ],
       ),
     );
   }

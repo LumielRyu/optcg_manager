@@ -1,4 +1,21 @@
 class OcrCodeExtractor {
+  static List<String> extractPrioritizedDeckLines(String rawText) {
+    final normalized = rawText.replaceAll('\r', '\n');
+    final lines = normalized
+        .split('\n')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
+    final bottomHalf = lines.skip(lines.length ~/ 2).join('\n');
+    final bottomResults = extractDeckLines(bottomHalf);
+    if (bottomResults.isNotEmpty) {
+      return bottomResults;
+    }
+
+    return extractDeckLines(rawText);
+  }
+
   static List<String> extractDeckLines(String rawText) {
     final normalized = rawText
         .replaceAll('\r', '\n')
@@ -11,6 +28,19 @@ class OcrCodeExtractor {
         .toList();
 
     final results = <String>[];
+
+    final broadMatches = RegExp(
+      r'([A-Z]{1,4}\s*\d{1,2}\s*[- ]?\s*\d{3}[A-Z]{0,2})',
+      caseSensitive: false,
+    ).allMatches(normalized);
+
+    for (final match in broadMatches) {
+      final rawCode = match.group(1) ?? '';
+      final normalizedCode = _normalizeCode(rawCode.replaceAll(' ', ''));
+      if (normalizedCode != null) {
+        results.add('1x$normalizedCode');
+      }
+    }
 
     for (final line in lines) {
       final cleaned = line.replaceAll(' ', '');
@@ -47,6 +77,58 @@ class OcrCodeExtractor {
     return _dedupe(results);
   }
 
+  static List<String> extractCandidateNames(String rawText) {
+    final normalized = rawText.replaceAll('\r', '\n');
+    final lines = normalized
+        .split('\n')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
+    final candidates = <String>[];
+    final ignoredTokens = {
+      'CHARACTER',
+      'EVENT',
+      'STAGE',
+      'LEADER',
+      'MAIN',
+      'ON PLAY',
+      'YOUR TURN',
+      'COUNTER',
+      'BLOCKER',
+      'RUSH',
+      'BANISH',
+      'LAND OF WANO',
+      'KOUZUKI CLAN',
+    };
+
+    for (final line in lines) {
+      final upper = line.toUpperCase();
+      if (upper.length < 5 || upper.length > 40) continue;
+      if (RegExp(r'\d').hasMatch(upper)) continue;
+      if (ignoredTokens.contains(upper)) continue;
+      if (upper.split(' ').where((part) => part.isNotEmpty).length < 2) continue;
+
+      final cleaned = line.replaceAll(RegExp("[^A-Za-z\\s'\\-]"), ' ').trim();
+      if (cleaned.length < 5) continue;
+      candidates.add(cleaned);
+
+      final titleLikeMatches = RegExp(
+        r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,4})',
+      ).allMatches(cleaned);
+
+      for (final match in titleLikeMatches) {
+        final candidate = (match.group(1) ?? '').trim();
+        if (candidate.length >= 5) {
+          candidates.add(candidate);
+        }
+      }
+    }
+
+    final bottomFirst = candidates.reversed.toList();
+    return _dedupe(bottomFirst);
+  }
+
   static String? _normalizeCode(String input) {
     var code = input.trim().toUpperCase();
     code = code.replaceAll('_', '-');
@@ -57,10 +139,11 @@ class OcrCodeExtractor {
     if (code.isEmpty) return null;
 
     // OP14020 -> OP14-020
-    final setStyle = RegExp(r'^([A-Z]{1,4}\d{1,2})(\d{3}(?:[A-Z0-9\-]*)?)$');
+    final setStyle = RegExp(r'^([A-Z]{1,4}\d{1,2})(\d{3})([A-Z]{0,2})$');
     final m1 = setStyle.firstMatch(code.replaceAll('-', ''));
     if (m1 != null) {
-      return '${m1.group(1)}-${m1.group(2)}';
+      final suffix = m1.group(3) ?? '';
+      return '${m1.group(1)}-${m1.group(2)}$suffix';
     }
 
     // P044 -> P-044
@@ -71,7 +154,7 @@ class OcrCodeExtractor {
     }
 
     // já válido
-    if (RegExp(r'^[A-Z0-9]{1,6}-[A-Z0-9]{2,}$').hasMatch(code)) {
+    if (RegExp(r'^[A-Z0-9]{1,6}-\d{3}[A-Z]{0,2}$').hasMatch(code)) {
       return code;
     }
 

@@ -430,7 +430,7 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                                                     ).showSnackBar(
                                                       const SnackBar(
                                                         content: Text(
-                                                          'NÃ£o foi possÃ­vel abrir o WhatsApp.',
+                                                          'N\u00E3o foi poss\u00EDvel abrir o WhatsApp.',
                                                         ),
                                                       ),
                                                     );

@@ -22,7 +22,7 @@ class SharedSaleCardScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Carta ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  venda'),
+        title: const Text('Carta \u00E0 venda'),
       ),
       body: FutureBuilder<MarketplaceListing?>(
         future: repo.getPublicListingByShareCode(shareCode),
@@ -48,7 +48,7 @@ class SharedSaleCardScreen extends ConsumerWidget {
             return const Center(
               child: Padding(
                 padding: EdgeInsets.all(24),
-                child: Text('Carta nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o encontrada ou nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ pÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºblica.'),
+                child: Text('Carta n\u00E3o encontrada ou n\u00E3o est\u00E1 p\u00FAblica.'),
               ),
             );
           }
@@ -147,7 +147,7 @@ class SharedSaleCardScreen extends ConsumerWidget {
                                         ).showSnackBar(
                                           const SnackBar(
                                             content: Text(
-                                              'NÃƒÂ£o foi possÃƒÂ­vel abrir o WhatsApp.',
+                                              'N\u00E3o foi poss\u00EDvel abrir o WhatsApp.',
                                             ),
                                           ),
                                         );

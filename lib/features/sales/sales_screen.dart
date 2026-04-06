@@ -74,7 +74,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) {
-        throw Exception('UsuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o autenticado.');
+        throw Exception('Usu\u00E1rio n\u00E3o autenticado.');
       }
 
       final link = _buildPublicStoreLink(user.id);
@@ -112,7 +112,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vitrine pÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºblica desativada.')),
+        const SnackBar(content: Text('Vitrine p\u00FAblica desativada.')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -139,7 +139,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Cartas ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  venda'),
+        title: const Text('Cartas \u00E0 venda'),
         actions: [
           IconButton(
             tooltip: isDark ? 'Modo claro' : 'Modo escuro',
@@ -151,7 +151,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
             ),
           ),
           IconButton(
-            tooltip: 'Importar por cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³digo',
+            tooltip: 'Importar por c\u00F3digo',
             onPressed: () async {
               await context.push('/code-import?destination=forSale');
               _reloadListings();
@@ -167,7 +167,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
             icon: const Icon(Icons.image_outlined),
           ),
           IconButton(
-            tooltip: 'Importar com cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢mera',
+            tooltip: 'Importar com c\u00E2mera',
             onPressed: () async {
               await context.push('/camera-import?destination=forSale');
               _reloadListings();
@@ -321,7 +321,7 @@ class _SalesHeaderSection extends StatelessWidget {
                   runSpacing: 12,
                   children: [
                     _SalesStatCard(
-                      label: 'Cartas ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºnicas',
+                      label: 'Cartas \u00FAnicas',
                       value: '$totalUnique',
                       icon: Icons.style_outlined,
                     ),
@@ -331,7 +331,7 @@ class _SalesHeaderSection extends StatelessWidget {
                       icon: Icons.format_list_numbered,
                     ),
                     _SalesStatCard(
-                      label: 'Com preÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o',
+                      label: 'Com pre\u00E7o',
                       value: '$pricedItems',
                       icon: Icons.sell_outlined,
                     ),
@@ -366,7 +366,7 @@ class _SalesHeaderSection extends StatelessWidget {
                 child: TextField(
                   controller: searchController,
                   decoration: InputDecoration(
-                    hintText: 'Buscar por nome, cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³digo ou set',
+                    hintText: 'Buscar por nome, c\u00F3digo ou set',
                     prefixIcon: const Icon(Icons.search),
                     suffixIcon: searchController.text.isNotEmpty
                         ? IconButton(
@@ -467,7 +467,7 @@ class _SalesLibraryView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
       return const _SalesEmptyState(
-        title: 'Nenhuma carta ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  venda encontrada.',
+        title: 'Nenhuma carta \u00E0 venda encontrada.',
         subtitle:
             'Adicione cartas na biblioteca de vendas para visualizar aqui.',
       );
@@ -541,7 +541,7 @@ class _SalesLibraryView extends ConsumerWidget {
                           const SizedBox(height: 6),
                           Text('Status: ${item.statusLabel}'),
                           const SizedBox(height: 6),
-                          Text('CondiÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o: ${item.conditionLabel}'),
+                          Text('Condi\u00E7\u00E3o: ${item.conditionLabel}'),
                           const SizedBox(height: 6),
                           Text('Quantidade: ${item.quantity}x'),
                           if (item.hasContactInfo) ...[
@@ -1058,7 +1058,7 @@ class _SalesCardDetailsDialogState
       });
     } catch (_) {
       setState(() {
-        _translatedText = 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o foi possÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel traduzir o texto da carta.';
+        _translatedText = 'N\u00E3o foi poss\u00EDvel traduzir o texto da carta.';
         _showTranslated = true;
       });
     } finally {
@@ -1107,7 +1107,7 @@ class _SalesCardDetailsDialogState
           : (double.tryParse(normalizedPrice) ?? -1);
 
       if (parsedPrice != null && parsedPrice < 0) {
-        throw Exception('PreÃƒÆ’Ã‚Â§o invÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡lido.');
+        throw Exception('Pre\u00E7o inv\u00E1lido.');
       }
 
       await ref
@@ -1127,13 +1127,13 @@ class _SalesCardDetailsDialogState
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Dados do anÃƒÂºncio atualizados.')),
+        const SnackBar(content: Text('Dados do an\u00FAncio atualizados.')),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Erro ao salvar anÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºncio: $e')));
+      ).showSnackBar(SnackBar(content: Text('Erro ao salvar an\u00FAncio: $e')));
     } finally {
       if (!mounted) return;
       setState(() {
@@ -1311,7 +1311,7 @@ class _SalesCardDetailsDialogState
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.save_outlined),
-                      label: const Text('Salvar anÃƒÆ’Ã‚Âºncio'),
+                      label: const Text('Salvar an\u00FAncio'),
                     ),
                     const SizedBox(height: 16),
                     Row(
@@ -1374,7 +1374,7 @@ class _SalesCardDetailsDialogState
                       Text(
                         (_translatedText == null ||
                                 _translatedText!.trim().isEmpty)
-                            ? 'Sem traduÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£o disponÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­vel.'
+                            ? 'Sem tradu\u00E7\u00E3o dispon\u00EDvel.'
                             : _translatedText!,
                       ),
                     ],
