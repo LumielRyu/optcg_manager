@@ -8,9 +8,9 @@ import '../../core/providers/collection_view_mode_provider.dart';
 import '../../core/providers/theme_mode_provider.dart';
 import '../../data/models/card_record.dart';
 import '../../data/services/translation_service.dart';
-import 'collection_controller.dart';
-import 'deck_details_dialog.dart';
-import 'manual_add_dialog.dart';
+import '../../features/collection/collection_controller.dart';
+import '../../features/collection/deck_details_dialog.dart';
+import '../../features/collection/manual_add_dialog.dart';
 
 class CollectionScreen extends ConsumerStatefulWidget {
   const CollectionScreen({super.key});
@@ -391,10 +391,8 @@ class _StandardLibraryView extends StatelessWidget {
               onTap: () {
                 showDialog(
                   context: context,
-                  builder: (_) => _CardDetailsDialog(
-                    card: item,
-                    sourceRecords: [item],
-                  ),
+                  builder: (_) =>
+                      _CardDetailsDialog(card: item, sourceRecords: [item]),
                 );
               },
               child: Padding(
@@ -433,7 +431,9 @@ class _StandardLibraryView extends StatelessWidget {
                           const SizedBox(height: 6),
                           Text(item.cardCode),
                           const SizedBox(height: 6),
-                          Text('Set: ${item.setName.isEmpty ? '-' : item.setName}'),
+                          Text(
+                            'Set: ${item.setName.isEmpty ? '-' : item.setName}',
+                          ),
                           const SizedBox(height: 6),
                           Text('Quantidade: ${item.quantity}x'),
                         ],
@@ -467,10 +467,8 @@ class _StandardLibraryView extends StatelessWidget {
             onTap: () {
               showDialog(
                 context: context,
-                builder: (_) => _CardDetailsDialog(
-                  card: item,
-                  sourceRecords: [item],
-                ),
+                builder: (_) =>
+                    _CardDetailsDialog(card: item, sourceRecords: [item]),
               );
             },
             child: Card(
@@ -544,10 +542,7 @@ class _DeckLibraryView extends StatelessWidget {
   final List<CardRecord> items;
   final void Function(String deckName, List<CardRecord> deckItems) onOpenDeck;
 
-  const _DeckLibraryView({
-    required this.items,
-    required this.onOpenDeck,
-  });
+  const _DeckLibraryView({required this.items, required this.onOpenDeck});
 
   @override
   Widget build(BuildContext context) {
@@ -574,8 +569,10 @@ class _DeckLibraryView extends StatelessWidget {
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
         final deck = decks[index];
-        final totalCards =
-            deck.value.fold<int>(0, (sum, item) => sum + item.quantity);
+        final totalCards = deck.value.fold<int>(
+          0,
+          (sum, item) => sum + item.quantity,
+        );
 
         return Card(
           child: ListTile(
@@ -632,9 +629,7 @@ class _CollectionCardImage extends StatelessWidget {
 
         return SizedBox(
           height: height,
-          child: const Center(
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
+          child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
         );
       },
     );
@@ -644,9 +639,7 @@ class _CollectionCardImage extends StatelessWidget {
 class _ImagePlaceholder extends StatelessWidget {
   final double? height;
 
-  const _ImagePlaceholder({
-    this.height,
-  });
+  const _ImagePlaceholder({this.height});
 
   @override
   Widget build(BuildContext context) {
@@ -654,9 +647,7 @@ class _ImagePlaceholder extends StatelessWidget {
       height: height,
       child: Container(
         color: Colors.grey.shade200,
-        child: const Center(
-          child: Icon(Icons.image_not_supported_outlined),
-        ),
+        child: const Center(child: Icon(Icons.image_not_supported_outlined)),
       ),
     );
   }
@@ -666,10 +657,7 @@ class _EmptyState extends StatelessWidget {
   final String title;
   final String subtitle;
 
-  const _EmptyState({
-    required this.title,
-    required this.subtitle,
-  });
+  const _EmptyState({required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
@@ -679,11 +667,7 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.inbox_outlined,
-              size: 60,
-              color: Colors.grey.shade500,
-            ),
+            Icon(Icons.inbox_outlined, size: 60, color: Colors.grey.shade500),
             const SizedBox(height: 16),
             Text(
               title,
@@ -691,10 +675,7 @@ class _EmptyState extends StatelessWidget {
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-            ),
+            Text(subtitle, textAlign: TextAlign.center),
           ],
         ),
       ),
@@ -706,10 +687,7 @@ class _CardDetailsDialog extends ConsumerStatefulWidget {
   final CardRecord card;
   final List<CardRecord> sourceRecords;
 
-  const _CardDetailsDialog({
-    required this.card,
-    required this.sourceRecords,
-  });
+  const _CardDetailsDialog({required this.card, required this.sourceRecords});
 
   @override
   ConsumerState<_CardDetailsDialog> createState() => _CardDetailsDialogState();
@@ -730,8 +708,9 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
     });
 
     try {
-      final translated =
-          await _translationService.translateToPortuguese(widget.card.text);
+      final translated = await _translationService.translateToPortuguese(
+        widget.card.text,
+      );
 
       setState(() {
         _translatedText = translated;
@@ -781,9 +760,7 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
                     },
                     loadingBuilder: (context, child, progress) {
                       if (progress == null) return child;
-                      return const Center(
-                        child: CircularProgressIndicator(),
-                      );
+                      return const Center(child: CircularProgressIndicator());
                     },
                   ),
                 ),
@@ -837,8 +814,10 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
     if (widget.sourceRecords.isEmpty) return;
 
     final base = widget.sourceRecords.first;
-    final currentTotal =
-        widget.sourceRecords.fold<int>(0, (sum, item) => sum + item.quantity);
+    final currentTotal = widget.sourceRecords.fold<int>(
+      0,
+      (sum, item) => sum + item.quantity,
+    );
     final newTotal = currentTotal + delta;
 
     if (newTotal <= 0) {
@@ -851,15 +830,15 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
 
     if (widget.sourceRecords.length > 1) {
       for (int i = 1; i < widget.sourceRecords.length; i++) {
-        await ref.read(collectionControllerProvider.notifier).delete(
-              widget.sourceRecords[i].id,
-            );
+        await ref
+            .read(collectionControllerProvider.notifier)
+            .delete(widget.sourceRecords[i].id);
       }
     }
 
-    await ref.read(collectionControllerProvider.notifier).update(
-          base.copyWith(quantity: newTotal),
-        );
+    await ref
+        .read(collectionControllerProvider.notifier)
+        .update(base.copyWith(quantity: newTotal));
 
     if (mounted) Navigator.of(context).pop();
   }
@@ -879,10 +858,7 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
     return Dialog(
       insetPadding: const EdgeInsets.all(16),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 560,
-          maxHeight: 860,
-        ),
+        constraints: const BoxConstraints(maxWidth: 560, maxHeight: 860),
         child: Column(
           children: [
             Expanded(
@@ -894,16 +870,12 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
                     Text(
                       card.name,
                       textAlign: TextAlign.center,
-                      style:
-                          Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w800,
-                              ),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      card.cardCode,
-                      textAlign: TextAlign.center,
-                    ),
+                    Text(card.cardCode, textAlign: TextAlign.center),
                     const SizedBox(height: 16),
                     Center(
                       child: InkWell(
@@ -964,7 +936,8 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
                       'Biblioteca',
                       CollectionTypes.label(card.collectionType),
                     ),
-                    if (card.deckName != null && card.deckName!.trim().isNotEmpty)
+                    if (card.deckName != null &&
+                        card.deckName!.trim().isNotEmpty)
                       _infoRow('Deck', card.deckName!),
                     const SizedBox(height: 16),
                     Row(
@@ -1013,8 +986,8 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
                         _isTranslating
                             ? 'Traduzindo...'
                             : (_showTranslated
-                                ? 'Traduzir novamente'
-                                : 'Traduzir texto'),
+                                  ? 'Traduzir novamente'
+                                  : 'Traduzir texto'),
                       ),
                     ),
                     if (_showTranslated) ...[
