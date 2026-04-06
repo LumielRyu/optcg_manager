@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 
+import '../local/hive_boxes.dart';
 import '../models/op_card.dart';
 
 final opApiServiceProvider = Provider<OpApiService>((ref) {
@@ -16,13 +19,51 @@ class OpApiService {
       'https://www.optcgapi.com/api/allSTCards/?format=json';
   static const String _promosUrl =
       'https://www.optcgapi.com/api/allPromos/?format=json';
+  static const String _cachedCardsKey = 'all_cards';
+  static const String _cachedAtKey = 'all_cards_cached_at';
+  static const Duration _cacheMaxAge = Duration(hours: 12);
 
   List<OpCard>? _cache;
   Map<String, List<OpCard>>? _byCodeMulti;
+  List<_IndexedOpCard>? _searchIndex;
+  Future<void>? _preloadFuture;
+  Future<void>? _backgroundRefreshFuture;
 
-  Future<void> preload() async {
-    if (_cache != null && _byCodeMulti != null) return;
+  Future<void> preload() {
+    if (_cache != null && _byCodeMulti != null && _searchIndex != null) {
+      return Future.value();
+    }
 
+    _preloadFuture ??= _preloadInternal().whenComplete(() {
+      _preloadFuture = null;
+    });
+    return _preloadFuture!;
+  }
+
+  Future<void> _preloadInternal() async {
+    final cachedCards = _loadCardsFromDisk();
+    if (cachedCards.isNotEmpty) {
+      _setMemoryCache(cachedCards);
+
+      if (_isDiskCacheStale()) {
+        _refreshInBackground();
+      }
+
+      return;
+    }
+
+    await _refreshFromApi();
+  }
+
+  void _refreshInBackground() {
+    if (_backgroundRefreshFuture != null) return;
+
+    _backgroundRefreshFuture = _refreshFromApi().whenComplete(() {
+      _backgroundRefreshFuture = null;
+    });
+  }
+
+  Future<void> _refreshFromApi() async {
     final responses = await Future.wait([
       _getJson(_mainSetUrl),
       _getJson(_starterDeckUrl),
@@ -35,33 +76,8 @@ class OpApiService {
       allCards.addAll(list.map(OpCard.fromJson));
     }
 
-    final grouped = <String, List<OpCard>>{};
-
-    for (final card in allCards) {
-      final key = _normalizeCode(card.code);
-      if (key.isEmpty) continue;
-
-      grouped.putIfAbsent(key, () => []).add(card);
-    }
-
-    for (final entry in grouped.entries) {
-      entry.value.sort((a, b) {
-        final aHasImage = a.image.trim().isNotEmpty;
-        final bHasImage = b.image.trim().isNotEmpty;
-
-        if (aHasImage != bHasImage) {
-          return bHasImage ? 1 : -1;
-        }
-
-        final aRarity = a.rarity.trim().toLowerCase();
-        final bRarity = b.rarity.trim().toLowerCase();
-        return aRarity.compareTo(bRarity);
-      });
-    }
-
-    _byCodeMulti = grouped;
-    _cache = allCards
-      ..sort((a, b) => a.code.compareTo(b.code));
+    _setMemoryCache(allCards);
+    await _saveCardsToDisk(allCards);
   }
 
   Future<List<OpCard>> findAllByCode(String code) async {
@@ -97,9 +113,14 @@ class OpApiService {
     final normalizedQuery = _normalizeText(query);
     if (normalizedQuery.isEmpty) return const [];
 
-    final scored = _cache!
-        .map((card) {
-          final normalizedName = _normalizeText(card.name);
+    final queryWords = normalizedQuery
+        .split(' ')
+        .where((word) => word.isNotEmpty)
+        .toList(growable: false);
+
+    final scored = _searchIndex!
+        .map((entry) {
+          final normalizedName = entry.normalizedName;
           if (normalizedName.isEmpty) return null;
 
           var score = 0;
@@ -110,10 +131,6 @@ class OpApiService {
           } else if (normalizedName.contains(normalizedQuery)) {
             score = 500;
           } else {
-            final queryWords = normalizedQuery
-                .split(' ')
-                .where((word) => word.isNotEmpty)
-                .toList();
             final matchedWords = queryWords
                 .where((word) => normalizedName.contains(word))
                 .length;
@@ -123,17 +140,71 @@ class OpApiService {
           }
 
           score -= (normalizedName.length - normalizedQuery.length).abs();
-          if (card.image.trim().isNotEmpty) {
+          if (entry.hasImage) {
             score += 10;
           }
 
-          return (card: card, score: score);
+          return (card: entry.card, score: score);
         })
         .whereType<({OpCard card, int score})>()
         .toList()
       ..sort((a, b) => b.score.compareTo(a.score));
 
     return scored.take(limit).map((entry) => entry.card).toList();
+  }
+
+  Future<OpCard?> findBestCardForManualEntry({
+    required String name,
+    String? color,
+  }) async {
+    await preload();
+
+    final normalizedName = _normalizeText(name);
+    if (normalizedName.isEmpty) return null;
+
+    final normalizedColor = _normalizeText(color ?? '');
+    final results = await searchCardsByName(name, limit: 20);
+    if (results.isEmpty) return null;
+
+    final scored = results.map((card) {
+      var score = 0;
+      final cardName = _normalizeText(card.name);
+      final cardColor = _normalizeText(card.color);
+
+      if (cardName == normalizedName) {
+        score += 5000;
+      } else if (cardName.startsWith(normalizedName)) {
+        score += 3000;
+      } else if (cardName.contains(normalizedName) ||
+          normalizedName.contains(cardName)) {
+        score += 1800;
+      }
+
+      final inputWords = normalizedName
+          .split(' ')
+          .where((word) => word.length >= 3)
+          .toList(growable: false);
+      final matchedWords = inputWords.where((word) => cardName.contains(word)).length;
+      score += matchedWords * 250;
+
+      if (normalizedColor.isNotEmpty && cardColor.contains(normalizedColor)) {
+        score += 800;
+      }
+
+      if (card.image.trim().isNotEmpty) {
+        score += 100;
+      }
+
+      return (card: card, score: score);
+    }).toList()
+      ..sort((a, b) => b.score.compareTo(a.score));
+
+    final best = scored.first;
+    if (best.score < 1200) {
+      return null;
+    }
+
+    return best.card;
   }
 
   Future<OpCard?> findBestCardFromOcrText({
@@ -149,25 +220,20 @@ class OpApiService {
     final normalizedCandidates = candidateNames
         .map(_normalizeText)
         .where((value) => value.isNotEmpty)
-        .toList();
+        .toList(growable: false);
     final normalizedExtracted = extractedLines
         .map((line) => _normalizeCode(line.replaceFirst(RegExp(r'^\d+x'), '')))
         .where((value) => value.isNotEmpty)
-        .toList();
+        .toList(growable: false);
 
     final scored = <({OpCard card, int score})>[];
 
-    for (final card in _cache!) {
-      final normalizedName = _normalizeText(card.name);
+    for (final entry in _searchIndex!) {
+      final card = entry.card;
+      final normalizedName = entry.normalizedName;
       if (normalizedName.isEmpty) continue;
-      final normalizedCardText = _normalizeText(card.text);
-      final normalizedCardType = _normalizeText(card.type);
-      final normalizedSetName = _normalizeText(card.setName);
 
-      final nameWords = normalizedName
-          .split(' ')
-          .where((word) => word.length >= 3)
-          .toList();
+      final nameWords = entry.nameWords;
       if (nameWords.isEmpty) continue;
 
       var score = 0;
@@ -195,23 +261,19 @@ class OpApiService {
         score += matchedWords * 250;
       }
 
-      final textKeywords = normalizedCardText
-          .split(' ')
-          .where((word) => word.length >= 4)
-          .toSet();
-      final matchedTextKeywords = textKeywords
+      final matchedTextKeywords = entry.textKeywords
           .where((word) => normalizedRaw.contains(word))
           .length;
       final textKeywordScore = matchedTextKeywords * 120;
       score += textKeywordScore > 2200 ? 2200 : textKeywordScore;
 
-      if (normalizedCardType.isNotEmpty &&
-          normalizedRaw.contains(normalizedCardType)) {
+      if (entry.normalizedType.isNotEmpty &&
+          normalizedRaw.contains(entry.normalizedType)) {
         score += 180;
       }
 
-      if (normalizedSetName.isNotEmpty &&
-          normalizedRaw.contains(normalizedSetName)) {
+      if (entry.normalizedSetName.isNotEmpty &&
+          normalizedRaw.contains(entry.normalizedSetName)) {
         score += 120;
       }
 
@@ -227,7 +289,7 @@ class OpApiService {
         }
       }
 
-      if (card.image.trim().isNotEmpty) {
+      if (entry.hasImage) {
         score += 20;
       }
 
@@ -276,12 +338,82 @@ class OpApiService {
     return decoded
         .whereType<Map>()
         .map((e) => Map<String, dynamic>.from(e))
-        .toList();
+        .toList(growable: false);
   }
 
   String normalizeCode(String input) => _normalizeCode(input);
 
   String normalizeSearchText(String input) => _normalizeText(input);
+
+  void _setMemoryCache(List<OpCard> cards) {
+    final sortedCards = List<OpCard>.from(cards)
+      ..sort((a, b) => a.code.compareTo(b.code));
+
+    final grouped = <String, List<OpCard>>{};
+
+    for (final card in sortedCards) {
+      final key = _normalizeCode(card.code);
+      if (key.isEmpty) continue;
+
+      grouped.putIfAbsent(key, () => <OpCard>[]).add(card);
+    }
+
+    for (final entry in grouped.entries) {
+      entry.value.sort((a, b) {
+        final aHasImage = a.image.trim().isNotEmpty;
+        final bHasImage = b.image.trim().isNotEmpty;
+
+        if (aHasImage != bHasImage) {
+          return bHasImage ? 1 : -1;
+        }
+
+        final aRarity = a.rarity.trim().toLowerCase();
+        final bRarity = b.rarity.trim().toLowerCase();
+        return aRarity.compareTo(bRarity);
+      });
+    }
+
+    _cache = sortedCards;
+    _byCodeMulti = grouped;
+    _searchIndex = sortedCards.map(_IndexedOpCard.fromCard).toList(growable: false);
+  }
+
+  List<OpCard> _loadCardsFromDisk() {
+    final box = Hive.box(HiveBoxes.apiCache);
+    final rawCards = box.get(_cachedCardsKey);
+    if (rawCards is! List || rawCards.isEmpty) {
+      return const <OpCard>[];
+    }
+
+    return rawCards
+        .whereType<Map>()
+        .map((entry) => OpCard.fromJson(Map<String, dynamic>.from(entry)))
+        .toList(growable: false);
+  }
+
+  bool _isDiskCacheStale() {
+    final box = Hive.box(HiveBoxes.apiCache);
+    final rawTimestamp = box.get(_cachedAtKey);
+    if (rawTimestamp is! String || rawTimestamp.trim().isEmpty) {
+      return true;
+    }
+
+    final timestamp = DateTime.tryParse(rawTimestamp);
+    if (timestamp == null) {
+      return true;
+    }
+
+    return DateTime.now().difference(timestamp) > _cacheMaxAge;
+  }
+
+  Future<void> _saveCardsToDisk(List<OpCard> cards) async {
+    final box = Hive.box(HiveBoxes.apiCache);
+    await box.put(
+      _cachedCardsKey,
+      cards.map((card) => card.toJson()).toList(growable: false),
+    );
+    await box.put(_cachedAtKey, DateTime.now().toIso8601String());
+  }
 
   String _normalizeCode(String input) {
     final candidates = _normalizeCodeCandidates(input);
@@ -320,7 +452,7 @@ class OpApiService {
       addCandidate(_fixCommonOcrCodeMistakes(withoutLeading));
     }
 
-    return results.toList();
+    return results.toList(growable: false);
   }
 
   String _normalizeCodeStrict(String input) {
@@ -391,30 +523,30 @@ class OpApiService {
     if (text.isEmpty) return '';
 
     const replacements = {
-      'á': 'a',
-      'à': 'a',
-      'â': 'a',
-      'ã': 'a',
-      'ä': 'a',
-      'é': 'e',
-      'è': 'e',
-      'ê': 'e',
-      'ë': 'e',
-      'í': 'i',
-      'ì': 'i',
-      'î': 'i',
-      'ï': 'i',
-      'ó': 'o',
-      'ò': 'o',
-      'ô': 'o',
-      'õ': 'o',
-      'ö': 'o',
-      'ú': 'u',
-      'ù': 'u',
-      'û': 'u',
-      'ü': 'u',
-      'ç': 'c',
-      'ñ': 'n',
+      'Ã¡': 'a',
+      'Ã ': 'a',
+      'Ã¢': 'a',
+      'Ã£': 'a',
+      'Ã¤': 'a',
+      'Ã©': 'e',
+      'Ã¨': 'e',
+      'Ãª': 'e',
+      'Ã«': 'e',
+      'Ã­': 'i',
+      'Ã¬': 'i',
+      'Ã®': 'i',
+      'Ã¯': 'i',
+      'Ã³': 'o',
+      'Ã²': 'o',
+      'Ã´': 'o',
+      'Ãµ': 'o',
+      'Ã¶': 'o',
+      'Ãº': 'u',
+      'Ã¹': 'u',
+      'Ã»': 'u',
+      'Ã¼': 'u',
+      'Ã§': 'c',
+      'Ã±': 'n',
     };
 
     replacements.forEach((key, value) {
@@ -443,5 +575,88 @@ class OpApiService {
     }
 
     return shared.length >= 3;
+  }
+}
+
+class _IndexedOpCard {
+  final OpCard card;
+  final String normalizedName;
+  final String normalizedType;
+  final String normalizedSetName;
+  final Set<String> textKeywords;
+  final List<String> nameWords;
+  final bool hasImage;
+
+  const _IndexedOpCard({
+    required this.card,
+    required this.normalizedName,
+    required this.normalizedType,
+    required this.normalizedSetName,
+    required this.textKeywords,
+    required this.nameWords,
+    required this.hasImage,
+  });
+
+  factory _IndexedOpCard.fromCard(OpCard card) {
+    final normalizedName = _normalize(card.name);
+    final normalizedType = _normalize(card.type);
+    final normalizedSetName = _normalize(card.setName);
+    final normalizedText = _normalize(card.text);
+
+    return _IndexedOpCard(
+      card: card,
+      normalizedName: normalizedName,
+      normalizedType: normalizedType,
+      normalizedSetName: normalizedSetName,
+      textKeywords: normalizedText
+          .split(' ')
+          .where((word) => word.length >= 4)
+          .toSet(),
+      nameWords: normalizedName
+          .split(' ')
+          .where((word) => word.length >= 3)
+          .toList(growable: false),
+      hasImage: card.image.trim().isNotEmpty,
+    );
+  }
+
+  static String _normalize(String input) {
+    var text = input.trim().toLowerCase();
+    if (text.isEmpty) return '';
+
+    const replacements = {
+      'Ã¡': 'a',
+      'Ã ': 'a',
+      'Ã¢': 'a',
+      'Ã£': 'a',
+      'Ã¤': 'a',
+      'Ã©': 'e',
+      'Ã¨': 'e',
+      'Ãª': 'e',
+      'Ã«': 'e',
+      'Ã­': 'i',
+      'Ã¬': 'i',
+      'Ã®': 'i',
+      'Ã¯': 'i',
+      'Ã³': 'o',
+      'Ã²': 'o',
+      'Ã´': 'o',
+      'Ãµ': 'o',
+      'Ã¶': 'o',
+      'Ãº': 'u',
+      'Ã¹': 'u',
+      'Ã»': 'u',
+      'Ã¼': 'u',
+      'Ã§': 'c',
+      'Ã±': 'n',
+    };
+
+    replacements.forEach((key, value) {
+      text = text.replaceAll(key, value);
+    });
+
+    text = text.replaceAll(RegExp(r'[^a-z0-9\s]'), ' ');
+    text = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return text;
   }
 }

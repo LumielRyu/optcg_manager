@@ -12,5 +12,8 @@ class HiveInit {
     }
 
     await Hive.openBox<CardRecord>(HiveBoxes.collection);
+    await Hive.openBox(HiveBoxes.libraryPrefs);
+    await Hive.openBox(HiveBoxes.apiCache);
+    await Hive.openBox(HiveBoxes.appPrefs);
   }
 }

@@ -1,46 +1,152 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta
+    name="description"
+    content="OPTCG Manager: coleção, biblioteca e marketplace do One Piece TCG."
+  >
 
-  <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="optcg_manager">
+  <meta name="apple-mobile-web-app-title" content="OPTCG Manager">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
-  <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>optcg_manager</title>
+  <title>OPTCG Manager</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    :root {
+      --bg: #f7f1e6;
+      --panel: rgba(217, 238, 232, 0.88);
+      --text: #231f1a;
+      --muted: #53463a;
+      --accent: #9b2226;
+      --accent-soft: #0d5c63;
+      --outline: rgba(133, 117, 103, 0.22);
+    }
+
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+
+    body {
+      overflow: hidden;
+    }
+
+    #app-loader {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background:
+        radial-gradient(circle at top left, rgba(13, 92, 99, 0.12), transparent 38%),
+        radial-gradient(circle at bottom right, rgba(155, 34, 38, 0.08), transparent 30%),
+        var(--bg);
+      z-index: 9999;
+      transition: opacity 260ms ease, visibility 260ms ease;
+    }
+
+    #app-loader.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .loader-card {
+      width: min(100%, 460px);
+      padding: 28px 24px;
+      border-radius: 28px;
+      background: linear-gradient(135deg, var(--panel), rgba(247, 241, 230, 0.95));
+      border: 1px solid var(--outline);
+      box-shadow: 0 18px 48px rgba(35, 31, 26, 0.08);
+      text-align: center;
+    }
+
+    .loader-title {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 38px);
+      font-weight: 800;
+      letter-spacing: 0.2px;
+    }
+
+    .loader-subtitle {
+      margin: 10px 0 0;
+      font-size: 15px;
+      line-height: 1.55;
+      color: var(--muted);
+    }
+
+    .loader-bar {
+      margin-top: 22px;
+      height: 10px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.75);
+      border: 1px solid rgba(133, 117, 103, 0.12);
+    }
+
+    .loader-bar > span {
+      display: block;
+      width: 38%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--accent-soft), var(--accent));
+      animation: loading-slide 1.4s ease-in-out infinite;
+    }
+
+    .loader-tip {
+      margin-top: 14px;
+      font-size: 12px;
+      letter-spacing: 0.2px;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    @keyframes loading-slide {
+      0% { transform: translateX(-110%); }
+      100% { transform: translateX(320%); }
+    }
+  </style>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+  <div id="app-loader" aria-live="polite">
+    <div class="loader-card">
+      <h1 class="loader-title">OPTCG Manager</h1>
+      <p class="loader-subtitle">
+        Carregando sua coleção, biblioteca e marketplace do One Piece TCG.
+      </p>
+      <div class="loader-bar" aria-hidden="true">
+        <span></span>
+      </div>
+      <div class="loader-tip">Preparando cartas e vitrine</div>
+    </div>
+  </div>
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      const loader = document.getElementById('app-loader');
+      if (loader) loader.classList.add('hidden');
+    });
+
+    window.setTimeout(function () {
+      const loader = document.getElementById('app-loader');
+      if (loader) loader.classList.add('hidden');
+    }, 15000);
+  </script>
+
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <script src="flutter_bootstrap.js" async></script>
 </body>

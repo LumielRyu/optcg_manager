@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../core/widgets/home_navigation_button.dart';
 
 class CameraImportScreen extends StatefulWidget {
   final String initialDestination;
@@ -100,7 +101,7 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nao foi possivel inicializar a camera.')),
+        const SnackBar(content: Text('Não foi possível inicializar a câmera.')),
       );
     }
   }
@@ -134,7 +135,7 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nao foi possivel capturar a foto.')),
+        const SnackBar(content: Text('Não foi possível capturar a foto.')),
       );
     } finally {
       if (!mounted) return;
@@ -183,7 +184,7 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Nao foi possivel abrir a camera do navegador.'),
+          content: Text('Não foi possível abrir a câmera do navegador.'),
         ),
       );
     } finally {
@@ -215,7 +216,10 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
         : (_capturedImagePath != null && _capturedImagePath!.isNotEmpty);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Importar com camera')),
+      appBar: AppBar(
+        title: const Text('Importar com câmera'),
+        actions: const [HomeNavigationButton()],
+      ),
       body: Column(
         children: [
           Expanded(child: _buildBodyPreview()),
@@ -231,8 +235,8 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Text(
                         canContinue
-                            ? 'Foto capturada. A analise sera aberta em seguida.'
-                            : 'No navegador, a captura usa a camera do proprio navegador.',
+                            ? 'Foto capturada. A análise será aberta em seguida.'
+                            : 'No navegador, a captura usa a câmera do próprio navegador.',
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -255,9 +259,9 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
                           label: Text(
                             _hasStartedCameraFlow
                                 ? (_isWebMode
-                                      ? 'Abrir camera'
+                                      ? 'Abrir câmera'
                                       : 'Capturar foto')
-                                : 'Usar camera',
+                                : 'Usar câmera',
                           ),
                         ),
                       ),
@@ -298,7 +302,7 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
         child: const Padding(
           padding: EdgeInsets.all(24),
           child: Text(
-            'A camera so sera solicitada quando voce clicar em \"Usar camera\".',
+            'A câmera só será solicitada quando você clicar em "Usar câmera".',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.white),
           ),
@@ -315,7 +319,7 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
         child: Padding(
           padding: EdgeInsets.all(24),
           child: Text(
-            'Camera indisponivel neste dispositivo.',
+            'Câmera indisponível neste dispositivo.',
             textAlign: TextAlign.center,
           ),
         ),
@@ -330,7 +334,7 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
           child: const Padding(
             padding: EdgeInsets.all(24),
             child: Text(
-              'Clique em \"Abrir camera\" para tirar uma foto no navegador.',
+              'Clique em "Abrir câmera" para tirar uma foto no navegador.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.white),
             ),

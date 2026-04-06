@@ -78,6 +78,7 @@ class CodeImportCandidate {
   final int quantity;
   final String code;
   final bool found;
+  final bool manualEntry;
   final String? name;
   final String? imageUrl;
   final String? setName;
@@ -91,6 +92,7 @@ class CodeImportCandidate {
     required this.quantity,
     required this.code,
     required this.found,
+    this.manualEntry = false,
     this.name,
     this.imageUrl,
     this.setName,
@@ -102,7 +104,46 @@ class CodeImportCandidate {
   });
 
   String get variantKey => imageUrl?.trim() ?? '';
+
+  bool get canImport {
+    if (found) return true;
+    return (name?.trim().isNotEmpty ?? false) && (color?.trim().isNotEmpty ?? false);
+  }
+
+  CodeImportCandidate copyWith({
+    int? quantity,
+    String? code,
+    bool? found,
+    bool? manualEntry,
+    Object? name = _copySentinel,
+    Object? imageUrl = _copySentinel,
+    Object? setName = _copySentinel,
+    Object? rarity = _copySentinel,
+    Object? color = _copySentinel,
+    Object? type = _copySentinel,
+    Object? text = _copySentinel,
+    Object? attribute = _copySentinel,
+  }) {
+    return CodeImportCandidate(
+      quantity: quantity ?? this.quantity,
+      code: code ?? this.code,
+      found: found ?? this.found,
+      manualEntry: manualEntry ?? this.manualEntry,
+      name: identical(name, _copySentinel) ? this.name : name as String?,
+      imageUrl: identical(imageUrl, _copySentinel) ? this.imageUrl : imageUrl as String?,
+      setName: identical(setName, _copySentinel) ? this.setName : setName as String?,
+      rarity: identical(rarity, _copySentinel) ? this.rarity : rarity as String?,
+      color: identical(color, _copySentinel) ? this.color : color as String?,
+      type: identical(type, _copySentinel) ? this.type : type as String?,
+      text: identical(text, _copySentinel) ? this.text : text as String?,
+      attribute: identical(attribute, _copySentinel)
+          ? this.attribute
+          : attribute as String?,
+    );
+  }
 }
+
+const Object _copySentinel = Object();
 
 class CodeImportState {
   final bool isBusy;
@@ -206,6 +247,7 @@ class CodeImportController extends StateNotifier<CodeImportState> {
             quantity: item.quantity,
             code: item.code,
             found: false,
+            manualEntry: true,
           ),
         );
 
@@ -309,6 +351,25 @@ class CodeImportController extends StateNotifier<CodeImportState> {
     );
   }
 
+  void updateManualCandidate(
+    int index, {
+    String? name,
+    String? color,
+  }) {
+    final list = [...state.candidates];
+    if (index < 0 || index >= list.length) return;
+
+    final current = list[index];
+    list[index] = current.copyWith(
+      manualEntry: true,
+      name: name?.trim(),
+      color: color?.trim(),
+    );
+
+    _collectedCandidates = List<CodeImportCandidate>.from(list);
+    state = state.copyWith(candidates: list, error: null);
+  }
+
   Future<String?> confirmImport({
     required String collectionType,
     String? deckName,
@@ -326,7 +387,7 @@ class CodeImportController extends StateNotifier<CodeImportState> {
             deckItems.fold<int>(0, (sum, item) => sum + item.quantity);
 
         final incomingTotal = state.candidates
-            .where((item) => item.found)
+            .where((item) => item.canImport)
             .fold<int>(0, (sum, item) => sum + item.quantity);
 
         if (currentTotal + incomingTotal > 51) {
@@ -336,7 +397,7 @@ class CodeImportController extends StateNotifier<CodeImportState> {
       }
 
       for (final item in state.candidates) {
-        if (!item.found) continue;
+        if (!item.canImport) continue;
 
         final existing = _repo.findByCodeAndCollection(
           cardCode: item.code,
@@ -380,7 +441,7 @@ class CodeImportController extends StateNotifier<CodeImportState> {
             CardRecord(
               id: _randomId(),
               cardCode: item.code,
-              name: item.name ?? item.code,
+              name: (item.name?.trim().isNotEmpty ?? false) ? item.name!.trim() : item.code,
               imageUrl: item.imageUrl ?? '',
               dateAddedUtc: DateTime.now(),
               setName: item.setName ?? '',

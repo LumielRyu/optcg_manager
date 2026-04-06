@@ -3,6 +3,7 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/collection_types.dart';
+import '../../../core/widgets/home_navigation_button.dart';
 import 'code_import_controller.dart';
 
 class CodeImportScreen extends ConsumerStatefulWidget {
@@ -18,6 +19,15 @@ class CodeImportScreen extends ConsumerStatefulWidget {
 }
 
 class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
+  static const List<String> _manualColorOptions = [
+    'Black',
+    'Blue',
+    'Green',
+    'Purple',
+    'Red',
+    'Yellow',
+  ];
+
   final TextEditingController _controller = TextEditingController();
   final TextEditingController _deckNameController = TextEditingController();
 
@@ -64,7 +74,10 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Importar por código')),
+      appBar: AppBar(
+        title: const Text('Importar por código'),
+        actions: const [HomeNavigationButton()],
+      ),
       body: Column(
         children: [
           Padding(
@@ -113,7 +126,7 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
                     border: OutlineInputBorder(),
                   ),
                   items: CollectionTypes.all.map((type) {
-                    return DropdownMenuItem(
+                    return DropdownMenuItem<String>(
                       value: type,
                       child: Text(CollectionTypes.label(type)),
                     );
@@ -173,27 +186,19 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
                     itemCount: state.candidates.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
-                      final item = state.candidates[index];
-
-                      return Card(
-                        child: ListTile(
-                          leading: SizedBox(
-                            width: 56,
-                            height: 56,
-                            child: item.found
-                                ? _ImportPreviewImage(imageUrl: item.imageUrl)
-                                : const Icon(Icons.error_outline),
-                          ),
-                          title: Text(item.name ?? item.code),
-                          subtitle: Text(
-                            item.found
-                                ? '${item.code} • ${item.setName ?? '-'} • ${item.rarity ?? '-'} • Quantidade: ${item.quantity}x'
-                                : '${item.code} • Não encontrada • Quantidade: ${item.quantity}x',
-                          ),
-                          trailing: IconButton(
-                            onPressed: () => notifier.removeCandidate(index),
-                            icon: const Icon(Icons.delete_outline),
-                          ),
+                      return _CodeCandidateCard(
+                        candidate: state.candidates[index],
+                        colorOptions: _manualColorOptions,
+                        onRemove: () => notifier.removeCandidate(index),
+                        onNameChanged: (value) => notifier.updateManualCandidate(
+                          index,
+                          name: value,
+                          color: state.candidates[index].color,
+                        ),
+                        onColorChanged: (value) => notifier.updateManualCandidate(
+                          index,
+                          name: state.candidates[index].name,
+                          color: value,
                         ),
                       );
                     },
@@ -208,6 +213,21 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
             onPressed: state.isBusy || state.candidates.isEmpty
                 ? null
                 : () async {
+                    final invalidManual = state.candidates.any(
+                      (item) => !item.found && !item.canImport,
+                    );
+
+                    if (invalidManual) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Preencha nome e cor das cartas não encontradas antes de importar.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
                     if (_selectedDestination == CollectionTypes.deck &&
                         _deckNameController.text.trim().isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -328,6 +348,88 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
           ],
         );
       },
+    );
+  }
+}
+
+class _CodeCandidateCard extends StatelessWidget {
+  final CodeImportCandidate candidate;
+  final List<String> colorOptions;
+  final VoidCallback onRemove;
+  final ValueChanged<String> onNameChanged;
+  final ValueChanged<String?> onColorChanged;
+
+  const _CodeCandidateCard({
+    required this.candidate,
+    required this.colorOptions,
+    required this.onRemove,
+    required this.onNameChanged,
+    required this.onColorChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: SizedBox(
+                width: 56,
+                height: 56,
+                child: candidate.found
+                    ? _ImportPreviewImage(imageUrl: candidate.imageUrl)
+                    : const Icon(Icons.edit_note_outlined),
+              ),
+              title: Text(
+                (candidate.name?.trim().isNotEmpty ?? false)
+                    ? candidate.name!.trim()
+                    : candidate.code,
+              ),
+              subtitle: Text(
+                candidate.found
+                    ? '${candidate.code} • ${candidate.setName ?? '-'} • ${candidate.rarity ?? '-'} • Quantidade: ${candidate.quantity}x'
+                    : '${candidate.code} • Carta não encontrada • Quantidade: ${candidate.quantity}x',
+              ),
+              trailing: IconButton(
+                onPressed: onRemove,
+                icon: const Icon(Icons.delete_outline),
+              ),
+            ),
+            if (!candidate.found) ...[
+              const SizedBox(height: 8),
+              TextField(
+                controller: TextEditingController(text: candidate.name ?? '')
+                  ..selection = TextSelection.collapsed(
+                    offset: (candidate.name ?? '').length,
+                  ),
+                decoration: const InputDecoration(
+                  labelText: 'Nome da carta',
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: onNameChanged,
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                value: colorOptions.contains(candidate.color) ? candidate.color : null,
+                decoration: const InputDecoration(
+                  labelText: 'Cor da carta',
+                  border: OutlineInputBorder(),
+                ),
+                items: colorOptions.map((color) {
+                  return DropdownMenuItem<String>(
+                    value: color,
+                    child: Text(color),
+                  );
+                }).toList(),
+                onChanged: onColorChanged,
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

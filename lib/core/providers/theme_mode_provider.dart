@@ -13,17 +13,22 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
   final Ref _ref;
   String? _loadedUserId;
 
-  ThemeModeNotifier(this._ref) : super(ThemeMode.light);
+  ThemeModeNotifier(this._ref)
+      : super(
+          _ref.read(userPreferencesRepositoryProvider).getSavedThemeMode() == 'dark'
+              ? ThemeMode.dark
+              : ThemeMode.light,
+        );
 
-  Future<void> loadForCurrentUser() async {
+  Future<void> loadForCurrentUser({bool force = false}) async {
     final user = _ref.read(currentUserProvider);
 
     if (user == null) {
-      reset();
+      _reset(useLocalPreference: true);
       return;
     }
 
-    if (_loadedUserId == user.id) return;
+    if (!force && _loadedUserId == user.id) return;
 
     final prefs = await _ref.read(userPreferencesRepositoryProvider).load();
 
@@ -41,7 +46,18 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
   }
 
   void reset() {
+    _reset(useLocalPreference: false);
+  }
+
+  void _reset({required bool useLocalPreference}) {
     _loadedUserId = null;
+    if (useLocalPreference) {
+      state = _ref.read(userPreferencesRepositoryProvider).getSavedThemeMode() == 'dark'
+          ? ThemeMode.dark
+          : ThemeMode.light;
+      return;
+    }
+
     state = ThemeMode.light;
   }
 }

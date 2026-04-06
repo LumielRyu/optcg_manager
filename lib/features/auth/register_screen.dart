@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/widgets/home_navigation_button.dart';
 import '../../data/repositories/auth_repository.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -14,6 +15,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _whatsAppController = TextEditingController();
 
   bool _isBusy = false;
   String? _error;
@@ -23,6 +25,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _whatsAppController.dispose();
     super.dispose();
   }
 
@@ -36,6 +39,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       await ref.read(authRepositoryProvider).signUp(
             email: _emailController.text.trim(),
             password: _passwordController.text,
+            name: _nameController.text.trim(),
+            whatsAppPhone: _whatsAppController.text.trim(),
           );
 
       if (!mounted) return;
@@ -61,6 +66,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Criar conta'),
+        actions: const [HomeNavigationButton()],
       ),
       body: Center(
         child: ConstrainedBox(
@@ -91,6 +97,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   obscureText: true,
                   decoration: const InputDecoration(
                     labelText: 'Senha',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _whatsAppController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Telefone / WhatsApp',
                     border: OutlineInputBorder(),
                   ),
                 ),

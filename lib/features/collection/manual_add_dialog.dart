@@ -24,13 +24,25 @@ class ManualAddDialog extends ConsumerStatefulWidget {
 }
 
 class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
+  static const List<String> _manualColors = <String>[
+    'Black',
+    'Blue',
+    'Green',
+    'Purple',
+    'Red',
+    'Yellow',
+  ];
+
   final _codeController = TextEditingController();
   final _quantityController = TextEditingController(text: '1');
+  final _manualNameController = TextEditingController();
 
   late String _destination;
   String? _deckName;
+  String? _manualColor;
 
   bool _isLoading = false;
+  bool _manualFallbackEnabled = false;
   String? _error;
 
   @override
@@ -41,6 +53,14 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
         : CollectionTypes.owned;
   }
 
+  @override
+  void dispose() {
+    _codeController.dispose();
+    _quantityController.dispose();
+    _manualNameController.dispose();
+    super.dispose();
+  }
+
   Future<void> _save() async {
     final api = ref.read(opApiServiceProvider);
     final repo = ref.read(collectionRepositoryProvider);
@@ -49,14 +69,30 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
     final quantity = int.tryParse(_quantityController.text.trim()) ?? 1;
 
     if (code.isEmpty) {
-      setState(() => _error = 'Informe o código da carta');
+      setState(() => _error = 'Informe o código da carta.');
+      return;
+    }
+
+    if (quantity <= 0) {
+      setState(() => _error = 'Informe uma quantidade válida.');
       return;
     }
 
     if (_destination == CollectionTypes.deck &&
         (_deckName == null || _deckName!.trim().isEmpty)) {
-      setState(() => _error = 'Informe o nome do deck');
+      setState(() => _error = 'Informe o nome do deck.');
       return;
+    }
+
+    if (_manualFallbackEnabled) {
+      if (_manualNameController.text.trim().isEmpty) {
+        setState(() => _error = 'Informe o nome da carta.');
+        return;
+      }
+      if ((_manualColor ?? '').trim().isEmpty) {
+        setState(() => _error = 'Informe a cor da carta.');
+        return;
+      }
     }
 
     setState(() {
@@ -69,10 +105,24 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
       final variants = await api.findAllByCode(code);
 
       if (variants.isEmpty) {
-        setState(() {
-          _error = 'Carta não encontrada para o código informado.';
-          _isLoading = false;
-        });
+        if (!_manualFallbackEnabled) {
+          setState(() {
+            _manualFallbackEnabled = true;
+            _isLoading = false;
+            _error =
+                'Carta não encontrada na base. Preencha ao menos nome e cor para cadastrar manualmente.';
+          });
+          return;
+        }
+
+        await _saveManualCard(
+          repo: repo,
+          code: code,
+          quantity: quantity,
+        );
+
+        await ref.read(collectionControllerProvider.notifier).load();
+        if (mounted) Navigator.of(context).pop();
         return;
       }
 
@@ -138,7 +188,7 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
       if (mounted) Navigator.of(context).pop();
     } catch (_) {
       setState(() {
-        _error = 'Erro ao salvar carta';
+        _error = 'Erro ao salvar carta.';
       });
     } finally {
       if (!mounted) return;
@@ -146,6 +196,52 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _saveManualCard({
+    required CollectionRepository repo,
+    required String code,
+    required int quantity,
+  }) async {
+    final manualName = _manualNameController.text.trim();
+    final manualColor = _manualColor!.trim();
+
+    final existing = repo.findByCodeAndCollection(
+      cardCode: code,
+      collectionType: _destination,
+      deckName: _destination == CollectionTypes.deck ? _deckName : null,
+      imageUrl: '',
+    );
+
+    if (existing != null) {
+      await repo.upsert(
+        existing.copyWith(
+          quantity: existing.quantity + quantity,
+          name: manualName,
+          color: manualColor,
+        ),
+      );
+      return;
+    }
+
+    await repo.upsert(
+      CardRecord(
+        id: _generateId(),
+        cardCode: code,
+        name: manualName,
+        imageUrl: '',
+        dateAddedUtc: DateTime.now(),
+        setName: '',
+        rarity: '',
+        color: manualColor,
+        type: '',
+        text: '',
+        attribute: '',
+        quantity: quantity,
+        collectionType: _destination,
+        deckName: _destination == CollectionTypes.deck ? _deckName : null,
+      ),
+    );
   }
 
   Future<OpCard?> _showVariantSelector(List<OpCard> variants) async {
@@ -286,6 +382,37 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
                 },
               ),
             ],
+            if (_manualFallbackEnabled) ...[
+              const SizedBox(height: 16),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Cadastro manual',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _manualNameController,
+                decoration: const InputDecoration(labelText: 'Nome da carta'),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _manualColor,
+                decoration: const InputDecoration(labelText: 'Cor da carta'),
+                items: _manualColors.map((color) {
+                  return DropdownMenuItem<String>(
+                    value: color,
+                    child: Text(color),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _manualColor = value;
+                  });
+                },
+              ),
+            ],
             if (_error != null) ...[
               const SizedBox(height: 12),
               Text(_error!, style: const TextStyle(color: Colors.red)),
@@ -306,7 +433,7 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
                   height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Salvar'),
+              : Text(_manualFallbackEnabled ? 'Salvar manualmente' : 'Salvar'),
         ),
       ],
     );

@@ -6,11 +6,15 @@ import 'package:go_router/go_router.dart';
 import '../../core/constants/collection_types.dart';
 import '../../core/providers/collection_view_mode_provider.dart';
 import '../../core/providers/theme_mode_provider.dart';
+import '../../core/widgets/catalog_grid_card.dart';
+import '../../core/widgets/catalog_list_card.dart';
 import '../../data/models/card_record.dart';
 import '../../data/services/translation_service.dart';
+import '../../core/widgets/primary_bottom_navigation.dart';
 import 'collection_controller.dart';
 import 'deck_details_dialog.dart';
 import 'manual_add_dialog.dart';
+import '../../core/widgets/home_navigation_button.dart';
 
 class CollectionScreen extends ConsumerStatefulWidget {
   const CollectionScreen({super.key});
@@ -23,6 +27,14 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
   String _selectedLibrary = CollectionTypes.owned;
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
+  String _selectedType = 'Todos';
+  String _selectedSet = 'Todas';
+  String _selectedRarity = 'Todas';
+  String _selectedColor = 'Todas';
+  String _selectedAttribute = 'Todos';
+  String _selectedSort = 'Código';
+  bool _favoritesOnly = false;
+  String? _selectedDeckFilter;
 
   static const List<String> _collectionLibraries = [
     CollectionTypes.owned,
@@ -56,13 +68,36 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
     }).toList();
 
     final filteredItems = libraryItems.where((card) {
-      if (_query.isEmpty) return true;
-
-      return card.name.toLowerCase().contains(_query) ||
+      final matchesQuery =
+          _query.isEmpty ||
+          card.name.toLowerCase().contains(_query) ||
           card.cardCode.toLowerCase().contains(_query) ||
           card.setName.toLowerCase().contains(_query) ||
           (card.deckName?.toLowerCase().contains(_query) ?? false);
-    }).toList();
+      final matchesType = _selectedType == 'Todos' || card.type == _selectedType;
+      final matchesSet = _selectedSet == 'Todas' || card.setName == _selectedSet;
+      final matchesRarity =
+          _selectedRarity == 'Todas' || card.rarity == _selectedRarity;
+      final matchesColor =
+          _selectedColor == 'Todas' || card.color == _selectedColor;
+      final matchesAttribute =
+          _selectedAttribute == 'Todos' || card.attribute == _selectedAttribute;
+      final matchesFavorites = !_favoritesOnly || card.isFavorite;
+      final matchesDeck =
+          _selectedLibrary != CollectionTypes.deck ||
+          _selectedDeckFilter == null ||
+          (card.deckName ?? '').trim() == _selectedDeckFilter;
+
+      return matchesQuery &&
+          matchesType &&
+          matchesSet &&
+          matchesRarity &&
+          matchesColor &&
+          matchesAttribute &&
+          matchesFavorites &&
+          matchesDeck;
+    }).toList()
+      ..sort(_sortCollectionItems);
 
     final totalUnique = _selectedLibrary == CollectionTypes.deck
         ? _countUniqueDecks(filteredItems)
@@ -77,6 +112,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
       appBar: AppBar(
         title: const Text('Minha coleção'),
         actions: [
+          const HomeNavigationButton(),
           IconButton(
             tooltip: isDark ? 'Modo claro' : 'Modo escuro',
             onPressed: () {
@@ -126,9 +162,19 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
             totalUnique: totalUnique,
             totalCards: totalCards,
             searchController: _searchController,
+            favoritesOnly: _favoritesOnly,
+            activeFilterCount: _activeFilterCount(),
             viewMode: viewMode,
             onViewModeChanged: (mode) {
               ref.read(collectionViewModeProvider.notifier).setMode(mode);
+            },
+            onFavoritesOnlyChanged: () {
+              setState(() {
+                _favoritesOnly = !_favoritesOnly;
+              });
+            },
+            onOpenFilters: () {
+              _openFiltersPanel(context, libraryItems);
             },
           ),
           Expanded(
@@ -162,6 +208,9 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
         icon: const Icon(Icons.add),
         label: const Text('Adicionar'),
       ),
+      bottomNavigationBar: const PrimaryBottomNavigation(
+        currentRoute: '/collection',
+      ),
     );
   }
 
@@ -177,6 +226,237 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
         .toSet();
     return decks.length;
   }
+
+  List<String> _buildOptions(
+    Iterable<String> values, {
+    String initialValue = '',
+  }) {
+    final options = {
+      ...values.map((value) => value.trim()).where((value) => value.isNotEmpty),
+    }.toList()..sort();
+    if (initialValue.isEmpty) return options;
+    return <String>[initialValue, ...options];
+  }
+
+  int _activeFilterCount() {
+    var count = 0;
+    if (_query.isNotEmpty) count++;
+    if (_favoritesOnly) count++;
+    if (_selectedType != 'Todos') count++;
+    if (_selectedSet != 'Todas') count++;
+    if (_selectedRarity != 'Todas') count++;
+    if (_selectedColor != 'Todas') count++;
+    if (_selectedAttribute != 'Todos') count++;
+    if (_selectedDeckFilter != null) count++;
+    return count;
+  }
+
+  Future<void> _openFiltersPanel(
+    BuildContext context,
+    List<CardRecord> libraryItems,
+  ) async {
+    final types = _buildOptions(
+      libraryItems.map((card) => card.type),
+      initialValue: 'Todos',
+    );
+    final sets = _buildOptions(
+      libraryItems.map((card) => card.setName),
+      initialValue: 'Todas',
+    );
+    final rarities = _buildOptions(
+      libraryItems.map((card) => card.rarity),
+      initialValue: 'Todas',
+    );
+    final colors = _buildOptions(
+      libraryItems.map((card) => card.color),
+      initialValue: 'Todas',
+    );
+    final attributes = _buildOptions(
+      libraryItems.map((card) => card.attribute),
+      initialValue: 'Todos',
+    );
+    final deckNames = _buildOptions(
+      libraryItems.map((card) => card.deckName ?? ''),
+    );
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) {
+        return SizedBox(
+          height: MediaQuery.of(context).size.height * 0.78,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Filtros da coleção',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  if (_activeFilterCount() > 0)
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        setState(() {
+                          _favoritesOnly = false;
+                          _selectedType = 'Todos';
+                          _selectedSet = 'Todas';
+                          _selectedRarity = 'Todas';
+                          _selectedColor = 'Todas';
+                          _selectedAttribute = 'Todos';
+                          _selectedSort = 'Código';
+                          _selectedDeckFilter = null;
+                          _searchController.clear();
+                          _query = '';
+                        });
+                      },
+                      child: const Text('Limpar tudo'),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilterChip(
+                    label: const Text('Favoritas'),
+                    selected: _favoritesOnly,
+                    onSelected: (_) {
+                      setState(() {
+                        _favoritesOnly = !_favoritesOnly;
+                      });
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _CollectionDropdown(
+                label: 'Tipo',
+                value: _selectedType,
+                options: types,
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _selectedType = value;
+                  });
+                },
+              ),
+              const SizedBox(height: 12),
+              _CollectionDropdown(
+                label: 'Edição',
+                value: _selectedSet,
+                options: sets,
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _selectedSet = value;
+                  });
+                },
+              ),
+              const SizedBox(height: 12),
+              _CollectionDropdown(
+                label: 'Raridade',
+                value: _selectedRarity,
+                options: rarities,
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _selectedRarity = value;
+                  });
+                },
+              ),
+              const SizedBox(height: 12),
+              _CollectionDropdown(
+                label: 'Cor',
+                value: _selectedColor,
+                options: colors,
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _selectedColor = value;
+                  });
+                },
+              ),
+              const SizedBox(height: 12),
+              _CollectionDropdown(
+                label: 'Atributo',
+                value: _selectedAttribute,
+                options: attributes,
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _selectedAttribute = value;
+                  });
+                },
+              ),
+              if (_selectedLibrary == CollectionTypes.deck) ...[
+                const SizedBox(height: 12),
+                _CollectionDropdown(
+                  label: 'Deck',
+                  value: _selectedDeckFilter,
+                  options: deckNames,
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedDeckFilter = value;
+                    });
+                  },
+                  allowEmpty: true,
+                  emptyLabel: 'Todos os decks',
+                ),
+              ],
+              const SizedBox(height: 12),
+              _CollectionDropdown(
+                label: 'Ordenar por',
+                value: _selectedSort,
+                options: const [
+                  'Código',
+                  'Nome',
+                  'Quantidade',
+                  'Set',
+                  'Raridade',
+                  'Cor',
+                  'Mais recentes',
+                ],
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _selectedSort = value;
+                  });
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  int _sortCollectionItems(CardRecord a, CardRecord b) {
+    switch (_selectedSort) {
+      case 'Nome':
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      case 'Quantidade':
+        return b.quantity.compareTo(a.quantity);
+      case 'Set':
+        return a.setName.toLowerCase().compareTo(b.setName.toLowerCase());
+      case 'Raridade':
+        return a.rarity.toLowerCase().compareTo(b.rarity.toLowerCase());
+      case 'Cor':
+        return a.color.toLowerCase().compareTo(b.color.toLowerCase());
+      case 'Mais recentes':
+        return b.dateAddedUtc.compareTo(a.dateAddedUtc);
+      case 'Código':
+      default:
+        return a.cardCode.compareTo(b.cardCode);
+    }
+  }
 }
 
 class _HeaderSection extends StatelessWidget {
@@ -186,8 +466,12 @@ class _HeaderSection extends StatelessWidget {
   final int totalUnique;
   final int totalCards;
   final TextEditingController searchController;
+  final bool favoritesOnly;
+  final int activeFilterCount;
   final CollectionViewMode viewMode;
   final ValueChanged<CollectionViewMode> onViewModeChanged;
+  final VoidCallback onFavoritesOnlyChanged;
+  final VoidCallback onOpenFilters;
 
   const _HeaderSection({
     required this.selectedLibrary,
@@ -196,8 +480,12 @@ class _HeaderSection extends StatelessWidget {
     required this.totalUnique,
     required this.totalCards,
     required this.searchController,
+    required this.favoritesOnly,
+    required this.activeFilterCount,
     required this.viewMode,
     required this.onViewModeChanged,
+    required this.onFavoritesOnlyChanged,
+    required this.onOpenFilters,
   });
 
   @override
@@ -348,6 +636,46 @@ class _StatCard extends StatelessWidget {
   }
 }
 
+class _CollectionDropdown extends StatelessWidget {
+  final String label;
+  final String? value;
+  final List<String> options;
+  final ValueChanged<String?> onChanged;
+  final bool allowEmpty;
+  final String emptyLabel;
+
+  const _CollectionDropdown({
+    required this.label,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+    this.allowEmpty = false,
+    this.emptyLabel = 'Todos',
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<String?>(
+      value: value,
+      decoration: InputDecoration(labelText: label),
+      items: [
+        if (allowEmpty)
+          DropdownMenuItem<String?>(
+            value: null,
+            child: Text(emptyLabel),
+          ),
+        ...options.map((option) {
+          return DropdownMenuItem<String?>(
+            value: option,
+            child: Text(option, overflow: TextOverflow.ellipsis),
+          );
+        }),
+      ],
+      onChanged: onChanged,
+    );
+  }
+}
+
 class _StandardLibraryView extends StatelessWidget {
   final List<CardRecord> items;
   final CollectionViewMode viewMode;
@@ -384,65 +712,31 @@ class _StandardLibraryView extends StatelessWidget {
         itemBuilder: (context, index) {
           final item = items[index];
 
-          return Card(
+          return CatalogListCard(
             key: ValueKey('list-card-${item.id}-${item.cardCode}'),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () {
-                showDialog(
-                  context: context,
-                  builder: (_) => _CardDetailsDialog(
-                    card: item,
-                    sourceRecords: [item],
-                  ),
-                );
-              },
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: SizedBox(
-                        width: 82,
-                        height: 112,
-                        child: _CollectionCardImage(
-                          key: ValueKey(
-                            'list-image-${item.id}-${item.cardCode}-${item.imageUrl}',
-                          ),
-                          imageUrl: item.imageUrl,
-                          cardCode: item.cardCode,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.name,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(item.cardCode),
-                          const SizedBox(height: 6),
-                          Text('Set: ${item.setName.isEmpty ? '-' : item.setName}'),
-                          const SizedBox(height: 6),
-                          Text('Quantidade: ${item.quantity}x'),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+            title: item.name,
+            code: item.cardCode,
+            metadata: [
+              'Set: ${item.setName.isEmpty ? '-' : item.setName}',
+              'Quantidade: ${item.quantity}x',
+            ],
+            image: _CollectionCardImage(
+              key: ValueKey(
+                'list-image-${item.id}-${item.cardCode}-${item.imageUrl}',
               ),
+              imageUrl: item.imageUrl,
+              cardCode: item.cardCode,
+              fit: BoxFit.contain,
             ),
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (_) => _CardDetailsDialog(
+                  card: item,
+                  sourceRecords: [item],
+                ),
+              );
+            },
           );
         },
       );
@@ -462,8 +756,21 @@ class _StandardLibraryView extends StatelessWidget {
         final item = items[index];
 
         return RepaintBoundary(
-          child: InkWell(
+          child: CatalogGridCard(
             key: ValueKey('grid-card-${item.id}-${item.cardCode}'),
+            code: item.cardCode,
+            title: item.name,
+            metadata: [
+              'Quantidade: ${item.quantity}x',
+            ],
+            image: _CollectionCardImage(
+              key: ValueKey(
+                'grid-image-${item.id}-${item.cardCode}-${item.imageUrl}',
+              ),
+              imageUrl: item.imageUrl,
+              cardCode: item.cardCode,
+              fit: BoxFit.contain,
+            ),
             onTap: () {
               showDialog(
                 context: context,
@@ -473,66 +780,6 @@ class _StandardLibraryView extends StatelessWidget {
                 ),
               );
             },
-            child: Card(
-              clipBehavior: Clip.antiAlias,
-              elevation: 1.5,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .surfaceContainerHighest
-                              .withOpacity(0.35),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.all(8),
-                        child: _CollectionCardImage(
-                          key: ValueKey(
-                            'grid-image-${item.id}-${item.cardCode}-${item.imageUrl}',
-                          ),
-                          imageUrl: item.imageUrl,
-                          cardCode: item.cardCode,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      item.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      item.cardCode,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade700,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Quantidade: ${item.quantity}x',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-            ),
           ),
         );
       },

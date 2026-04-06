@@ -7,6 +7,7 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/collection_types.dart';
+import '../../../core/widgets/home_navigation_button.dart';
 import 'image_import_controller.dart';
 
 class ImageImportScreen extends ConsumerStatefulWidget {
@@ -24,6 +25,15 @@ class ImageImportScreen extends ConsumerStatefulWidget {
 }
 
 class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
+  static const List<String> _manualColorOptions = [
+    'Black',
+    'Blue',
+    'Green',
+    'Purple',
+    'Red',
+    'Yellow',
+  ];
+
   final TextEditingController _codesController = TextEditingController();
   final TextEditingController _deckNameController = TextEditingController();
 
@@ -91,7 +101,10 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
     final notifier = ref.read(imageImportControllerProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Importar por imagem')),
+      appBar: AppBar(
+        title: const Text('Importar por imagem'),
+        actions: const [HomeNavigationButton()],
+      ),
       body: Column(
         children: [
           Expanded(
@@ -112,17 +125,17 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
                         widget.initialImageSource is Uint8List) &&
                     state.detectedInput != null &&
                     state.detectedInput!.trim().isNotEmpty) ...[
-                  _InfoBanner(
+                  const _InfoBanner(
                     icon: Icons.auto_awesome_outlined,
                     text:
-                        'A imagem foi escaneada automaticamente. Revise os codigos detectados antes de importar.',
+                        'A imagem foi escaneada automaticamente. Revise a carta identificada antes de importar.',
                   ),
                   const SizedBox(height: 12),
                 ] else if (widget.initialImageSource is Uint8List) ...[
-                  _InfoBanner(
+                  const _InfoBanner(
                     icon: Icons.info_outline,
                     text:
-                        'No navegador, a foto agora tambem passa por OCR. Se ainda falhar, revise o debug abaixo e ajuste o enquadramento.',
+                        'No navegador, a foto também passa por OCR. Se ainda falhar, revise o debug abaixo e ajuste o enquadramento.',
                     useSecondary: true,
                   ),
                   const SizedBox(height: 12),
@@ -133,7 +146,7 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
                   maxLines: 10,
                   decoration: InputDecoration(
                     hintText:
-                        'Digite ou revise os codigos identificados.\n\n'
+                        'Digite ou revise os códigos identificados.\n\n'
                         'Exemplo:\n'
                         '1xOP12-027\n'
                         '2xOP09-062',
@@ -151,7 +164,7 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
                     border: OutlineInputBorder(),
                   ),
                   items: CollectionTypes.all.map((type) {
-                    return DropdownMenuItem(
+                    return DropdownMenuItem<String>(
                       value: type,
                       child: Text(CollectionTypes.label(type)),
                     );
@@ -192,7 +205,7 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
                 const Divider(),
                 const SizedBox(height: 8),
                 const Text(
-                  'Resultado da analise',
+                  'Resultado da análise',
                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
                 ),
                 const SizedBox(height: 12),
@@ -221,27 +234,19 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                      child: Card(
-                        child: ListTile(
-                          leading: SizedBox(
-                            width: 52,
-                            height: 52,
-                            child: item.found
-                                ? _ImageImportPreviewCard(
-                                    imageUrl: item.imageUrl,
-                                  )
-                                : const Icon(Icons.error_outline),
-                          ),
-                          title: Text(item.name ?? item.code),
-                          subtitle: Text(
-                            item.found
-                                ? '${item.code} - Quantidade: ${item.quantity}x'
-                                : '${item.code} - Nao encontrada - Quantidade: ${item.quantity}x',
-                          ),
-                          trailing: IconButton(
-                            onPressed: () => notifier.removeCandidate(index),
-                            icon: const Icon(Icons.delete_outline),
-                          ),
+                      child: _ImageCandidateCard(
+                        candidate: item,
+                        colorOptions: _manualColorOptions,
+                        onRemove: () => notifier.removeCandidate(index),
+                        onNameChanged: (value) => notifier.updateManualCandidate(
+                          index,
+                          name: value,
+                          color: state.candidates[index].color,
+                        ),
+                        onColorChanged: (value) => notifier.updateManualCandidate(
+                          index,
+                          name: state.candidates[index].name,
+                          color: value,
                         ),
                       ),
                     );
@@ -258,6 +263,21 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
             onPressed: state.isBusy || state.candidates.isEmpty
                 ? null
                 : () async {
+                    final invalidManual = state.candidates.any(
+                      (item) => !item.found && !item.canImport,
+                    );
+
+                    if (invalidManual) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Preencha nome e cor das cartas não encontradas antes de importar.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
                     if (_selectedDestination == CollectionTypes.deck &&
                         _deckNameController.text.trim().isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -286,8 +306,8 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
             icon: const Icon(Icons.playlist_add_check),
             label: Text(
               _selectedDestination == CollectionTypes.forSale
-                  ? 'Adicionar as cartas a venda'
-                  : 'Adicionar a colecao',
+                  ? 'Adicionar as cartas à venda'
+                  : 'Adicionar à coleção',
             ),
           ),
         ),
@@ -325,6 +345,88 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
     return InteractiveViewer(
       child: Center(
         child: Image.file(File(state.imagePath!), fit: BoxFit.contain),
+      ),
+    );
+  }
+}
+
+class _ImageCandidateCard extends StatelessWidget {
+  final ImageImportCandidate candidate;
+  final List<String> colorOptions;
+  final VoidCallback onRemove;
+  final ValueChanged<String> onNameChanged;
+  final ValueChanged<String?> onColorChanged;
+
+  const _ImageCandidateCard({
+    required this.candidate,
+    required this.colorOptions,
+    required this.onRemove,
+    required this.onNameChanged,
+    required this.onColorChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: SizedBox(
+                width: 52,
+                height: 52,
+                child: candidate.found
+                    ? _ImageImportPreviewCard(imageUrl: candidate.imageUrl)
+                    : const Icon(Icons.edit_note_outlined),
+              ),
+              title: Text(
+                (candidate.name?.trim().isNotEmpty ?? false)
+                    ? candidate.name!.trim()
+                    : candidate.code,
+              ),
+              subtitle: Text(
+                candidate.found
+                    ? '${candidate.code} - Quantidade: ${candidate.quantity}x'
+                    : '${candidate.code} - Carta não encontrada - Quantidade: ${candidate.quantity}x',
+              ),
+              trailing: IconButton(
+                onPressed: onRemove,
+                icon: const Icon(Icons.delete_outline),
+              ),
+            ),
+            if (!candidate.found) ...[
+              const SizedBox(height: 8),
+              TextField(
+                controller: TextEditingController(text: candidate.name ?? '')
+                  ..selection = TextSelection.collapsed(
+                    offset: (candidate.name ?? '').length,
+                  ),
+                decoration: const InputDecoration(
+                  labelText: 'Nome da carta',
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: onNameChanged,
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                value: colorOptions.contains(candidate.color) ? candidate.color : null,
+                decoration: const InputDecoration(
+                  labelText: 'Cor da carta',
+                  border: OutlineInputBorder(),
+                ),
+                items: colorOptions.map((color) {
+                  return DropdownMenuItem<String>(
+                    value: color,
+                    child: Text(color),
+                  );
+                }).toList(),
+                onChanged: onColorChanged,
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -403,7 +505,7 @@ class _OcrDebugPanel extends StatelessWidget {
           ],
           if (state.extractedLines.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text('Codigos extraidos: ${state.extractedLines.join(', ')}'),
+            Text('Códigos extraídos: ${state.extractedLines.join(', ')}'),
           ],
           if (state.candidateNames.isNotEmpty) ...[
             const SizedBox(height: 8),
@@ -411,7 +513,7 @@ class _OcrDebugPanel extends StatelessWidget {
           ],
           if (state.detectedInput?.trim().isNotEmpty ?? false) ...[
             const SizedBox(height: 8),
-            Text('Entrada normalizada:'),
+            const Text('Entrada normalizada:'),
             const SizedBox(height: 4),
             SelectableText(state.detectedInput!),
           ],
@@ -420,7 +522,11 @@ class _OcrDebugPanel extends StatelessWidget {
             Text(
               "Cartas resolvidas: ${state.candidates.map((item) => '${item.code}${item.matchedBy == null ? '' : ' (${item.matchedBy})'}').join(', ')}",
             ),
-            if (state.candidates.any((item) => item.matchedBy == 'visual+name')) ...[
+            if (state.candidates.any(
+              (item) =>
+                  item.matchedBy == 'visual+name' ||
+                  item.matchedBy == 'visual',
+            )) ...[
               const SizedBox(height: 4),
               const Text(
                 'O reconhecimento final foi confirmado pela imagem inteira da carta.',
@@ -429,7 +535,7 @@ class _OcrDebugPanel extends StatelessWidget {
           ],
           if (state.rawOcrText?.trim().isNotEmpty ?? false) ...[
             const SizedBox(height: 8),
-            Text('Texto bruto lido da imagem:'),
+            const Text('Texto bruto lido da imagem:'),
             const SizedBox(height: 4),
             SelectableText(state.rawOcrText!),
           ],

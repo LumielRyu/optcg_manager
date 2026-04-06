@@ -9,11 +9,16 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/collection_types.dart';
 import '../../core/providers/collection_view_mode_provider.dart';
 import '../../core/providers/theme_mode_provider.dart';
+import '../../core/utils/share_link_helper.dart';
+import '../../core/widgets/catalog_grid_card.dart';
+import '../../core/widgets/catalog_list_card.dart';
 import '../../data/models/marketplace_listing.dart';
 import '../../data/repositories/marketplace_repository.dart';
 import '../../data/services/op_api_service.dart';
 import '../../data/services/translation_service.dart';
 import '../collection/manual_add_dialog.dart';
+import '../../core/widgets/home_navigation_button.dart';
+import '../../core/widgets/primary_bottom_navigation.dart';
 
 class SalesScreen extends ConsumerStatefulWidget {
   const SalesScreen({super.key});
@@ -63,6 +68,35 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     return '$origin/shared/store/$userId';
   }
 
+  Future<void> _showShareLinkDialog(String link) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Link da vitrine'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Não foi possível copiar automaticamente neste navegador. Use o link abaixo:',
+              ),
+              const SizedBox(height: 12),
+              SelectableText(link),
+            ],
+          ),
+          actions: [
+          const HomeNavigationButton(),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Fechar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _copyStoreLink() async {
     setState(() {
       _isSharingBusy = true;
@@ -78,18 +112,33 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       }
 
       final link = _buildPublicStoreLink(user.id);
-
-      await Clipboard.setData(ClipboardData(text: link));
+      final action = await shareOrCopyText(
+        link,
+        subject: 'Vitrine do OPTCG Manager',
+      );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Link da vitrine copiado:\n$link')),
+        SnackBar(
+          content: Text(
+            action == 'shared'
+                ? 'Link da vitrine aberto para compartilhamento.'
+                : 'Link da vitrine copiado:\n$link',
+          ),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Erro ao copiar link: $e')));
+      final user = Supabase.instance.client.auth.currentUser;
+      final fallbackLink = user == null ? null : _buildPublicStoreLink(user.id);
+
+      if (fallbackLink != null) {
+        await _showShareLinkDialog(fallbackLink);
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erro ao copiar link: $e')));
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -139,6 +188,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: const HomeNavigationButton(),
         title: const Text('Cartas \u00E0 venda'),
         actions: [
           IconButton(
@@ -194,7 +244,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
         future: listingsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const _SalesLoadingView();
           }
 
           if (snapshot.hasError) {
@@ -267,6 +317,27 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
         icon: const Icon(Icons.add),
         label: const Text('Adicionar'),
       ),
+      bottomNavigationBar: const PrimaryBottomNavigation(
+        currentRoute: '/sales',
+      ),
+    );
+  }
+}
+
+class _SalesLoadingView extends StatelessWidget {
+  const _SalesLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: const [
+        _SalesSkeletonBox(height: 150, radius: 24),
+        SizedBox(height: 16),
+        _SalesSkeletonBox(height: 220, radius: 20),
+        SizedBox(height: 12),
+        _SalesSkeletonBox(height: 220, radius: 20),
+      ],
     );
   }
 }
@@ -486,81 +557,33 @@ class _SalesLibraryView extends ConsumerWidget {
         itemBuilder: (context, index) {
           final item = items[index];
 
-          return Card(
+          return CatalogListCard(
             key: ValueKey('sales-list-card-${item.id}-${item.cardCode}'),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () {
-                showDialog(
-                  context: context,
-                  builder: (_) =>
-                      _SalesCardDetailsDialog(card: item, onChanged: onChanged),
-                );
-              },
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: SizedBox(
-                        width: 82,
-                        height: 112,
-                        child: _SalesResolvedCardImage(
-                          key: ValueKey(
-                            'sales-list-image-${item.id}-${item.cardCode}-${item.imageUrl}',
-                          ),
-                          imageUrl: item.imageUrl,
-                          cardCode: item.cardCode,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.name,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(item.cardCode),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Set: ${item.setName.isEmpty ? '-' : item.setName}',
-                          ),
-                          const SizedBox(height: 6),
-                          Text(item.formattedPrice),
-                          const SizedBox(height: 6),
-                          Text('Status: ${item.statusLabel}'),
-                          const SizedBox(height: 6),
-                          Text('Condi\u00E7\u00E3o: ${item.conditionLabel}'),
-                          const SizedBox(height: 6),
-                          Text('Quantidade: ${item.quantity}x'),
-                          if (item.hasContactInfo) ...[
-                            const SizedBox(height: 6),
-                            const Text(
-                              'Contato configurado',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+            title: item.name,
+            code: item.cardCode,
+            metadata: [
+              'Set: ${item.setName.isEmpty ? '-' : item.setName}',
+              item.formattedPrice,
+              'Status: ${item.statusLabel}',
+              'Condição: ${item.conditionLabel}',
+              'Quantidade: ${item.quantity}x',
+              if (item.hasContactInfo) 'Contato configurado',
+            ],
+            image: _SalesResolvedCardImage(
+              key: ValueKey(
+                'sales-list-image-${item.id}-${item.cardCode}-${item.imageUrl}',
               ),
+              imageUrl: item.imageUrl,
+              cardCode: item.cardCode,
+              fit: BoxFit.contain,
             ),
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (_) =>
+                    _SalesCardDetailsDialog(card: item, onChanged: onChanged),
+              );
+            },
           );
         },
       );
@@ -579,8 +602,33 @@ class _SalesLibraryView extends ConsumerWidget {
       itemBuilder: (context, index) {
         final item = items[index];
 
-        return InkWell(
+        return CatalogGridCard(
           key: ValueKey('sales-grid-card-${item.id}-${item.cardCode}'),
+          code: item.cardCode,
+          title: item.name,
+          metadata: [
+            'Quantidade: ${item.quantity}x',
+            item.statusLabel,
+            item.conditionLabel,
+            item.formattedPrice,
+          ],
+          footer: item.hasContactInfo
+              ? const Text(
+                  'Contato configurado',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                )
+              : null,
+          image: _SalesResolvedCardImage(
+            key: ValueKey(
+              'sales-grid-image-${item.id}-${item.cardCode}-${item.imageUrl}',
+            ),
+            imageUrl: item.imageUrl,
+            cardCode: item.cardCode,
+            fit: BoxFit.contain,
+          ),
           onTap: () {
             showDialog(
               context: context,
@@ -588,93 +636,6 @@ class _SalesLibraryView extends ConsumerWidget {
                   _SalesCardDetailsDialog(card: item, onChanged: onChanged),
             );
           },
-          child: Card(
-            clipBehavior: Clip.antiAlias,
-            elevation: 1.5,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.surfaceContainerHighest.withOpacity(0.35),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.all(8),
-                      child: _SalesResolvedCardImage(
-                        key: ValueKey(
-                          'sales-grid-image-${item.id}-${item.cardCode}-${item.imageUrl}',
-                        ),
-                        imageUrl: item.imageUrl,
-                        cardCode: item.cardCode,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    item.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    item.cardCode,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Quantidade: ${item.quantity}x',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    item.statusLabel,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    item.conditionLabel,
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    item.formattedPrice,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  if (item.hasContactInfo) ...[
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Contato configurado',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
         );
       },
     );
@@ -993,6 +954,29 @@ class _SalesEmptyState extends StatelessWidget {
   }
 }
 
+class _SalesSkeletonBox extends StatelessWidget {
+  final double height;
+  final double radius;
+
+  const _SalesSkeletonBox({
+    required this.height,
+    this.radius = 16,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.surfaceContainerHighest;
+
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.7),
+        borderRadius: BorderRadius.circular(radius),
+      ),
+    );
+  }
+}
+
 class _SalesCardDetailsDialog extends ConsumerStatefulWidget {
   final MarketplaceListing card;
   final VoidCallback onChanged;
@@ -1008,7 +992,6 @@ class _SalesCardDetailsDialogState
     extends ConsumerState<_SalesCardDetailsDialog> {
   final TranslationService _translationService = TranslationService();
   late final TextEditingController _priceController;
-  late final TextEditingController _contactController;
   late final TextEditingController _notesController;
   late String _saleStatus;
   late String _cardCondition;
@@ -1026,7 +1009,6 @@ class _SalesCardDetailsDialogState
           ? (widget.card.priceInCents! / 100).toStringAsFixed(2)
           : '',
     );
-    _contactController = TextEditingController(text: widget.card.contactInfo);
     _notesController = TextEditingController(text: widget.card.notes);
     _saleStatus = widget.card.saleStatus;
     _cardCondition = widget.card.cardCondition;
@@ -1035,7 +1017,6 @@ class _SalesCardDetailsDialogState
   @override
   void dispose() {
     _priceController.dispose();
-    _contactController.dispose();
     _notesController.dispose();
     super.dispose();
   }
@@ -1117,7 +1098,6 @@ class _SalesCardDetailsDialogState
             priceInCents: parsedPrice == null
                 ? null
                 : (parsedPrice * 100).round(),
-            contactInfo: _contactController.text,
             notes: _notesController.text,
             saleStatus: _saleStatus,
             cardCondition: _cardCondition,
@@ -1197,7 +1177,7 @@ class _SalesCardDetailsDialogState
                     _infoRow('Tipo', card.type),
                     _infoRow('Atributo', card.attribute),
                     if (card.hasContactInfo)
-                      _infoRow('Contato', card.contactInfo),
+                      _infoRow('WhatsApp do cadastro', card.contactInfo),
                     if (card.hasNotes)
                       _infoRow('Observações', card.notes),
                     if (card.hasWhatsAppContact) ...[
@@ -1238,9 +1218,19 @@ class _SalesCardDetailsDialogState
                       ),
                     ),
                     const SizedBox(height: 8),
-                    TextField(
-                      controller: _contactController,
-                      decoration: const InputDecoration(labelText: 'Contato'),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest.withOpacity(0.55),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Text(
+                        card.hasContactInfo
+                            ? 'O WhatsApp deste anuncio vem automaticamente do seu cadastro: ${card.contactInfo}'
+                            : 'Cadastre seu WhatsApp no perfil para que ele seja usado automaticamente nos anuncios.',
+                      ),
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(

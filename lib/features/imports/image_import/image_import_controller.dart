@@ -19,6 +19,7 @@ class ImageImportCandidate {
   final int quantity;
   final String code;
   final bool found;
+  final bool manualEntry;
   final String? matchedBy;
   final String? name;
   final String? imageUrl;
@@ -33,6 +34,7 @@ class ImageImportCandidate {
     required this.quantity,
     required this.code,
     required this.found,
+    this.manualEntry = false,
     this.matchedBy,
     this.name,
     this.imageUrl,
@@ -43,7 +45,50 @@ class ImageImportCandidate {
     this.text,
     this.attribute,
   });
+
+  bool get canImport {
+    if (found) return true;
+    return (name?.trim().isNotEmpty ?? false) && (color?.trim().isNotEmpty ?? false);
+  }
+
+  ImageImportCandidate copyWith({
+    int? quantity,
+    String? code,
+    bool? found,
+    bool? manualEntry,
+    Object? matchedBy = _copySentinel,
+    Object? name = _copySentinel,
+    Object? imageUrl = _copySentinel,
+    Object? setName = _copySentinel,
+    Object? rarity = _copySentinel,
+    Object? color = _copySentinel,
+    Object? type = _copySentinel,
+    Object? text = _copySentinel,
+    Object? attribute = _copySentinel,
+  }) {
+    return ImageImportCandidate(
+      quantity: quantity ?? this.quantity,
+      code: code ?? this.code,
+      found: found ?? this.found,
+      manualEntry: manualEntry ?? this.manualEntry,
+      matchedBy: identical(matchedBy, _copySentinel)
+          ? this.matchedBy
+          : matchedBy as String?,
+      name: identical(name, _copySentinel) ? this.name : name as String?,
+      imageUrl: identical(imageUrl, _copySentinel) ? this.imageUrl : imageUrl as String?,
+      setName: identical(setName, _copySentinel) ? this.setName : setName as String?,
+      rarity: identical(rarity, _copySentinel) ? this.rarity : rarity as String?,
+      color: identical(color, _copySentinel) ? this.color : color as String?,
+      type: identical(type, _copySentinel) ? this.type : type as String?,
+      text: identical(text, _copySentinel) ? this.text : text as String?,
+      attribute: identical(attribute, _copySentinel)
+          ? this.attribute
+          : attribute as String?,
+    );
+  }
 }
+
+const Object _copySentinel = Object();
 
 class ImageImportState {
   static const Object _sentinel = Object();
@@ -136,7 +181,7 @@ class ImageImportController extends StateNotifier<ImageImportState> {
       isBusy: true,
       error: null,
       candidates: [],
-      debugMessage: 'Analise manual iniciada.',
+      debugMessage: 'An\u00E1lise manual iniciada.',
     );
 
     try {
@@ -149,7 +194,8 @@ class ImageImportController extends StateNotifier<ImageImportState> {
           detectedInput: rawInput.trim().isEmpty ? null : rawInput.trim(),
           extractedLines: const [],
           candidateNames: const [],
-          debugMessage: 'Nenhum codigo valido foi extraido do texto informado.',
+          debugMessage:
+              'Nenhum c\u00F3digo v\u00E1lido foi extra\u00EDdo do texto informado.',
         );
         return;
       }
@@ -166,15 +212,15 @@ class ImageImportController extends StateNotifier<ImageImportState> {
         extractedLines: normalizedDetected.split('\n'),
         candidateNames: const [],
         debugMessage:
-            'Analise manual concluiu ${results.length} item(ns). Encontradas: ${results.where((item) => item.found).length}.',
+            'An\u00E1lise manual concluiu ${results.length} item(ns). Encontradas: ${results.where((item) => item.found).length}.',
       );
       debugPrint('[ImageImport][manual] input="$rawInput"');
       debugPrint('[ImageImport][manual] normalized="$normalizedDetected"');
     } catch (e) {
       state = state.copyWith(
         isBusy: false,
-        error: 'Erro ao analisar codigos: $e',
-        debugMessage: 'Erro durante a analise manual: $e',
+        error: 'Erro ao analisar c\u00F3digos: $e',
+        debugMessage: 'Erro durante a an\u00E1lise manual: $e',
       );
       debugPrint('[ImageImport][manual][error] $e');
     }
@@ -221,7 +267,7 @@ class ImageImportController extends StateNotifier<ImageImportState> {
             extractedLines: const [],
             candidateNames: candidateNames,
             debugMessage:
-                'Codigo nao encontrado. A carta foi identificada por nome.',
+                'C\u00F3digo n\u00E3o encontrado. A carta foi identificada por nome.',
           );
           return state.detectedInput;
         }
@@ -229,13 +275,13 @@ class ImageImportController extends StateNotifier<ImageImportState> {
         state = state.copyWith(
           isBusy: false,
           error:
-              'Nenhum codigo foi identificado automaticamente na foto. Ajuste o enquadramento da carta ou informe o codigo manualmente.',
+              'Nenhum c\u00F3digo foi identificado automaticamente na foto. Ajuste o enquadramento da carta ou informe o c\u00F3digo manualmente.',
           detectedInput: null,
           rawOcrText: rawText,
           extractedLines: const [],
           candidateNames: candidateNames,
           debugMessage:
-              'OCR executado, mas nao encontrou nenhum codigo no texto reconhecido.',
+              'OCR executado, mas n\u00E3o encontrou nenhum c\u00F3digo no texto reconhecido.',
         );
         return null;
       }
@@ -262,7 +308,7 @@ class ImageImportController extends StateNotifier<ImageImportState> {
             extractedLines: extractedLines,
             candidateNames: candidateNames,
             debugMessage:
-                'OCR executado. Os codigos extraidos nao bateram na API, entao a carta foi confirmada por nome.',
+                'OCR executado. Os c\u00F3digos extra\u00EDdos n\u00E3o bateram na API, ent\u00E3o a carta foi confirmada por nome.',
           );
           return state.detectedInput;
         }
@@ -310,15 +356,46 @@ class ImageImportController extends StateNotifier<ImageImportState> {
         rawText,
       );
       final candidateNames = OcrCodeExtractor.extractCandidateNames(rawText);
+      final visualMatch = await _resolveVisualCandidates(
+        candidateNames: candidateNames,
+        rawText: rawText,
+        extractedLines: extractedLines,
+        sourceBytes: bytes,
+      );
       debugPrint('[ImageImport][ocr-web] raw="$rawText"');
       debugPrint('[ImageImport][ocr-web] extracted=$extractedLines');
       debugPrint('[ImageImport][ocr-web] names=$candidateNames');
+      if (visualMatch != null) {
+        debugPrint(
+          '[ImageImport][visual-primary] ${visualMatch.card.code} mode=${visualMatch.matchedBy} confidence=${visualMatch.isHighConfidence} detail=${visualMatch.debug}',
+        );
+      }
 
       if (extractedLines.isEmpty) {
+        if (visualMatch != null) {
+          state = state.copyWith(
+            isBusy: false,
+            candidates: [
+              _candidateFromCard(
+                visualMatch.card,
+                matchedBy: visualMatch.matchedBy,
+              ),
+            ],
+            detectedInput: '1x${visualMatch.card.code}',
+            rawOcrText: rawText,
+            extractedLines: const [],
+            candidateNames: candidateNames,
+            debugMessage:
+                'OCR web executado. O c\u00F3digo n\u00E3o foi confi\u00E1vel, ent\u00E3o a carta foi identificada pela imagem inteira${visualMatch.matchedBy == 'visual+name' ? ' com apoio do texto' : ''}.',
+          );
+          return state.detectedInput;
+        }
+
         final fallbackByName = await _resolveNameCandidates(
           candidateNames: candidateNames,
           rawText: rawText,
           extractedLines: extractedLines,
+          sourceBytes: bytes,
         );
         if (fallbackByName.isNotEmpty) {
           state = state.copyWith(
@@ -331,7 +408,7 @@ class ImageImportController extends StateNotifier<ImageImportState> {
             extractedLines: const [],
             candidateNames: candidateNames,
             debugMessage:
-                'OCR web executado. Codigo nao encontrado, mas a carta foi identificada por nome.',
+                'OCR web executado. C\u00F3digo n\u00E3o encontrado, mas a carta foi identificada por nome.',
           );
           return state.detectedInput;
         }
@@ -339,13 +416,13 @@ class ImageImportController extends StateNotifier<ImageImportState> {
         state = state.copyWith(
           isBusy: false,
           error:
-              'Nenhum codigo foi identificado automaticamente na foto. Ajuste o enquadramento da carta ou informe o codigo manualmente.',
+              'Nenhum c\u00F3digo foi identificado automaticamente na foto. Ajuste o enquadramento da carta ou informe o c\u00F3digo manualmente.',
           detectedInput: null,
           rawOcrText: rawText,
           extractedLines: const [],
           candidateNames: candidateNames,
           debugMessage:
-              'OCR web executado, mas nao encontrou nenhum codigo no texto reconhecido.',
+              'OCR web executado, mas n\u00E3o encontrou nenhum c\u00F3digo no texto reconhecido.',
         );
         return null;
       }
@@ -353,12 +430,59 @@ class ImageImportController extends StateNotifier<ImageImportState> {
       final normalizedInput = extractedLines.join('\n');
       final parsed = _parseLines(normalizedInput);
       final results = await _resolveCandidates(parsed);
+      final foundCodes = results
+          .where((item) => item.found)
+          .map((item) => item.code)
+          .toSet();
+
+      if (visualMatch != null &&
+          visualMatch.isHighConfidence &&
+          (!foundCodes.contains(visualMatch.card.code) ||
+              foundCodes.length != 1 ||
+              results.any((item) => !item.found))) {
+        state = state.copyWith(
+          isBusy: false,
+          candidates: [
+            _candidateFromCard(
+              visualMatch.card,
+              matchedBy: visualMatch.matchedBy,
+            ),
+          ],
+          detectedInput: '1x${visualMatch.card.code}',
+          rawOcrText: rawText,
+          extractedLines: extractedLines,
+          candidateNames: candidateNames,
+          debugMessage:
+              'OCR web executado, mas a imagem inteira da carta indicou ${visualMatch.card.code} com mais confian\u00E7a. Os c\u00F3digos extra\u00EDdos foram substitu\u00EDdos pelo reconhecimento visual.',
+        );
+        return state.detectedInput;
+      }
 
       if (results.where((item) => item.found).isEmpty) {
+        if (visualMatch != null) {
+          state = state.copyWith(
+            isBusy: false,
+            candidates: [
+              _candidateFromCard(
+                visualMatch.card,
+                matchedBy: visualMatch.matchedBy,
+              ),
+            ],
+            detectedInput: '1x${visualMatch.card.code}',
+            rawOcrText: rawText,
+            extractedLines: extractedLines,
+            candidateNames: candidateNames,
+            debugMessage:
+                'OCR web executado. Os c\u00F3digos extra\u00EDdos n\u00E3o bateram na API, ent\u00E3o a carta foi identificada pela imagem inteira.',
+          );
+          return state.detectedInput;
+        }
+
         final fallbackByName = await _resolveNameCandidates(
           candidateNames: candidateNames,
           rawText: rawText,
           extractedLines: extractedLines,
+          sourceBytes: bytes,
         );
 
         if (fallbackByName.isNotEmpty) {
@@ -372,7 +496,7 @@ class ImageImportController extends StateNotifier<ImageImportState> {
             extractedLines: extractedLines,
             candidateNames: candidateNames,
             debugMessage:
-                'OCR web executado. Os codigos extraidos nao bateram na API, entao a carta foi confirmada por nome.',
+                'OCR web executado. Os c\u00F3digos extra\u00EDdos n\u00E3o bateram na API, ent\u00E3o a carta foi confirmada por nome.',
           );
           return state.detectedInput;
         }
@@ -408,6 +532,23 @@ class ImageImportController extends StateNotifier<ImageImportState> {
     state = state.copyWith(candidates: list);
   }
 
+  void updateManualCandidate(
+    int index, {
+    String? name,
+    String? color,
+  }) {
+    final list = [...state.candidates];
+    if (index < 0 || index >= list.length) return;
+
+    list[index] = list[index].copyWith(
+      manualEntry: true,
+      name: name?.trim(),
+      color: color?.trim(),
+    );
+
+    state = state.copyWith(candidates: list, error: null);
+  }
+
   Future<String?> confirmImport({
     required String collectionType,
     String? deckName,
@@ -427,7 +568,7 @@ class ImageImportController extends StateNotifier<ImageImportState> {
         );
 
         final incomingTotal = state.candidates
-            .where((item) => item.found)
+            .where((item) => item.canImport)
             .fold<int>(0, (sum, item) => sum + item.quantity);
 
         if (currentTotal + incomingTotal > 51) {
@@ -437,7 +578,7 @@ class ImageImportController extends StateNotifier<ImageImportState> {
       }
 
       for (final item in state.candidates) {
-        if (!item.found) continue;
+        if (!item.canImport) continue;
 
         final existing = _repo.findByCodeAndCollection(
           cardCode: item.code,
@@ -564,6 +705,7 @@ class ImageImportController extends StateNotifier<ImageImportState> {
             quantity: item.quantity,
             code: item.code,
             found: false,
+            manualEntry: true,
             matchedBy: 'code',
           ),
         );
@@ -606,19 +748,9 @@ class ImageImportController extends StateNotifier<ImageImportState> {
 
     if (visualRanked != null) {
       return [
-        ImageImportCandidate(
-          quantity: 1,
-          code: visualRanked.code,
-          found: true,
-          matchedBy: 'visual+name',
-          name: visualRanked.name,
-          imageUrl: visualRanked.image,
-          setName: visualRanked.setName,
-          rarity: visualRanked.rarity,
-          color: visualRanked.color,
-          type: visualRanked.type,
-          text: visualRanked.text,
-          attribute: visualRanked.attribute,
+        _candidateFromCard(
+          visualRanked.card,
+          matchedBy: visualRanked.matchedBy,
         ),
       ];
     }
@@ -633,31 +765,77 @@ class ImageImportController extends StateNotifier<ImageImportState> {
       return const [];
     }
 
-    return [
-      ImageImportCandidate(
-        quantity: 1,
-        code: card.code,
-        found: true,
-        matchedBy: 'name',
-        name: card.name,
-        imageUrl: card.image,
-        setName: card.setName,
-        rarity: card.rarity,
-        color: card.color,
-        type: card.type,
-        text: card.text,
-        attribute: card.attribute,
-      ),
-    ];
+    return [_candidateFromCard(card, matchedBy: 'name')];
   }
 
-  Future<OpCard?> _resolveVisualCandidates({
+  Future<_ResolvedVisualMatch?> _resolveVisualCandidates({
     required List<String> candidateNames,
     required String rawText,
     required List<String> extractedLines,
     Uint8List? sourceBytes,
   }) async {
-    if (sourceBytes == null || candidateNames.isEmpty) {
+    if (sourceBytes == null) {
+      return null;
+    }
+
+    final allCards = await _api.loadAllCards();
+    final databaseRanked = await _visualMatcher.rankAgainstFingerprintDatabase(
+      sourceBytes: sourceBytes,
+      cards: allCards,
+      limit: 3,
+    );
+
+    if (databaseRanked.isNotEmpty) {
+      debugPrint(
+        '[ImageImport][visual-db] ranked=${databaseRanked.map((item) => '${item.card.code}:${item.distance}').join(', ')}',
+      );
+
+      final best = databaseRanked.first;
+      final secondDistance = databaseRanked.length > 1
+          ? databaseRanked[1].distance
+          : 999;
+      final hasConfidenceGap = secondDistance - best.distance >= 6;
+      final isStrongEnough = best.distance <= 110;
+      final bestByText = await _api.findBestCardFromOcrText(
+        rawText: rawText,
+        candidateNames: candidateNames,
+        extractedLines: extractedLines,
+      );
+
+      if (bestByText != null) {
+        for (final item in databaseRanked) {
+          if (item.card.code == bestByText.code) {
+            return _ResolvedVisualMatch(
+              card: item.card,
+              matchedBy: 'visual+name',
+              isHighConfidence: true,
+              debug:
+                  'db=${item.distance} text=${bestByText.code} second=$secondDistance',
+            );
+          }
+        }
+      }
+
+      if (isStrongEnough && hasConfidenceGap) {
+        return _ResolvedVisualMatch(
+          card: best.card,
+          matchedBy: 'visual',
+          isHighConfidence: true,
+          debug: 'db=${best.distance} second=$secondDistance',
+        );
+      }
+
+      if (best.distance <= 82) {
+        return _ResolvedVisualMatch(
+          card: best.card,
+          matchedBy: 'visual',
+          isHighConfidence: true,
+          debug: 'db=${best.distance} second=$secondDistance',
+        );
+      }
+    }
+
+    if (candidateNames.isEmpty) {
       return null;
     }
 
@@ -707,7 +885,32 @@ class ImageImportController extends StateNotifier<ImageImportState> {
       return null;
     }
 
-    return best.card;
+    return _ResolvedVisualMatch(
+      card: best.card,
+      matchedBy: 'visual+name',
+      isHighConfidence: true,
+      debug: 'name-db=${best.distance} second=$secondDistance',
+    );
+  }
+
+  ImageImportCandidate _candidateFromCard(
+    OpCard card, {
+    required String matchedBy,
+  }) {
+    return ImageImportCandidate(
+      quantity: 1,
+      code: card.code,
+      found: true,
+      matchedBy: matchedBy,
+      name: card.name,
+      imageUrl: card.image,
+      setName: card.setName,
+      rarity: card.rarity,
+      color: card.color,
+      type: card.type,
+      text: card.text,
+      attribute: card.attribute,
+    );
   }
 
   String _randomId() {
@@ -729,5 +932,19 @@ class _ParsedLine {
   _ParsedLine({
     required this.quantity,
     required this.code,
+  });
+}
+
+class _ResolvedVisualMatch {
+  final OpCard card;
+  final String matchedBy;
+  final bool isHighConfidence;
+  final String debug;
+
+  const _ResolvedVisualMatch({
+    required this.card,
+    required this.matchedBy,
+    required this.isHighConfidence,
+    required this.debug,
   });
 }

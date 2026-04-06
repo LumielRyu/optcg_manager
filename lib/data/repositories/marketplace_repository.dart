@@ -5,19 +5,22 @@ import '../models/marketplace_listing.dart';
 import '../models/op_card.dart';
 import '../services/op_api_service.dart';
 import '../services/supabase_client_provider.dart';
+import 'user_preferences_repository.dart';
 
 final marketplaceRepositoryProvider = Provider<MarketplaceRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
   final opApi = ref.watch(opApiServiceProvider);
-  return MarketplaceRepository(client, opApi);
+  final prefs = ref.watch(userPreferencesRepositoryProvider);
+  return MarketplaceRepository(client, opApi, prefs);
 });
 
 class MarketplaceRepository {
   final SupabaseClient _client;
   final OpApiService _opApi;
+  final UserPreferencesRepository _prefs;
   final Map<String, OpCard?> _apiCardCache = {};
 
-  MarketplaceRepository(this._client, this._opApi);
+  MarketplaceRepository(this._client, this._opApi, this._prefs);
 
   Future<List<MarketplaceListing>> getMyListings() async {
     final user = _client.auth.currentUser;
@@ -62,12 +65,17 @@ class MarketplaceRepository {
   Future<void> enablePublicStoreSharingForUser() async {
     final user = _client.auth.currentUser;
     if (user == null) {
-      throw Exception('Usuário não autenticado.');
+      throw Exception('Usu\u00E1rio n\u00E3o autenticado.');
     }
+
+    final whatsAppPhone = await _prefs.getCurrentWhatsAppPhone();
 
     await _client
         .from('collection_items')
-        .update({'is_public': true})
+        .update({
+          'is_public': true,
+          'sale_contact_info': whatsAppPhone,
+        })
         .eq('user_id', user.id)
         .eq('collection_type', 'forSale');
   }
@@ -86,19 +94,19 @@ class MarketplaceRepository {
   Future<void> updateListingDetails({
     required String id,
     required int? priceInCents,
-    required String contactInfo,
     required String notes,
     required String saleStatus,
     required String cardCondition,
   }) async {
+    final whatsAppPhone = await _prefs.getCurrentWhatsAppPhone();
+
     final payload = <String, dynamic>{
-      'sale_contact_info': contactInfo.trim(),
+      'sale_contact_info': whatsAppPhone,
       'sale_notes': notes.trim(),
       'sale_status': saleStatus,
       'card_condition': cardCondition,
+      'sale_price_cents': priceInCents,
     };
-
-    payload['sale_price_cents'] = priceInCents;
 
     await _client.from('collection_items').update(payload).eq('id', id);
   }

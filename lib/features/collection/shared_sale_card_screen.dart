@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../data/models/marketplace_listing.dart';
 import '../../data/repositories/marketplace_repository.dart';
 import '../../data/services/op_api_service.dart';
+import '../../core/widgets/home_navigation_button.dart';
 
 class SharedSaleCardScreen extends ConsumerWidget {
   final String shareCode;
@@ -23,6 +24,7 @@ class SharedSaleCardScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Carta \u00E0 venda'),
+        actions: const [HomeNavigationButton()],
       ),
       body: FutureBuilder<MarketplaceListing?>(
         future: repo.getPublicListingByShareCode(shareCode),

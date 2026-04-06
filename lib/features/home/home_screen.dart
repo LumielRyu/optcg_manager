@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/providers/theme_mode_provider.dart';
+import '../../core/widgets/primary_bottom_navigation.dart';
 import '../../data/repositories/auth_repository.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -60,10 +61,8 @@ class HomeScreen extends ConsumerWidget {
                     children: [
                       Text(
                         'Bem-vindo ao OPTCG Manager',
-                        style:
-                            Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                ),
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.w800),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 10),
@@ -79,18 +78,27 @@ class HomeScreen extends ConsumerWidget {
                 Expanded(
                   child: GridView.count(
                     crossAxisCount:
-                        MediaQuery.of(context).size.width > 900 ? 2 : 1,
+                        MediaQuery.of(context).size.width > 1080 ? 3 : 1,
                     crossAxisSpacing: 16,
                     mainAxisSpacing: 16,
-                    childAspectRatio: 1.65,
+                    childAspectRatio:
+                        MediaQuery.of(context).size.width > 1080 ? 1.38 : 1.2,
                     children: [
+                      _HomeFeatureCard(
+                        icon: Icons.auto_stories_outlined,
+                        title: 'Biblioteca One Piece',
+                        subtitle:
+                            'Consulte todas as cartas do jogo com imagem, código e filtros por cor, tipo e edição.',
+                        buttonLabel: 'Abrir biblioteca',
+                        onPressed: () => context.go('/library'),
+                      ),
                       _HomeFeatureCard(
                         icon: Icons.collections_bookmark_outlined,
                         title: 'Abrir coleção',
                         subtitle:
                             'Acesse cartas obtidas e decks montados, além das ferramentas de importação.',
                         buttonLabel: 'Abrir coleção',
-                        onPressed: () => context.push('/collection'),
+                        onPressed: () => context.go('/collection'),
                       ),
                       _HomeFeatureCard(
                         icon: Icons.storefront_outlined,
@@ -98,7 +106,7 @@ class HomeScreen extends ConsumerWidget {
                         subtitle:
                             'Gerencie sua área de vendas e copie o link da sua vitrine pública.',
                         buttonLabel: 'Abrir vendas',
-                        onPressed: () => context.push('/sales'),
+                        onPressed: () => context.go('/sales'),
                       ),
                     ],
                   ),
@@ -107,6 +115,9 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
         ),
+      ),
+      bottomNavigationBar: const PrimaryBottomNavigation(
+        currentRoute: '/home',
       ),
     );
   }
@@ -132,32 +143,44 @@ class _HomeFeatureCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Card(
-      elevation: 1.5,
+      elevation: 0,
+      shadowColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(24),
+        side: BorderSide(
+          color: theme.colorScheme.outlineVariant.withOpacity(0.45),
+        ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(22),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 32),
-            const SizedBox(height: 18),
-            Text(
-              title,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        splashColor: theme.colorScheme.primary.withOpacity(0.05),
+        highlightColor: Colors.transparent,
+        hoverColor: theme.colorScheme.primary.withOpacity(0.04),
+        onTap: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, size: 32),
+              const SizedBox(height: 18),
+              Text(
+                title,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(subtitle),
-            const Spacer(),
-            FilledButton.icon(
-              onPressed: onPressed,
-              icon: const Icon(Icons.arrow_forward),
-              label: Text(buttonLabel),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(subtitle),
+              const Spacer(),
+              FilledButton.icon(
+                onPressed: onPressed,
+                icon: const Icon(Icons.arrow_forward),
+                label: Text(buttonLabel),
+              ),
+            ],
+          ),
         ),
       ),
     );

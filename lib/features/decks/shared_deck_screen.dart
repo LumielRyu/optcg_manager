@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/repositories/collection_repository.dart';
 import '../../data/services/op_api_service.dart';
+import '../../core/widgets/home_navigation_button.dart';
 
 class SharedDeckScreen extends ConsumerWidget {
   final String shareCode;
@@ -18,6 +19,7 @@ class SharedDeckScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        actions: const [HomeNavigationButton()],
         title: const Text('Deck compartilhado'),
       ),
       body: FutureBuilder(

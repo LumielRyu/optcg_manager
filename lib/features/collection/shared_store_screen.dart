@@ -4,9 +4,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/utils/share_link_helper.dart';
 import '../../data/models/marketplace_listing.dart';
 import '../../data/repositories/marketplace_repository.dart';
 import '../../data/services/op_api_service.dart';
+import '../../core/widgets/home_navigation_button.dart';
 
 class SharedStoreScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -18,7 +20,12 @@ class SharedStoreScreen extends ConsumerStatefulWidget {
 }
 
 class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
+  static const double _cardMaxWidth = 210;
+  static const double _cardSpacing = 12;
+  static const double _gridAspectRatio = 0.48;
+
   final TextEditingController _searchController = TextEditingController();
+  final Map<String, int> _cartQuantities = {};
   String _query = '';
 
   @override
@@ -49,21 +56,167 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
     return '$origin/shared/store/${widget.userId}';
   }
 
+  Future<void> _showShareLinkDialog(String link) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Link da vitrine'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Não foi possível copiar automaticamente neste navegador. Use o link abaixo:',
+              ),
+              const SizedBox(height: 12),
+              SelectableText(link),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Fechar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _copyStoreLink() async {
     final link = _buildPublicStoreLink();
 
-    await Clipboard.setData(ClipboardData(text: link));
+    try {
+      final action = await shareOrCopyText(
+        link,
+        subject: 'Vitrine do OPTCG Manager',
+      );
 
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Link da vitrine copiado.')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            action == 'shared'
+                ? 'Link da vitrine aberto para compartilhamento.'
+                : 'Link da vitrine copiado.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      await _showShareLinkDialog(link);
+    }
+  }
+
+  void _setCartQuantity(MarketplaceListing item, int quantity) {
+    final safeQuantity = quantity.clamp(0, item.quantity);
+    setState(() {
+      if (safeQuantity <= 0) {
+        _cartQuantities.remove(item.id);
+      } else {
+        _cartQuantities[item.id] = safeQuantity;
+      }
+    });
+  }
+
+  int _selectedQuantityFor(MarketplaceListing item) {
+    return _cartQuantities[item.id] ?? 0;
+  }
+
+  String _formatCents(int cents) {
+    final reais = cents ~/ 100;
+    final centavos = (cents % 100).toString().padLeft(2, '0');
+    final whole = reais.toString();
+    final buffer = StringBuffer();
+
+    for (int i = 0; i < whole.length; i++) {
+      final indexFromEnd = whole.length - i;
+      buffer.write(whole[i]);
+      if (indexFromEnd > 1 && indexFromEnd % 3 == 1) {
+        buffer.write('.');
+      }
+    }
+
+    return 'R\$ ${buffer.toString()},$centavos';
+  }
+
+  String _buildInterestMessage(List<MarketplaceListing> selectedItems) {
+    final lines = <String>[
+      'Oi, eu gostaria de reservar essas cartas:',
+      '',
+    ];
+
+    var totalCards = 0;
+    var totalPrice = 0;
+
+    for (final item in selectedItems) {
+      final quantity = _selectedQuantityFor(item);
+      if (quantity <= 0) continue;
+
+      totalCards += quantity;
+      totalPrice += (item.priceInCents ?? 0) * quantity;
+
+      final extras = item.notes.trim().isNotEmpty
+          ? ' - Extra: ${item.notes.trim()}'
+          : '';
+
+      lines.add(
+        '${quantity}x ${item.name} - ${item.formattedPrice}$extras',
+      );
+    }
+
+    lines.add('');
+    lines.add('Total: ${_formatCents(totalPrice)}');
+    lines.add('Total de cards: $totalCards');
+
+    return lines.join('\n');
+  }
+
+  Future<void> _sendInterestViaWhatsApp(
+    List<MarketplaceListing> selectedItems,
+  ) async {
+    if (selectedItems.isEmpty) return;
+
+    final contactItem = selectedItems.firstWhere(
+      (item) => item.hasWhatsAppContact,
+      orElse: () => selectedItems.first,
+    );
+
+    if (!contactItem.hasWhatsAppContact) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Esta vitrine não possui um WhatsApp configurado.'),
+        ),
+      );
+      return;
+    }
+
+    final message = _buildInterestMessage(selectedItems);
+    final uri = Uri.parse(
+      'https://wa.me/${contactItem.normalizedWhatsAppNumber}?text=${Uri.encodeComponent(message)}',
+    );
+
+    final launched = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível abrir o WhatsApp.'),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final repo = ref.read(marketplaceRepositoryProvider);
     final theme = Theme.of(context);
+    final listingsFuture = repo.getPublicListingsByUser(widget.userId);
 
     return Scaffold(
       appBar: AppBar(
@@ -77,7 +230,7 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
         ],
       ),
       body: FutureBuilder<List<MarketplaceListing>>(
-        future: repo.getPublicListingsByUser(widget.userId),
+        future: listingsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -107,6 +260,18 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
           final totalCards = allItems.fold<int>(
             0,
             (sum, item) => sum + item.quantity,
+          );
+          final selectedItems = allItems
+              .where((item) => (_cartQuantities[item.id] ?? 0) > 0)
+              .toList(growable: false);
+          final selectedCount = selectedItems.fold<int>(
+            0,
+            (sum, item) => sum + _selectedQuantityFor(item),
+          );
+          final selectedTotal = selectedItems.fold<int>(
+            0,
+            (sum, item) =>
+                sum + ((_selectedQuantityFor(item)) * (item.priceInCents ?? 0)),
           );
 
           return Column(
@@ -154,6 +319,11 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                           value: '$totalCards',
                           icon: Icons.inventory_2_outlined,
                         ),
+                        _MarketStatCard(
+                          title: 'Carrinho',
+                          value: '$selectedCount',
+                          icon: Icons.shopping_cart_outlined,
+                        ),
                       ],
                     ),
                     const SizedBox(height: 14),
@@ -167,8 +337,7 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                               prefixIcon: const Icon(Icons.search),
                               suffixIcon: _searchController.text.isNotEmpty
                                   ? IconButton(
-                                      onPressed: () =>
-                                          _searchController.clear(),
+                                      onPressed: () => _searchController.clear(),
                                       icon: const Icon(Icons.close),
                                     )
                                   : null,
@@ -205,10 +374,10 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                         padding: const EdgeInsets.all(12),
                         gridDelegate:
                             const SliverGridDelegateWithMaxCrossAxisExtent(
-                              maxCrossAxisExtent: 220,
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 12,
-                              childAspectRatio: 0.58,
+                              maxCrossAxisExtent: _cardMaxWidth,
+                              crossAxisSpacing: _cardSpacing,
+                              mainAxisSpacing: _cardSpacing,
+                              childAspectRatio: _gridAspectRatio,
                             ),
                         itemCount: items.length,
                         itemBuilder: (context, index) {
@@ -221,38 +390,37 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                             clipBehavior: Clip.antiAlias,
                             elevation: 1.5,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(14),
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Expanded(
-                                  child: Container(
-                                    color: theme
-                                        .colorScheme
-                                        .surfaceContainerHighest
-                                        .withOpacity(0.35),
-                                    padding: const EdgeInsets.all(8),
-                                    child: _SharedStoreResolvedCardImage(
-                                      key: ValueKey(
-                                        'shared-store-image-${item.id}-${item.cardCode}-${item.imageUrl}',
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Expanded(
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: theme
+                                            .colorScheme
+                                            .surfaceContainerHighest
+                                            .withOpacity(0.35),
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
-                                      imageUrl: item.imageUrl,
-                                      cardCode: item.cardCode,
-                                      fit: BoxFit.contain,
+                                      padding: const EdgeInsets.all(8),
+                                      child: _SharedStoreZoomableCardImage(
+                                        key: ValueKey(
+                                          'shared-store-image-${item.id}-${item.cardCode}-${item.imageUrl}',
+                                        ),
+                                        imageUrl: item.imageUrl,
+                                        cardCode: item.cardCode,
+                                        title: item.name,
+                                        fit: BoxFit.contain,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    10,
-                                    10,
-                                    10,
-                                    12,
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                  const SizedBox(height: 10),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         item.name,
@@ -274,7 +442,33 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                                         ),
                                       ),
                                       const SizedBox(height: 6),
-                                      if (item.setName.trim().isNotEmpty)
+                                      Text(
+                                        'Quantidade: ${item.quantity}x',
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        item.statusLabel,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        item.conditionLabel,
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        item.formattedPrice,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      if (item.setName.trim().isNotEmpty) ...[
+                                        const SizedBox(height: 6),
                                         Text(
                                           item.setName,
                                           maxLines: 1,
@@ -284,95 +478,7 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                                             color: Colors.grey.shade700,
                                           ),
                                         ),
-                                      const SizedBox(height: 8),
-                                      Wrap(
-                                        spacing: 8,
-                                        runSpacing: 8,
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 6,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: item.isSold
-                                                  ? Colors.grey.shade300
-                                                  : item.isReserved
-                                                      ? Colors.amber.shade100
-                                                      : theme.colorScheme
-                                                          .secondaryContainer,
-                                              borderRadius:
-                                                  BorderRadius.circular(999),
-                                            ),
-                                            child: Text(
-                                              item.statusLabel,
-                                              style: const TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 6,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: theme.colorScheme
-                                                  .surfaceContainerHighest,
-                                              borderRadius:
-                                                  BorderRadius.circular(999),
-                                            ),
-                                            child: Text(
-                                              item.conditionLabel,
-                                              style: const TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 6,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: theme
-                                                  .colorScheme
-                                                  .primaryContainer,
-                                              borderRadius:
-                                                  BorderRadius.circular(999),
-                                            ),
-                                            child: Text(
-                                              'Quantidade: ${item.quantity}x',
-                                              style: const TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 6,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: theme
-                                                  .colorScheme
-                                                  .tertiaryContainer,
-                                              borderRadius:
-                                                  BorderRadius.circular(999),
-                                            ),
-                                            child: Text(
-                                              item.formattedPrice,
-                                              style: const TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+                                      ],
                                       if (item.hasContactInfo) ...[
                                         const SizedBox(height: 10),
                                         Row(
@@ -430,7 +536,7 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                                                     ).showSnackBar(
                                                       const SnackBar(
                                                         content: Text(
-                                                          'N\u00E3o foi poss\u00EDvel abrir o WhatsApp.',
+                                                          'Não foi possível abrir o WhatsApp.',
                                                         ),
                                                       ),
                                                     );
@@ -443,7 +549,8 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                                           ],
                                         ),
                                       ],
-                                      if (item.hasNotes)
+                                      if (item.hasNotes) ...[
+                                        const SizedBox(height: 6),
                                         Text(
                                           item.notes,
                                           maxLines: 2,
@@ -453,16 +560,128 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                                             color: Colors.grey.shade700,
                                           ),
                                         ),
+                                      ],
+                                      const SizedBox(height: 10),
+                                      Row(
+                                        children: [
+                                          IconButton(
+                                            tooltip: 'Remover',
+                                            onPressed:
+                                                _selectedQuantityFor(item) <= 0
+                                                ? null
+                                                : () => _setCartQuantity(
+                                                    item,
+                                                    _selectedQuantityFor(item) -
+                                                        1,
+                                                  ),
+                                            icon: const Icon(
+                                              Icons.remove_circle_outline,
+                                            ),
+                                          ),
+                                          Expanded(
+                                            child: Text(
+                                              _selectedQuantityFor(item) <= 0
+                                                  ? 'Adicionar ao carrinho'
+                                                  : 'No carrinho: ${_selectedQuantityFor(item)}x',
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                                color: theme.colorScheme.primary,
+                                              ),
+                                            ),
+                                          ),
+                                          IconButton(
+                                            tooltip: 'Adicionar',
+                                            onPressed:
+                                                item.isActive &&
+                                                    _selectedQuantityFor(item) <
+                                                        item.quantity
+                                                ? () => _setCartQuantity(
+                                                    item,
+                                                    _selectedQuantityFor(item) +
+                                                        1,
+                                                  )
+                                                : null,
+                                            icon: const Icon(
+                                              Icons.add_circle_outline,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ],
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           );
                         },
                       ),
               ),
             ],
+          );
+        },
+      ),
+      bottomNavigationBar: FutureBuilder<List<MarketplaceListing>>(
+        future: listingsFuture,
+        builder: (context, snapshot) {
+          final allItems = snapshot.data ?? const <MarketplaceListing>[];
+          final selectedItems = allItems
+              .where((item) => (_cartQuantities[item.id] ?? 0) > 0)
+              .toList(growable: false);
+
+          if (selectedItems.isEmpty) {
+            return const SizedBox.shrink();
+          }
+
+          final selectedCount = selectedItems.fold<int>(
+            0,
+            (sum, item) => sum + _selectedQuantityFor(item),
+          );
+          final selectedTotal = selectedItems.fold<int>(
+            0,
+            (sum, item) =>
+                sum + ((_selectedQuantityFor(item)) * (item.priceInCents ?? 0)),
+          );
+
+          return SafeArea(
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface.withOpacity(0.98),
+                border: Border(
+                  top: BorderSide(
+                    color: theme.colorScheme.outlineVariant,
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '$selectedCount card(s) no carrinho',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text('Total: ${_formatCents(selectedTotal)}'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  FilledButton.icon(
+                    onPressed: () => _sendInterestViaWhatsApp(selectedItems),
+                    icon: const Icon(Icons.shopping_cart_checkout),
+                    label: const Text('Enviar interesse'),
+                  ),
+                ],
+              ),
+            ),
           );
         },
       ),
@@ -622,6 +841,174 @@ class _SharedStoreResolvedCardImageFromApi extends ConsumerWidget {
           },
         );
       },
+    );
+  }
+}
+
+class _SharedStoreZoomableCardImage extends ConsumerWidget {
+  final String imageUrl;
+  final String cardCode;
+  final String title;
+  final BoxFit fit;
+  final double? height;
+
+  const _SharedStoreZoomableCardImage({
+    super.key,
+    required this.imageUrl,
+    required this.cardCode,
+    required this.title,
+    this.fit = BoxFit.contain,
+    this.height,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final directUrl = imageUrl.trim();
+
+    if (directUrl.isNotEmpty) {
+      return _buildTapWrapper(
+        context,
+        _SharedStoreResolvedCardImage(
+          imageUrl: directUrl,
+          cardCode: cardCode,
+          height: height,
+          fit: fit,
+        ),
+        directUrl,
+      );
+    }
+
+    final api = ref.read(opApiServiceProvider);
+
+    return FutureBuilder(
+      future: api.findCardByCode(cardCode),
+      builder: (context, snapshot) {
+        final resolvedUrl = snapshot.data?.image.trim() ?? '';
+
+        return _buildTapWrapper(
+          context,
+          _SharedStoreResolvedCardImage(
+            imageUrl: imageUrl,
+            cardCode: cardCode,
+            height: height,
+            fit: fit,
+          ),
+          resolvedUrl,
+        );
+      },
+    );
+  }
+
+  Widget _buildTapWrapper(
+    BuildContext context,
+    Widget child,
+    String resolvedUrl,
+  ) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: resolvedUrl.trim().isEmpty
+            ? null
+            : () {
+                showDialog(
+                  context: context,
+                  barrierColor: Colors.black.withOpacity(0.92),
+                  builder: (_) => _SharedStoreCardImageFullscreenDialog(
+                    imageUrl: resolvedUrl,
+                    title: title,
+                    cardCode: cardCode,
+                  ),
+                );
+              },
+        child: child,
+      ),
+    );
+  }
+}
+
+class _SharedStoreCardImageFullscreenDialog extends StatelessWidget {
+  final String imageUrl;
+  final String title;
+  final String cardCode;
+
+  const _SharedStoreCardImageFullscreenDialog({
+    required this.imageUrl,
+    required this.title,
+    required this.cardCode,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog.fullscreen(
+      backgroundColor: Colors.black,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: InteractiveViewer(
+              minScale: 0.8,
+              maxScale: 5,
+              panEnabled: true,
+              child: Center(
+                child: Image.network(
+                  imageUrl,
+                  fit: BoxFit.contain,
+                  webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+                  errorBuilder: (_, __, ___) {
+                    return const Center(
+                      child: Icon(
+                        Icons.broken_image_outlined,
+                        color: Colors.white70,
+                        size: 56,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 16,
+            left: 16,
+            right: 16,
+            child: SafeArea(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          cardCode,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  IconButton.filledTonal(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

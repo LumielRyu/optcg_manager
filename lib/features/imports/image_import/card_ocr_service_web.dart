@@ -1,7 +1,9 @@
 import 'dart:convert';
-import 'dart:html' as html;
-import 'dart:js_util' as js_util;
+import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 import 'dart:typed_data';
+
+import 'package:web/web.dart' as web;
 
 class CardOcrService {
   Future<String> readTextFromFile(String path) async {
@@ -15,31 +17,22 @@ class CardOcrService {
   }
 
   Future<String> _recognize(String source) async {
-    final tesseract = js_util.getProperty<Object?>(html.window, 'Tesseract');
+    final tesseract = (web.window as JSObject).getProperty('Tesseract'.toJS);
     if (tesseract == null) {
-      throw Exception('Tesseract.js nao foi carregado no navegador.');
+      throw Exception('Tesseract.js não foi carregado no navegador.');
     }
 
-    final options = js_util.jsify({
-      'logger': (dynamic message) {
-        final status = js_util.getProperty<Object?>(message, 'status');
-        final progress = js_util.getProperty<Object?>(message, 'progress');
-        if (status != null) {
-          // ignore: avoid_print
-          print('[Tesseract][web] $status ${progress ?? ''}');
-        }
-      },
-    });
+    final promise = (tesseract as JSObject).callMethod(
+      'recognize'.toJS,
+      source.toJS,
+      'eng'.toJS,
+    ) as JSPromise<JSAny?>;
 
-    final promise = js_util.callMethod<Object?>(
-      tesseract,
-      'recognize',
-      [source, 'eng', options],
-    );
-
-    final result = await js_util.promiseToFuture<Object?>(promise as Object);
-    final data = js_util.getProperty<Object?>(result as Object, 'data');
-    final text = data == null ? null : js_util.getProperty<Object?>(data, 'text');
+    final result = await promise.toDart;
+    final data = (result as JSObject).getProperty('data'.toJS);
+    final text = data == null
+        ? null
+        : (data as JSObject).getProperty('text'.toJS);
     return (text ?? '').toString();
   }
 

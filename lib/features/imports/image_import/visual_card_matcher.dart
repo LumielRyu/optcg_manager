@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
 
@@ -16,8 +18,53 @@ class VisualCardMatchResult {
   });
 }
 
+class _VisualFingerprint {
+  final String code;
+  final String fullHash;
+  final String artHash;
+  final String footerHash;
+  final List<int> avgRgb;
+
+  const _VisualFingerprint({
+    required this.code,
+    required this.fullHash,
+    required this.artHash,
+    required this.footerHash,
+    required this.avgRgb,
+  });
+
+  factory _VisualFingerprint.fromJson(Map<String, dynamic> json) {
+    final avg = (json['avgRgb'] as List? ?? const [])
+        .map((e) => int.tryParse(e.toString()) ?? 0)
+        .toList();
+
+    return _VisualFingerprint(
+      code: (json['code'] ?? '').toString().trim().toUpperCase(),
+      fullHash: (json['fullHash'] ?? '').toString(),
+      artHash: (json['artHash'] ?? '').toString(),
+      footerHash: (json['footerHash'] ?? '').toString(),
+      avgRgb: avg.length >= 3 ? avg.take(3).toList() : const [0, 0, 0],
+    );
+  }
+}
+
+class _SourceFingerprint {
+  final String fullHash;
+  final String artHash;
+  final String footerHash;
+  final List<int> avgRgb;
+
+  const _SourceFingerprint({
+    required this.fullHash,
+    required this.artHash,
+    required this.footerHash,
+    required this.avgRgb,
+  });
+}
+
 class VisualCardMatcher {
   final Map<String, BigInt> _hashCache = {};
+  List<_VisualFingerprint>? _databaseCache;
 
   Future<List<VisualCardMatchResult>> rankCandidates({
     required Uint8List sourceBytes,
@@ -50,12 +97,97 @@ class VisualCardMatcher {
     return results.take(limit).toList();
   }
 
+  Future<List<VisualCardMatchResult>> rankAgainstFingerprintDatabase({
+    required Uint8List sourceBytes,
+    required List<OpCard> cards,
+    int limit = 3,
+  }) async {
+    final fingerprints = await _loadFingerprintDatabase();
+    if (fingerprints.isEmpty || cards.isEmpty) return const [];
+
+    final source = _computeSourceFingerprint(sourceBytes);
+    if (source == null) return const [];
+
+    final cardsByCode = <String, OpCard>{for (final card in cards) card.code: card};
+    final results = <VisualCardMatchResult>[];
+
+    for (final fingerprint in fingerprints) {
+      final card = cardsByCode[fingerprint.code];
+      if (card == null) continue;
+
+      final fullDistance = _hammingDistanceFromHex(
+        source.fullHash,
+        fingerprint.fullHash,
+      );
+      final artDistance = _hammingDistanceFromHex(
+        source.artHash,
+        fingerprint.artHash,
+      );
+      final footerDistance = _hammingDistanceFromHex(
+        source.footerHash,
+        fingerprint.footerHash,
+      );
+      final rgbDistance = _rgbDistance(source.avgRgb, fingerprint.avgRgb);
+
+      final score = fullDistance * 2 + artDistance * 3 + footerDistance + rgbDistance;
+
+      results.add(
+        VisualCardMatchResult(
+          card: card,
+          distance: score,
+        ),
+      );
+    }
+
+    results.sort((a, b) => a.distance.compareTo(b.distance));
+    return results.take(limit).toList();
+  }
+
+  Future<List<_VisualFingerprint>> _loadFingerprintDatabase() async {
+    if (_databaseCache != null) return _databaseCache!;
+
+    try {
+      final raw = await rootBundle.loadString('assets/visual_card_fingerprints.json');
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) {
+        _databaseCache = const [];
+        return _databaseCache!;
+      }
+
+      _databaseCache = decoded
+          .whereType<Map>()
+          .map((item) => _VisualFingerprint.fromJson(Map<String, dynamic>.from(item)))
+          .where((item) => item.code.isNotEmpty)
+          .toList();
+      return _databaseCache!;
+    } catch (_) {
+      _databaseCache = const [];
+      return _databaseCache!;
+    }
+  }
+
   BigInt? _computeSourceHash(Uint8List bytes) {
     final decoded = img.decodeImage(bytes);
     if (decoded == null) return null;
 
     final cropped = _extractLikelyCardRegion(decoded);
     return _differenceHash(cropped);
+  }
+
+  _SourceFingerprint? _computeSourceFingerprint(Uint8List bytes) {
+    final decoded = img.decodeImage(bytes);
+    if (decoded == null) return null;
+
+    final full = _extractLikelyCardRegion(decoded);
+    final art = cropBox(full, 0.08, 0.08, 0.92, 0.78);
+    final footer = cropBox(full, 0.05, 0.74, 0.95, 0.98);
+
+    return _SourceFingerprint(
+      fullHash: _differenceHash(full).toRadixString(16).padLeft(16, '0'),
+      artHash: _differenceHash(art).toRadixString(16).padLeft(16, '0'),
+      footerHash: _differenceHash(footer).toRadixString(16).padLeft(16, '0'),
+      avgRgb: _averageRgb(full),
+    );
   }
 
   Future<BigInt?> _getTargetHash(String imageUrl) async {
@@ -249,13 +381,58 @@ class VisualCardMatcher {
   }
 
   img.Image _cropAndResizeForHash(img.Image image) {
-    final resized = img.copyResize(
+    return img.copyResize(
       image,
       width: 9,
       height: 8,
       interpolation: img.Interpolation.average,
     );
-    return resized;
+  }
+
+  img.Image cropBox(
+    img.Image image,
+    double left,
+    double top,
+    double right,
+    double bottom,
+  ) {
+    final width = image.width;
+    final height = image.height;
+
+    return img.copyCrop(
+      image,
+      x: max(0, (width * left).round()),
+      y: max(0, (height * top).round()),
+      width: max(1, (width * (right - left)).round()),
+      height: max(1, (height * (bottom - top)).round()),
+    );
+  }
+
+  List<int> _averageRgb(img.Image image) {
+    final resized = img.copyResize(
+      image,
+      width: 32,
+      height: 32,
+      interpolation: img.Interpolation.average,
+    );
+
+    var r = 0;
+    var g = 0;
+    var b = 0;
+    var count = 0;
+
+    for (var y = 0; y < resized.height; y++) {
+      for (var x = 0; x < resized.width; x++) {
+        final pixel = resized.getPixel(x, y);
+        r += pixel.r.toInt();
+        g += pixel.g.toInt();
+        b += pixel.b.toInt();
+        count++;
+      }
+    }
+
+    if (count == 0) return const [0, 0, 0];
+    return [r ~/ count, g ~/ count, b ~/ count];
   }
 
   int _hammingDistance(BigInt a, BigInt b) {
@@ -268,5 +445,15 @@ class VisualCardMatcher {
     }
 
     return count;
+  }
+
+  int _hammingDistanceFromHex(String a, String b) {
+    if (a.isEmpty || b.isEmpty) return 64;
+    return _hammingDistance(BigInt.parse(a, radix: 16), BigInt.parse(b, radix: 16));
+  }
+
+  int _rgbDistance(List<int> a, List<int> b) {
+    if (a.length < 3 || b.length < 3) return 255;
+    return ((a[0] - b[0]).abs() + (a[1] - b[1]).abs() + (a[2] - b[2]).abs()) ~/ 12;
   }
 }

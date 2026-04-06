@@ -14,17 +14,23 @@ class CollectionViewModeNotifier extends StateNotifier<CollectionViewMode> {
   final Ref _ref;
   String? _loadedUserId;
 
-  CollectionViewModeNotifier(this._ref) : super(CollectionViewMode.grid);
+  CollectionViewModeNotifier(this._ref)
+      : super(
+          _ref.read(userPreferencesRepositoryProvider).getSavedCollectionViewMode() ==
+                  'list'
+              ? CollectionViewMode.list
+              : CollectionViewMode.grid,
+        );
 
-  Future<void> loadForCurrentUser() async {
+  Future<void> loadForCurrentUser({bool force = false}) async {
     final user = _ref.read(currentUserProvider);
 
     if (user == null) {
-      reset();
+      _reset(useLocalPreference: true);
       return;
     }
 
-    if (_loadedUserId == user.id) return;
+    if (!force && _loadedUserId == user.id) return;
 
     final prefs = await _ref.read(userPreferencesRepositoryProvider).load();
 
@@ -43,7 +49,19 @@ class CollectionViewModeNotifier extends StateNotifier<CollectionViewMode> {
   }
 
   void reset() {
+    _reset(useLocalPreference: false);
+  }
+
+  void _reset({required bool useLocalPreference}) {
     _loadedUserId = null;
+    if (useLocalPreference) {
+      state = _ref.read(userPreferencesRepositoryProvider).getSavedCollectionViewMode() ==
+              'list'
+          ? CollectionViewMode.list
+          : CollectionViewMode.grid;
+      return;
+    }
+
     state = CollectionViewMode.grid;
   }
 }

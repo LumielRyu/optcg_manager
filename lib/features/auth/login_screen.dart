@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/widgets/home_navigation_button.dart';
 import '../../data/repositories/auth_repository.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -48,8 +49,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           );
 
       if (!mounted) return;
+      final needsCompletion = await ref
+          .read(authRepositoryProvider)
+          .needsWhatsAppCompletion();
+      if (!mounted) return;
 
-      context.go('/home');
+      context.go(needsCompletion ? '/complete-profile' : '/home');
     } catch (e) {
       final msg = e.toString();
 
@@ -81,6 +86,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Entrar'),
+        actions: const [HomeNavigationButton()],
       ),
       body: Center(
         child: ConstrainedBox(

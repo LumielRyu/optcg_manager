@@ -35,6 +35,20 @@ class OpCard {
     );
   }
 
+  Map<String, dynamic> toJson() {
+    return {
+      'card_set_id': code,
+      'card_name': name,
+      'card_image': image,
+      'set_name': setName,
+      'rarity': rarity,
+      'card_color': color,
+      'card_type': type,
+      'card_text': text,
+      'attribute': attribute,
+    };
+  }
+
   static String _normalizeNullableText(dynamic value) {
     final text = (value ?? '').toString().trim();
     if (text.toUpperCase() == 'NULL') return '';

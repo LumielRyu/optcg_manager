@@ -12,7 +12,7 @@ class CardOcrService {
 
   Future<String> readTextFromBytes(Uint8List bytes) async {
     throw UnsupportedError(
-      'OCR por bytes nao e suportado fora do navegador.',
+      'OCR por bytes não é suportado fora do navegador.',
     );
   }
 
