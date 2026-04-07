@@ -90,9 +90,9 @@ class _OnePieceLibraryScreenState
 
     return Scaffold(
       appBar: AppBar(
+        leading: const HomeNavigationButton(),
         title: const Text('Biblioteca One Piece'),
         actions: [
-          const HomeNavigationButton(),
           IconButton(
             tooltip: _favoritesOnly
                 ? 'Mostrar todas as cartas'

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/painting.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -31,6 +32,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
   bool _isSharingBusy = false;
+  bool _headerCollapsed = false;
   int _reloadSeed = 0;
 
   @override
@@ -278,29 +280,31 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
           );
           final pricedItems = filteredItems.where((item) => item.hasPrice).length;
 
-          return Column(
-            children: [
-              _SalesHeaderSection(
-                totalUnique: totalUnique,
-                totalCards: totalCards,
-                pricedItems: pricedItems,
-                searchController: _searchController,
-                viewMode: viewMode,
-                isSharingBusy: _isSharingBusy,
-                onViewModeChanged: (mode) {
-                  ref.read(collectionViewModeProvider.notifier).setMode(mode);
-                },
-                onCopyLink: _copyStoreLink,
-                onDisableLink: _disableStoreLink,
-              ),
-              Expanded(
-                child: _SalesLibraryView(
+          return SingleChildScrollView(
+            child: Column(
+              children: [
+                _SalesHeaderSection(
+                  totalUnique: totalUnique,
+                  totalCards: totalCards,
+                  pricedItems: pricedItems,
+                  searchController: _searchController,
+                  viewMode: viewMode,
+                  isSharingBusy: _isSharingBusy,
+                  isCollapsed: false,
+                  onViewModeChanged: (mode) {
+                    ref.read(collectionViewModeProvider.notifier).setMode(mode);
+                  },
+                  onToggleCollapsed: () {},
+                  onCopyLink: _copyStoreLink,
+                  onDisableLink: _disableStoreLink,
+                ),
+                _SalesLibraryView(
                   items: filteredItems,
                   viewMode: viewMode,
                   onChanged: _reloadListings,
                 ),
-              ),
-            ],
+              ],
+            ),
           );
         },
       ),
@@ -349,17 +353,22 @@ class _SalesHeaderSection extends StatelessWidget {
   final TextEditingController searchController;
   final CollectionViewMode viewMode;
   final ValueChanged<CollectionViewMode> onViewModeChanged;
+  final bool isCollapsed;
+  final VoidCallback onToggleCollapsed;
   final VoidCallback onCopyLink;
   final VoidCallback onDisableLink;
   final bool isSharingBusy;
 
   const _SalesHeaderSection({
+    super.key,
     required this.totalUnique,
     required this.totalCards,
     required this.pricedItems,
     required this.searchController,
     required this.viewMode,
     required this.onViewModeChanged,
+    required this.isCollapsed,
+    required this.onToggleCollapsed,
     required this.onCopyLink,
     required this.onDisableLink,
     required this.isSharingBusy,
@@ -368,7 +377,26 @@ class _SalesHeaderSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isCompact = screenWidth < 760;
+    final segmentedControl = SegmentedButton<CollectionViewMode>(
+      segments: const [
+        ButtonSegment(
+          value: CollectionViewMode.grid,
+          icon: Icon(Icons.grid_view_outlined),
+          label: Text('Grade'),
+        ),
+        ButtonSegment(
+          value: CollectionViewMode.list,
+          icon: Icon(Icons.view_list_outlined),
+          label: Text('Lista'),
+        ),
+      ],
+      selected: {viewMode},
+      onSelectionChanged: (selection) {
+        onViewModeChanged(selection.first);
+      },
+    );
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
@@ -384,60 +412,45 @@ class _SalesHeaderSection extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Row(
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Expanded(
-                child: Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    _SalesStatCard(
-                      label: 'Cartas \u00FAnicas',
-                      value: '$totalUnique',
-                      icon: Icons.style_outlined,
-                    ),
-                    _SalesStatCard(
-                      label: 'Total geral',
-                      value: '$totalCards',
-                      icon: Icons.format_list_numbered,
-                    ),
-                    _SalesStatCard(
-                      label: 'Com pre\u00E7o',
-                      value: '$pricedItems',
-                      icon: Icons.sell_outlined,
-                    ),
-                  ],
-                ),
+              _SalesStatCard(
+                label: 'Cartas únicas',
+                value: '$totalUnique',
+                icon: Icons.style_outlined,
               ),
-              const SizedBox(width: 12),
-              SegmentedButton<CollectionViewMode>(
-                segments: const [
-                  ButtonSegment(
-                    value: CollectionViewMode.grid,
-                    icon: Icon(Icons.grid_view_outlined),
-                    label: Text('Grade'),
-                  ),
-                  ButtonSegment(
-                    value: CollectionViewMode.list,
-                    icon: Icon(Icons.view_list_outlined),
-                    label: Text('Lista'),
-                  ),
-                ],
-                selected: {viewMode},
-                onSelectionChanged: (selection) {
-                  onViewModeChanged(selection.first);
-                },
+              _SalesStatCard(
+                label: 'Total geral',
+                value: '$totalCards',
+                icon: Icons.format_list_numbered,
               ),
+              _SalesStatCard(
+                label: 'Com preço',
+                value: '$pricedItems',
+                icon: Icons.sell_outlined,
+              ),
+              if (!isCompact) segmentedControl,
             ],
           ),
+          if (isCompact) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(child: segmentedControl),
+              ],
+            ),
+          ],
           const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
+          if (isCompact)
+            Column(
+              children: [
+                TextField(
                   controller: searchController,
                   decoration: InputDecoration(
-                    hintText: 'Buscar por nome, c\u00F3digo ou set',
+                    hintText: 'Buscar por nome, código ou set',
                     prefixIcon: const Icon(Icons.search),
                     suffixIcon: searchController.text.isNotEmpty
                         ? IconButton(
@@ -447,27 +460,76 @@ class _SalesHeaderSection extends StatelessWidget {
                         : null,
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              FilledButton.icon(
-                onPressed: isSharingBusy ? null : onCopyLink,
-                icon: isSharingBusy
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.copy_outlined),
-                label: const Text('Copiar link'),
-              ),
-              const SizedBox(width: 8),
-              FilledButton.tonalIcon(
-                onPressed: isSharingBusy ? null : onDisableLink,
-                icon: const Icon(Icons.link_off),
-                label: const Text('Desativar'),
-              ),
-            ],
-          ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: isSharingBusy ? null : onCopyLink,
+                        icon: isSharingBusy
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.copy_outlined),
+                        label: const Text('Copiar link'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton.tonalIcon(
+                        onPressed: isSharingBusy ? null : onDisableLink,
+                        icon: const Icon(Icons.link_off),
+                        label: const Text('Desativar'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Buscar por nome, código ou set',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: searchController.text.isNotEmpty
+                          ? IconButton(
+                              onPressed: () => searchController.clear(),
+                              icon: const Icon(Icons.close),
+                            )
+                          : null,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  onPressed: isSharingBusy ? null : onCopyLink,
+                  icon: isSharingBusy
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Icon(Icons.copy_outlined),
+                  label: const Text('Copiar link'),
+                ),
+                const SizedBox(width: 8),
+                FilledButton.tonalIcon(
+                  onPressed: isSharingBusy ? null : onDisableLink,
+                  icon: const Icon(Icons.link_off),
+                  label: const Text('Desativar'),
+                ),
+              ],
+            ),
         ],
       ),
     );
@@ -530,9 +592,9 @@ class _SalesLibraryView extends ConsumerWidget {
     required this.onChanged,
   });
 
-  static const double _cardMaxWidth = 210;
+  static const double _cardMaxWidth = 220;
   static const double _cardSpacing = 12;
-  static const double _gridAspectRatio = 0.56;
+  static const double _gridAspectRatio = 0.53;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -551,6 +613,8 @@ class _SalesLibraryView extends ConsumerWidget {
     if (viewMode == CollectionViewMode.list) {
       return ListView.separated(
         key: ValueKey('sales-list-$itemsSignature'),
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
         itemCount: items.length,
         separatorBuilder: (_, __) => const SizedBox(height: 10),
@@ -561,10 +625,11 @@ class _SalesLibraryView extends ConsumerWidget {
             key: ValueKey('sales-list-card-${item.id}-${item.cardCode}'),
             title: item.name,
             code: item.cardCode,
-            metadata: [
-              'Set: ${item.setName.isEmpty ? '-' : item.setName}',
-              item.formattedPrice,
-              'Status: ${item.statusLabel}',
+          metadata: [
+            if (item.hasSellerName) 'Vendedor: ${item.sellerName}',
+            'Set: ${item.setName.isEmpty ? '-' : item.setName}',
+            item.formattedPrice,
+            'Status: ${item.statusLabel}',
               'Condição: ${item.conditionLabel}',
               'Quantidade: ${item.quantity}x',
               if (item.hasContactInfo) 'Contato configurado',
@@ -591,6 +656,8 @@ class _SalesLibraryView extends ConsumerWidget {
 
     return GridView.builder(
       key: ValueKey('sales-grid-$itemsSignature'),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: _cardMaxWidth,
@@ -607,6 +674,7 @@ class _SalesLibraryView extends ConsumerWidget {
           code: item.cardCode,
           title: item.name,
           metadata: [
+            if (item.hasSellerName) 'Vendedor: ${item.sellerName}',
             'Quantidade: ${item.quantity}x',
             item.statusLabel,
             item.conditionLabel,
@@ -1169,6 +1237,8 @@ class _SalesCardDetailsDialogState
                     const SizedBox(height: 16),
                     _infoRow('Quantidade', '${card.quantity}x'),
                     _infoRow('Preço', card.formattedPrice),
+                    if (card.hasSellerName)
+                      _infoRow('Vendedor', card.sellerName),
                     _infoRow('Status', card.statusLabel),
                     _infoRow('Set', card.setName),
                     _infoRow('Raridade', card.rarity),

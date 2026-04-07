@@ -20,6 +20,7 @@ import '../features/imports/image_import/image_import_screen.dart';
 import '../features/library/library_card_details_screen.dart';
 import '../features/library/library_compare_screen.dart';
 import '../features/library/one_piece_library_screen.dart';
+import '../features/marketplace/global_marketplace_screen.dart';
 import '../features/sales/sales_screen.dart';
 
 class AuthRouterNotifier extends ChangeNotifier {
@@ -71,11 +72,12 @@ final GoRouter appRouter = GoRouter(
     if (loggedIn) {
       final row = await Supabase.instance.client
           .from('profiles')
-          .select('whatsapp_phone')
+          .select('whatsapp_phone, name')
           .eq('id', user.id)
           .maybeSingle();
       final whatsAppPhone = (row?['whatsapp_phone'] ?? '').toString().trim();
-      final needsCompletion = whatsAppPhone.isEmpty;
+      final displayName = (row?['name'] ?? '').toString().trim();
+      final needsCompletion = whatsAppPhone.isEmpty || displayName.isEmpty;
 
       if (needsCompletion && !isCompleteProfileRoute && !isSharedRoute) {
         return '/complete-profile';
@@ -127,6 +129,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/library',
       builder: (context, state) => const OnePieceLibraryScreen(),
+    ),
+    GoRoute(
+      path: '/marketplace',
+      builder: (context, state) => const GlobalMarketplaceScreen(),
     ),
     GoRoute(
       path: '/library/card/:cardCode',

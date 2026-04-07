@@ -33,6 +33,13 @@ class AuthRepository {
     required String whatsAppPhone,
   }) async {
     try {
+      if (name.trim().isEmpty) {
+        throw Exception('Informe seu nome.');
+      }
+      if (whatsAppPhone.trim().isEmpty) {
+        throw Exception('Informe seu telefone/WhatsApp.');
+      }
+
       final response = await _client.auth.signUp(
         email: email,
         password: password,
@@ -78,7 +85,8 @@ class AuthRepository {
 
   Future<bool> needsWhatsAppCompletion() async {
     final phone = await _prefs.getCurrentWhatsAppPhone();
-    return phone.isEmpty;
+    final name = await _prefs.getCurrentDisplayName();
+    return phone.isEmpty || name.isEmpty;
   }
 
   Future<void> signOut() async {

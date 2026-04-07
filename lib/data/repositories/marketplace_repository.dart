@@ -19,6 +19,7 @@ class MarketplaceRepository {
   final OpApiService _opApi;
   final UserPreferencesRepository _prefs;
   final Map<String, OpCard?> _apiCardCache = {};
+  final Map<String, String> _sellerNameCache = {};
 
   MarketplaceRepository(this._client, this._opApi, this._prefs);
 
@@ -33,6 +34,10 @@ class MarketplaceRepository {
 
   Future<List<MarketplaceListing>> getPublicListingsByUser(String userId) {
     return _fetchListings(userId: userId, onlyPublic: true);
+  }
+
+  Future<List<MarketplaceListing>> getGlobalPublicListings() {
+    return _fetchListings(onlyPublic: true);
   }
 
   Future<MarketplaceListing?> getPublicListingByShareCode(
@@ -131,7 +136,7 @@ class MarketplaceRepository {
   }
 
   Future<List<MarketplaceListing>> _fetchListings({
-    required String userId,
+    String? userId,
     required bool onlyPublic,
   }) async {
     await _opApi.preload();
@@ -139,8 +144,11 @@ class MarketplaceRepository {
     var query = _client
         .from('collection_items')
         .select()
-        .eq('user_id', userId)
         .eq('collection_type', 'forSale');
+
+    if (userId != null) {
+      query = query.eq('user_id', userId);
+    }
 
     if (onlyPublic) {
       query = query.eq('is_public', true);
@@ -152,14 +160,20 @@ class MarketplaceRepository {
         .toList();
 
     final uniqueCodes = <String>{};
+    final uniqueUserIds = <String>{};
     for (final row in rows) {
       final cardCode = (row['card_code'] ?? '').toString().trim().toUpperCase();
       if (cardCode.isNotEmpty) {
         uniqueCodes.add(cardCode);
       }
+      final userIdValue = (row['user_id'] ?? '').toString().trim();
+      if (userIdValue.isNotEmpty) {
+        uniqueUserIds.add(userIdValue);
+      }
     }
 
     await _warmUpApiCards(uniqueCodes);
+    await _warmUpSellerNames(uniqueUserIds);
 
     return rows.map(_mapRowToListing).toList(growable: false);
   }
@@ -171,8 +185,33 @@ class MarketplaceRepository {
     }
   }
 
+  Future<void> _warmUpSellerNames(Set<String> userIds) async {
+    final missingUserIds = userIds
+        .where((id) => !_sellerNameCache.containsKey(id))
+        .toList(growable: false);
+
+    if (missingUserIds.isEmpty) return;
+
+    final response = await _client
+        .from('profiles')
+        .select('id, name')
+        .inFilter('id', missingUserIds);
+
+    for (final raw in (response as List)) {
+      final row = Map<String, dynamic>.from(raw);
+      final id = (row['id'] ?? '').toString().trim();
+      if (id.isEmpty) continue;
+      _sellerNameCache[id] = (row['name'] ?? '').toString().trim();
+    }
+
+    for (final id in missingUserIds) {
+      _sellerNameCache.putIfAbsent(id, () => '');
+    }
+  }
+
   MarketplaceListing _mapRowToListing(Map<String, dynamic> map) {
     final cardCode = (map['card_code'] ?? '').toString().trim().toUpperCase();
+    final ownerUserId = (map['user_id'] ?? '').toString().trim();
     final apiCard = _apiCardCache[cardCode];
 
     final storedImageUrl = (map['image_url'] ?? '').toString();
@@ -186,6 +225,8 @@ class MarketplaceRepository {
 
     return MarketplaceListing(
       id: map['id'].toString(),
+      ownerUserId: ownerUserId,
+      sellerName: _sellerNameCache[ownerUserId] ?? '',
       cardCode: cardCode,
       name: storedName.isNotEmpty ? storedName : (apiCard?.name ?? cardCode),
       imageUrl: storedImageUrl.isNotEmpty

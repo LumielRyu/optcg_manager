@@ -8,6 +8,7 @@ class CatalogGridCard extends StatelessWidget {
   final VoidCallback? onTap;
   final List<Widget> trailingActions;
   final Widget? footer;
+  final int maxMetadataItems;
 
   const CatalogGridCard({
     super.key,
@@ -18,11 +19,17 @@ class CatalogGridCard extends StatelessWidget {
     this.onTap,
     this.trailingActions = const [],
     this.footer,
+    this.maxMetadataItems = 4,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    final visibleMetadata = metadata
+        .where((line) => line.trim().isNotEmpty)
+        .take(maxMetadataItems)
+        .toList(growable: false);
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -66,23 +73,23 @@ class CatalogGridCard extends StatelessWidget {
                   child: image,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Text(
                 title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w800,
-                  fontSize: 13,
+                  fontSize: 12.5,
                 ),
               ),
-              for (final line in metadata.where((line) => line.trim().isNotEmpty)) ...[
+              for (final line in visibleMetadata) ...[
                 const SizedBox(height: 6),
                 Text(
                   line,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(fontSize: 12),
+                  style: theme.textTheme.bodySmall?.copyWith(fontSize: 11.5),
                 ),
               ],
               if (footer != null) ...[

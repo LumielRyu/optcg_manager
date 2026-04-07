@@ -1,5 +1,7 @@
 class MarketplaceListing {
   final String id;
+  final String ownerUserId;
+  final String sellerName;
   final String cardCode;
   final String name;
   final String imageUrl;
@@ -22,6 +24,8 @@ class MarketplaceListing {
 
   const MarketplaceListing({
     required this.id,
+    required this.ownerUserId,
+    required this.sellerName,
     required this.cardCode,
     required this.name,
     required this.imageUrl,
@@ -45,6 +49,8 @@ class MarketplaceListing {
 
   MarketplaceListing copyWith({
     String? id,
+    String? ownerUserId,
+    String? sellerName,
     String? cardCode,
     String? name,
     String? imageUrl,
@@ -68,6 +74,8 @@ class MarketplaceListing {
   }) {
     return MarketplaceListing(
       id: id ?? this.id,
+      ownerUserId: ownerUserId ?? this.ownerUserId,
+      sellerName: sellerName ?? this.sellerName,
       cardCode: cardCode ?? this.cardCode,
       name: name ?? this.name,
       imageUrl: imageUrl ?? this.imageUrl,
@@ -115,6 +123,7 @@ class MarketplaceListing {
   bool get hasContactInfo => contactInfo.trim().isNotEmpty;
   bool get hasNotes => notes.trim().isNotEmpty;
   bool get hasPrice => (priceInCents ?? 0) > 0;
+  bool get hasSellerName => sellerName.trim().isNotEmpty;
 
   bool get isSold => saleStatus == soldStatus;
   bool get isReserved => saleStatus == reservedStatus;

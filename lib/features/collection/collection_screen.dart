@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/painting.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -108,11 +109,18 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
       (sum, item) => sum + item.quantity,
     );
 
-    return Scaffold(
+return Scaffold(
       appBar: AppBar(
-        title: const Text('Minha coleção'),
+        automaticallyImplyLeading: false,
+        titleSpacing: 8,
+        title: const Row(
+          children: [
+            HomeNavigationButton(),
+            SizedBox(width: 8),
+            Text('Minha coleção'),
+          ],
+        ),
         actions: [
-          const HomeNavigationButton(),
           IconButton(
             tooltip: isDark ? 'Modo claro' : 'Modo escuro',
             onPressed: () {
@@ -149,36 +157,38 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _HeaderSection(
-            selectedLibrary: _selectedLibrary,
-            libraryOptions: _collectionLibraries,
-            onLibraryChanged: (value) {
-              setState(() {
-                _selectedLibrary = value;
-              });
-            },
-            totalUnique: totalUnique,
-            totalCards: totalCards,
-            searchController: _searchController,
-            favoritesOnly: _favoritesOnly,
-            activeFilterCount: _activeFilterCount(),
-            viewMode: viewMode,
-            onViewModeChanged: (mode) {
-              ref.read(collectionViewModeProvider.notifier).setMode(mode);
-            },
-            onFavoritesOnlyChanged: () {
-              setState(() {
-                _favoritesOnly = !_favoritesOnly;
-              });
-            },
-            onOpenFilters: () {
-              _openFiltersPanel(context, libraryItems);
-            },
-          ),
-          Expanded(
-            child: _selectedLibrary == CollectionTypes.deck
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            _HeaderSection(
+              selectedLibrary: _selectedLibrary,
+              libraryOptions: _collectionLibraries,
+              onLibraryChanged: (value) {
+                setState(() {
+                  _selectedLibrary = value;
+                });
+              },
+              totalUnique: totalUnique,
+              totalCards: totalCards,
+              searchController: _searchController,
+              favoritesOnly: _favoritesOnly,
+              activeFilterCount: _activeFilterCount(),
+              viewMode: viewMode,
+              onViewModeChanged: (mode) {
+                ref.read(collectionViewModeProvider.notifier).setMode(mode);
+              },
+              isCollapsed: false,
+              onToggleCollapsed: () {},
+              onFavoritesOnlyChanged: () {
+                setState(() {
+                  _favoritesOnly = !_favoritesOnly;
+                });
+              },
+              onOpenFilters: () {
+                _openFiltersPanel(context, libraryItems);
+              },
+            ),
+            _selectedLibrary == CollectionTypes.deck
                 ? _DeckLibraryView(
                     items: filteredItems,
                     onOpenDeck: (deckName, deckItems) {
@@ -195,8 +205,8 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                     items: filteredItems,
                     viewMode: viewMode,
                   ),
-          ),
-        ],
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
@@ -470,10 +480,13 @@ class _HeaderSection extends StatelessWidget {
   final int activeFilterCount;
   final CollectionViewMode viewMode;
   final ValueChanged<CollectionViewMode> onViewModeChanged;
+  final bool isCollapsed;
+  final VoidCallback onToggleCollapsed;
   final VoidCallback onFavoritesOnlyChanged;
   final VoidCallback onOpenFilters;
 
   const _HeaderSection({
+    super.key,
     required this.selectedLibrary,
     required this.libraryOptions,
     required this.onLibraryChanged,
@@ -484,6 +497,8 @@ class _HeaderSection extends StatelessWidget {
     required this.activeFilterCount,
     required this.viewMode,
     required this.onViewModeChanged,
+    required this.isCollapsed,
+    required this.onToggleCollapsed,
     required this.onFavoritesOnlyChanged,
     required this.onOpenFilters,
   });
@@ -491,7 +506,6 @@ class _HeaderSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
@@ -593,6 +607,7 @@ class _HeaderSection extends StatelessWidget {
   }
 }
 
+
 class _StatCard extends StatelessWidget {
   final String label;
   final String value;
@@ -686,9 +701,9 @@ class _StandardLibraryView extends StatelessWidget {
     required this.viewMode,
   });
 
-  static const double _cardMaxWidth = 210;
+  static const double _cardMaxWidth = 220;
   static const double _cardSpacing = 12;
-  static const double _gridAspectRatio = 0.56;
+  static const double _gridAspectRatio = 0.53;
 
   @override
   Widget build(BuildContext context) {
@@ -706,6 +721,8 @@ class _StandardLibraryView extends StatelessWidget {
     if (viewMode == CollectionViewMode.list) {
       return ListView.separated(
         key: ValueKey('collection-list-$itemsSignature'),
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
         itemCount: items.length,
         separatorBuilder: (_, __) => const SizedBox(height: 10),
@@ -744,6 +761,8 @@ class _StandardLibraryView extends StatelessWidget {
 
     return GridView.builder(
       key: ValueKey('collection-grid-$itemsSignature'),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: _cardMaxWidth,
@@ -816,6 +835,8 @@ class _DeckLibraryView extends StatelessWidget {
       ..sort((a, b) => a.key.toLowerCase().compareTo(b.key.toLowerCase()));
 
     return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
       itemCount: decks.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),

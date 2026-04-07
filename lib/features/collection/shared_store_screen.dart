@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/utils/share_link_helper.dart';
+import '../../core/widgets/catalog_grid_card.dart';
 import '../../data/models/marketplace_listing.dart';
 import '../../data/repositories/marketplace_repository.dart';
 import '../../data/services/op_api_service.dart';
@@ -20,9 +21,9 @@ class SharedStoreScreen extends ConsumerStatefulWidget {
 }
 
 class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
-  static const double _cardMaxWidth = 210;
+  static const double _cardMaxWidth = 220;
   static const double _cardSpacing = 12;
-  static const double _gridAspectRatio = 0.48;
+  static const double _gridAspectRatio = 0.53;
 
   final TextEditingController _searchController = TextEditingController();
   final Map<String, int> _cartQuantities = {};
@@ -142,8 +143,13 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
   }
 
   String _buildInterestMessage(List<MarketplaceListing> selectedItems) {
+    final sellerName = selectedItems
+        .map((item) => item.sellerName.trim())
+        .firstWhere((name) => name.isNotEmpty, orElse: () => '');
     final lines = <String>[
-      'Oi, eu gostaria de reservar essas cartas:',
+      sellerName.isNotEmpty
+          ? 'Oi $sellerName, eu gostaria de reservar essas cartas:'
+          : 'Oi, eu gostaria de reservar essas cartas:',
       '',
     ];
 
@@ -219,16 +225,6 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
     final listingsFuture = repo.getPublicListingsByUser(widget.userId);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Marketplace • Cartas à venda'),
-        actions: [
-          IconButton(
-            tooltip: 'Copiar link',
-            onPressed: _copyStoreLink,
-            icon: const Icon(Icons.link_outlined),
-          ),
-        ],
-      ),
       body: FutureBuilder<List<MarketplaceListing>>(
         future: listingsFuture,
         builder: (context, snapshot) {
@@ -249,6 +245,9 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
           }
 
           final allItems = snapshot.data ?? [];
+          final sellerName = allItems
+              .map((item) => item.sellerName.trim())
+              .firstWhere((name) => name.isNotEmpty, orElse: () => '');
           final items = allItems.where((item) {
             if (_query.isEmpty) return true;
 
@@ -276,6 +275,20 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
 
           return Column(
             children: [
+              AppBar(
+                title: Text(
+                  sellerName.isNotEmpty
+                      ? 'Vitrine de $sellerName'
+                      : 'Marketplace • Cartas à venda',
+                ),
+                actions: [
+                  IconButton(
+                    tooltip: 'Copiar link',
+                    onPressed: _copyStoreLink,
+                    icon: const Icon(Icons.link_outlined),
+                  ),
+                ],
+              ),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
@@ -293,14 +306,18 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Vitrine pública',
+                      sellerName.isNotEmpty
+                          ? 'Vitrine pública de $sellerName'
+                          : 'Vitrine pública',
                       style: theme.textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Veja todas as cartas disponíveis para venda deste usuário.',
+                      sellerName.isNotEmpty
+                          ? 'Veja todas as cartas disponíveis para venda por $sellerName.'
+                          : 'Veja todas as cartas disponíveis para venda deste usuário.',
                       style: theme.textTheme.bodyMedium,
                     ),
                     const SizedBox(height: 14),
@@ -383,236 +400,132 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                         itemBuilder: (context, index) {
                           final item = items[index];
 
-                          return Card(
+                          return CatalogGridCard(
                             key: ValueKey(
-                              'shared-store-card-${item.id}-${item.cardCode}',
+                              'shared-store-card-${item.id}-${item.cardCode}-${item.imageUrl}',
                             ),
-                            clipBehavior: Clip.antiAlias,
-                            elevation: 1.5,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
+                            code: item.cardCode,
+                            title: item.name,
+                            metadata: [
+                              item.formattedPrice,
+                              '${item.statusLabel} - ${item.conditionLabel}',
+                              'Quantidade: ${item.quantity}x',
+                              if (item.setName.trim().isNotEmpty) item.setName,
+                            ],
+                            maxMetadataItems: 4,
+                            image: _SharedStoreZoomableCardImage(
+                              key: ValueKey(
+                                'shared-store-image-${item.id}-${item.cardCode}-${item.imageUrl}',
+                              ),
+                              imageUrl: item.imageUrl,
+                              cardCode: item.cardCode,
+                              title: item.name,
+                              fit: BoxFit.contain,
                             ),
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Expanded(
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: theme
-                                            .colorScheme
-                                            .surfaceContainerHighest
-                                            .withOpacity(0.35),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      padding: const EdgeInsets.all(8),
-                                      child: _SharedStoreZoomableCardImage(
-                                        key: ValueKey(
-                                          'shared-store-image-${item.id}-${item.cardCode}-${item.imageUrl}',
+                            footer: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                if (item.hasContactInfo)
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          item.contactInfo,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(fontSize: 11.5),
                                         ),
-                                        imageUrl: item.imageUrl,
-                                        cardCode: item.cardCode,
-                                        title: item.name,
-                                        fit: BoxFit.contain,
+                                      ),
+                                      IconButton(
+                                        tooltip: 'Copiar contato',
+                                        onPressed: () async {
+                                          await Clipboard.setData(
+                                            ClipboardData(text: item.contactInfo),
+                                          );
+                                          if (!context.mounted) return;
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Contato copiado.'),
+                                            ),
+                                          );
+                                        },
+                                        icon: const Icon(Icons.copy_outlined),
+                                      ),
+                                      if (item.hasWhatsAppContact)
+                                        IconButton(
+                                          tooltip: 'Abrir WhatsApp',
+                                          onPressed: () async {
+                                            final uri = Uri.parse(item.whatsappUrl);
+                                            final launched = await launchUrl(
+                                              uri,
+                                              mode: LaunchMode.externalApplication,
+                                            );
+                                            if (!launched && context.mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    'N?o foi poss?vel abrir o WhatsApp.',
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                          },
+                                          icon: const Icon(Icons.open_in_new),
+                                        ),
+                                    ],
+                                  ),
+                                if (item.hasNotes)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 6),
+                                    child: Text(
+                                      item.notes,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        color: Colors.grey.shade700,
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(height: 10),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        item.name,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        item.cardCode,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                Row(
+                                  children: [
+                                    IconButton(
+                                      tooltip: 'Remover',
+                                      onPressed: _selectedQuantityFor(item) <= 0
+                                          ? null
+                                          : () => _setCartQuantity(
+                                              item,
+                                              _selectedQuantityFor(item) - 1,
+                                            ),
+                                      icon: const Icon(Icons.remove_circle_outline),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        _selectedQuantityFor(item) <= 0
+                                            ? 'Adicionar ao carrinho'
+                                            : 'No carrinho: ${_selectedQuantityFor(item)}x',
+                                        textAlign: TextAlign.center,
                                         style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey.shade700,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        'Quantidade: ${item.quantity}x',
-                                        style: const TextStyle(fontSize: 12),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        item.statusLabel,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        item.conditionLabel,
-                                        style: const TextStyle(fontSize: 12),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        item.formattedPrice,
-                                        style: const TextStyle(
-                                          fontSize: 12,
+                                          fontSize: 11.5,
                                           fontWeight: FontWeight.w700,
+                                          color: theme.colorScheme.primary,
                                         ),
                                       ),
-                                      if (item.setName.trim().isNotEmpty) ...[
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          item.setName,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey.shade700,
-                                          ),
-                                        ),
-                                      ],
-                                      if (item.hasContactInfo) ...[
-                                        const SizedBox(height: 10),
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                item.contactInfo,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                            ),
-                                            IconButton(
-                                              tooltip: 'Copiar contato',
-                                              onPressed: () async {
-                                                await Clipboard.setData(
-                                                  ClipboardData(
-                                                    text: item.contactInfo,
-                                                  ),
-                                                );
-                                                if (!context.mounted) return;
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                      'Contato copiado.',
-                                                    ),
-                                                  ),
-                                                );
-                                              },
-                                              icon: const Icon(
-                                                Icons.copy_outlined,
-                                              ),
-                                            ),
-                                            if (item.hasWhatsAppContact)
-                                              IconButton(
-                                                tooltip: 'Abrir WhatsApp',
-                                                onPressed: () async {
-                                                  final uri = Uri.parse(
-                                                    item.whatsappUrl,
-                                                  );
-                                                  final launched =
-                                                      await launchUrl(
-                                                    uri,
-                                                    mode: LaunchMode
-                                                        .externalApplication,
-                                                  );
-                                                  if (!launched &&
-                                                      context.mounted) {
-                                                    ScaffoldMessenger.of(
-                                                      context,
-                                                    ).showSnackBar(
-                                                      const SnackBar(
-                                                        content: Text(
-                                                          'Não foi possível abrir o WhatsApp.',
-                                                        ),
-                                                      ),
-                                                    );
-                                                  }
-                                                },
-                                                icon: const Icon(
-                                                  Icons.open_in_new,
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      ],
-                                      if (item.hasNotes) ...[
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          item.notes,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey.shade700,
-                                          ),
-                                        ),
-                                      ],
-                                      const SizedBox(height: 10),
-                                      Row(
-                                        children: [
-                                          IconButton(
-                                            tooltip: 'Remover',
-                                            onPressed:
-                                                _selectedQuantityFor(item) <= 0
-                                                ? null
-                                                : () => _setCartQuantity(
-                                                    item,
-                                                    _selectedQuantityFor(item) -
-                                                        1,
-                                                  ),
-                                            icon: const Icon(
-                                              Icons.remove_circle_outline,
-                                            ),
-                                          ),
-                                          Expanded(
-                                            child: Text(
-                                              _selectedQuantityFor(item) <= 0
-                                                  ? 'Adicionar ao carrinho'
-                                                  : 'No carrinho: ${_selectedQuantityFor(item)}x',
-                                              textAlign: TextAlign.center,
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w700,
-                                                color: theme.colorScheme.primary,
-                                              ),
-                                            ),
-                                          ),
-                                          IconButton(
-                                            tooltip: 'Adicionar',
-                                            onPressed:
-                                                item.isActive &&
-                                                    _selectedQuantityFor(item) <
-                                                        item.quantity
-                                                ? () => _setCartQuantity(
-                                                    item,
-                                                    _selectedQuantityFor(item) +
-                                                        1,
-                                                  )
-                                                : null,
-                                            icon: const Icon(
-                                              Icons.add_circle_outline,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
+                                    ),
+                                    IconButton(
+                                      tooltip: 'Adicionar',
+                                      onPressed: item.isActive &&
+                                              _selectedQuantityFor(item) < item.quantity
+                                          ? () => _setCartQuantity(
+                                              item,
+                                              _selectedQuantityFor(item) + 1,
+                                            )
+                                          : null,
+                                      icon: const Icon(Icons.add_circle_outline),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           );
                         },

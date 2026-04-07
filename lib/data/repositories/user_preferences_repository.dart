@@ -150,8 +150,39 @@ class UserPreferencesRepository {
     });
   }
 
+  Future<void> saveDisplayName(String name) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return;
+
+    await _client.from('profiles').upsert({
+      'id': user.id,
+      'email': user.email,
+      'name': name.trim(),
+    });
+  }
+
+  Future<void> saveProfileDetails({
+    required String name,
+    required String whatsAppPhone,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return;
+
+    await _client.from('profiles').upsert({
+      'id': user.id,
+      'email': user.email,
+      'name': name.trim(),
+      'whatsapp_phone': whatsAppPhone.trim(),
+    });
+  }
+
   Future<String> getCurrentWhatsAppPhone() async {
     final prefs = await load();
     return prefs.whatsAppPhone.trim();
+  }
+
+  Future<String> getCurrentDisplayName() async {
+    final prefs = await load();
+    return prefs.displayName.trim();
   }
 }

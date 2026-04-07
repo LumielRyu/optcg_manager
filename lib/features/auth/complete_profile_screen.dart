@@ -14,6 +14,7 @@ class CompleteProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
+  final _nameController = TextEditingController();
   final _whatsAppController = TextEditingController();
   bool _isBusy = false;
   String? _error;
@@ -26,6 +27,7 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
 
   @override
   void dispose() {
+    _nameController.dispose();
     _whatsAppController.dispose();
     super.dispose();
   }
@@ -33,11 +35,19 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
   Future<void> _loadCurrentData() async {
     final profile = await ref.read(userPreferencesRepositoryProvider).load();
     if (!mounted) return;
+    _nameController.text = profile.displayName;
     _whatsAppController.text = profile.whatsAppPhone;
   }
 
   Future<void> _save() async {
+    final name = _nameController.text.trim();
     final phone = _whatsAppController.text.trim();
+    if (name.isEmpty) {
+      setState(() {
+        _error = 'Informe seu nome.';
+      });
+      return;
+    }
     if (phone.isEmpty) {
       setState(() {
         _error = 'Informe seu telefone/WhatsApp.';
@@ -51,7 +61,10 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
     });
 
     try {
-      await ref.read(userPreferencesRepositoryProvider).saveWhatsAppPhone(phone);
+      await ref.read(userPreferencesRepositoryProvider).saveProfileDetails(
+        name: name,
+        whatsAppPhone: phone,
+      );
       if (!mounted) return;
       context.go('/home');
     } catch (e) {
@@ -83,10 +96,17 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Text(
-                  'Para continuar, informe o telefone de WhatsApp que sera usado automaticamente nos seus anuncios.',
+                  'Para continuar, informe seu nome e o telefone de WhatsApp que serao usados automaticamente nos seus anuncios.',
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
+                TextField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nome',
+                  ),
+                ),
+                const SizedBox(height: 12),
                 TextField(
                   controller: _whatsAppController,
                   keyboardType: TextInputType.phone,

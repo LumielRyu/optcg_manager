@@ -150,11 +150,7 @@ class CollectionRepository {
       final storedType = (map['type'] ?? '').toString();
       final storedText = (map['text'] ?? '').toString();
       final storedAttribute = (map['attribute'] ?? '').toString();
-      final apiCard = _apiCardCache[cardCode] ??
-          await _opApi.findBestCardForManualEntry(
-            name: storedName,
-            color: storedColor,
-          );
+      final apiCard = _apiCardCache[cardCode];
 
       all.add(
         CardRecord(
@@ -206,11 +202,7 @@ class CollectionRepository {
         final storedType = (itemMap['type'] ?? '').toString();
         final storedText = (itemMap['text'] ?? '').toString();
         final storedAttribute = (itemMap['attribute'] ?? '').toString();
-        final apiCard = _apiCardCache[cardCode] ??
-            await _opApi.findBestCardForManualEntry(
-              name: storedName,
-              color: storedColor,
-            );
+        final apiCard = _apiCardCache[cardCode];
 
         all.add(
           CardRecord(
@@ -495,11 +487,7 @@ class CollectionRepository {
       final storedType = (itemMap['type'] ?? '').toString();
       final storedText = (itemMap['text'] ?? '').toString();
       final storedAttribute = (itemMap['attribute'] ?? '').toString();
-      final apiCard = _apiCardCache[cardCode] ??
-          await _opApi.findBestCardForManualEntry(
-            name: storedName,
-            color: storedColor,
-          );
+      final apiCard = _apiCardCache[cardCode];
 
       items.add(
         CardRecord(
@@ -659,11 +647,7 @@ class CollectionRepository {
       final storedType = (map['type'] ?? '').toString();
       final storedText = (map['text'] ?? '').toString();
       final storedAttribute = (map['attribute'] ?? '').toString();
-      final apiCard = _apiCardCache[cardCode] ??
-          await _opApi.findBestCardForManualEntry(
-            name: storedName,
-            color: storedColor,
-          );
+      final apiCard = _apiCardCache[cardCode];
 
       items.add(
         CardRecord(
@@ -735,11 +719,7 @@ class CollectionRepository {
     final storedType = (row['type'] ?? '').toString();
     final storedText = (row['text'] ?? '').toString();
     final storedAttribute = (row['attribute'] ?? '').toString();
-    final apiCard = _apiCardCache[cardCode] ??
-        await _opApi.findBestCardForManualEntry(
-          name: storedName,
-          color: storedColor,
-        );
+    final apiCard = _apiCardCache[cardCode];
 
     final item = CardRecord(
       id: row['id'].toString(),
@@ -989,11 +969,6 @@ class CollectionRepository {
     if (record.cardCode.trim().isNotEmpty) {
       matchedCard = await _opApi.findCardByCode(record.cardCode);
     }
-
-    matchedCard ??= await _opApi.findBestCardForManualEntry(
-      name: record.name,
-      color: record.color,
-    );
 
     if (matchedCard == null) {
       return record;
