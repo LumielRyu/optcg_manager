@@ -281,7 +281,7 @@ class _GlobalMarketplaceScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Este vendedor nÃƒÆ’Ã‚Â£o possui WhatsApp configurado.',
+            'Este vendedor não possui WhatsApp configurado.',
           ),
         ),
       );
@@ -312,7 +312,7 @@ class _GlobalMarketplaceScreenState
 
     if (selectedItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Seu carrinho estÃƒÆ’Ã‚Â¡ vazio.')),
+        const SnackBar(content: Text('Seu carrinho esta vazio.')),
       );
       return;
     }
@@ -484,13 +484,13 @@ class _GlobalMarketplaceScreenState
 
   int _compareListings(MarketplaceListing a, MarketplaceListing b) {
     switch (_selectedSort) {
-      case 'PreÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o: menor':
+      case 'Preço: menor':
         return (a.priceInCents ?? 1 << 30).compareTo(b.priceInCents ?? 1 << 30);
-      case 'PreÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o: maior':
+      case 'Preço: maior':
         return (b.priceInCents ?? -1).compareTo(a.priceInCents ?? -1);
       case 'Nome':
         return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-      case 'CÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³digo':
+      case 'Código':
         return a.cardCode.toLowerCase().compareTo(b.cardCode.toLowerCase());
       default:
         return b.dateAddedUtc.compareTo(a.dateAddedUtc);
@@ -1006,18 +1006,18 @@ class _GlobalMarketplaceCardDetailsDialogState
                     ),
                     const SizedBox(height: 16),
                     _globalInfoRow(
-                      'PreÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o',
+                      'Preço',
                       card.formattedPrice,
                     ),
                     if (card.hasSellerName)
                       _globalInfoRow('Vendedor', card.sellerName),
                     _globalInfoRow('Status', card.statusLabel),
                     _globalInfoRow(
-                      'CondiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o',
+                      'Condição',
                       card.conditionLabel,
                     ),
                     _globalInfoRow(
-                      'Quantidade disponÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel',
+                      'Quantidade disponível',
                       '${card.quantity}x',
                     ),
                     _globalInfoRow('Set', card.setName),
@@ -1027,7 +1027,7 @@ class _GlobalMarketplaceCardDetailsDialogState
                     _globalInfoRow('Atributo', card.attribute),
                     if (card.hasNotes)
                       _globalInfoRow(
-                        'ObservaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes',
+                        'Observações',
                         card.notes,
                       ),
                     if (card.text.trim().isNotEmpty)
@@ -1302,7 +1302,7 @@ class _GlobalMarketplaceEmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'Nenhum anÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºncio encontrado.',
+              'Nenhum anúncio encontrado.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleMedium,
             ),
@@ -1357,7 +1357,7 @@ class _GlobalMarketplaceLoadMoreCard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'Carregando mais anÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºncios...',
+                'Carregando mais anúncios...',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium,
               ),

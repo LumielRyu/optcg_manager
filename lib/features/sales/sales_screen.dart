@@ -535,7 +535,7 @@ class _SalesLibraryView extends ConsumerWidget {
               'Set: ${item.setName.isEmpty ? '-' : item.setName}',
               item.formattedPrice,
               'Status: ${item.statusLabel}',
-              'CondiÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o: ${item.conditionLabel}',
+              'Condição: ${item.conditionLabel}',
               'Quantidade: ${item.quantity}x',
               if (item.hasContactInfo) 'Contato configurado',
             ],
@@ -1138,20 +1138,20 @@ class _SalesCardDetailsDialogState
                     ),
                     const SizedBox(height: 16),
                     _infoRow('Quantidade', '${card.quantity}x'),
-                    _infoRow('PreÃƒÆ’Ã‚Â§o', card.formattedPrice),
+                    _infoRow('Preço', card.formattedPrice),
                     if (card.hasSellerName)
                       _infoRow('Vendedor', card.sellerName),
                     _infoRow('Status', card.statusLabel),
                     _infoRow('Set', card.setName),
                     _infoRow('Raridade', card.rarity),
-                    _infoRow('CondiÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o', card.conditionLabel),
+                    _infoRow('Condição', card.conditionLabel),
                     _infoRow('Cor', card.color),
                     _infoRow('Tipo', card.type),
                     _infoRow('Atributo', card.attribute),
                     if (card.hasContactInfo)
                       _infoRow('WhatsApp do cadastro', card.contactInfo),
                     if (card.hasNotes)
-                      _infoRow('ObservaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes', card.notes),
+                      _infoRow('Observações', card.notes),
                     if (card.hasWhatsAppContact) ...[
                       const SizedBox(height: 8),
                       FilledButton.icon(
@@ -1166,7 +1166,7 @@ class _SalesCardDetailsDialogState
                             messenger.showSnackBar(
                               const SnackBar(
                                 content: Text(
-                                  'NÃƒÆ’Ã‚Â£o foi possÃƒÆ’Ã‚Â­vel abrir o WhatsApp.',
+                                  'Não foi possível abrir o WhatsApp.',
                                 ),
                               ),
                             );
@@ -1177,7 +1177,7 @@ class _SalesCardDetailsDialogState
                       ),
                     ],
                     const SizedBox(height: 16),
-                    const Text('Dados do anÃƒÆ’Ã‚Âºncio'),
+                    const Text('Dados do anúncio'),
                     const SizedBox(height: 8),
                     TextField(
                       controller: _priceController,
@@ -1185,7 +1185,7 @@ class _SalesCardDetailsDialogState
                         decimal: true,
                       ),
                       decoration: const InputDecoration(
-                        labelText: 'PreÃƒÆ’Ã‚Â§o (ex: 12.50)',
+                        labelText: 'Preço (ex: 12.50)',
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -1200,15 +1200,15 @@ class _SalesCardDetailsDialogState
                       ),
                       child: Text(
                         card.hasContactInfo
-                            ? 'O WhatsApp deste anuncio vem automaticamente do seu cadastro: ${card.contactInfo}'
-                            : 'Cadastre seu WhatsApp no perfil para que ele seja usado automaticamente nos anuncios.',
+                            ? 'O WhatsApp deste anúncio vem automaticamente do seu cadastro: ${card.contactInfo}'
+                            : 'Cadastre seu WhatsApp no perfil para que ele seja usado automaticamente nos anúncios.',
                       ),
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
                       initialValue: _saleStatus,
                       decoration: const InputDecoration(
-                        labelText: 'Status do anÃƒÆ’Ã‚Âºncio',
+                        labelText: 'Status do anúncio',
                       ),
                       items: MarketplaceListing.saleStatuses.map((status) {
                         final label = switch (status) {
@@ -1232,7 +1232,7 @@ class _SalesCardDetailsDialogState
                     DropdownButtonFormField<String>(
                       initialValue: _cardCondition,
                       decoration: const InputDecoration(
-                        labelText: 'CondiÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o da carta',
+                        labelText: 'Condição da carta',
                       ),
                       items: MarketplaceListing.cardConditions.map((condition) {
                         final label = switch (condition) {
@@ -1260,8 +1260,7 @@ class _SalesCardDetailsDialogState
                       minLines: 2,
                       maxLines: 4,
                       decoration: const InputDecoration(
-                        labelText:
-                            'ObservaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes do anÃƒÆ’Ã‚Âºncio',
+                        labelText: 'Observações do anúncio',
                       ),
                     ),
                     const SizedBox(height: 8),

@@ -40,12 +40,11 @@ class HomeScreen extends ConsumerWidget {
         builder: (context, constraints) {
           final width = constraints.maxWidth;
           final horizontalPadding = width < 600 ? 16.0 : 20.0;
-          final availableWidth = width - (horizontalPadding * 2);
-          final cardWidth = width >= 1280
-              ? (availableWidth - 48) / 4
-              : width >= 900
-              ? (availableWidth - 16) / 2
-              : (availableWidth - 16) / 2;
+          final contentWidth = width < 1200 ? width : 1200.0;
+          final availableWidth = contentWidth - (horizontalPadding * 2);
+          final cardsPerRow = width >= 1280 ? 4 : 2;
+          final totalSpacing = 16.0 * (cardsPerRow - 1);
+          final cardWidth = (availableWidth - totalSpacing) / cardsPerRow;
 
           return SingleChildScrollView(
             padding: EdgeInsets.all(horizontalPadding),
@@ -87,6 +86,8 @@ class HomeScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 24),
                     Wrap(
+                      alignment: WrapAlignment.center,
+                      runAlignment: WrapAlignment.center,
                       spacing: 16,
                       runSpacing: 16,
                       children: [
