@@ -5,7 +5,7 @@ import '../../data/repositories/collection_repository.dart';
 import '../../data/services/op_api_service.dart';
 import '../../core/widgets/home_navigation_button.dart';
 
-class SharedDeckScreen extends ConsumerWidget {
+class SharedDeckScreen extends ConsumerStatefulWidget {
   final String shareCode;
 
   const SharedDeckScreen({
@@ -14,16 +14,33 @@ class SharedDeckScreen extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final repo = ref.read(collectionRepositoryProvider);
+  ConsumerState<SharedDeckScreen> createState() => _SharedDeckScreenState();
+}
 
+class _SharedDeckScreenState extends ConsumerState<SharedDeckScreen> {
+  late Future<SharedDeckData?> _deckFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _deckFuture = _loadDeck();
+  }
+
+  Future<SharedDeckData?> _loadDeck() {
+    return ref
+        .read(collectionRepositoryProvider)
+        .getSharedDeck(widget.shareCode);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         actions: const [HomeNavigationButton()],
         title: const Text('Deck compartilhado'),
       ),
       body: FutureBuilder(
-        future: repo.getSharedDeck(shareCode),
+        future: _deckFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
@@ -104,7 +121,7 @@ class SharedDeckScreen extends ConsumerWidget {
                                   color: Theme.of(context)
                                       .colorScheme
                                       .surfaceContainerHighest
-                                      .withOpacity(0.35),
+                                      .withValues(alpha: 0.35),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 padding: const EdgeInsets.all(8),
@@ -152,13 +169,11 @@ class _SharedResolvedCardImage extends ConsumerWidget {
   final String imageUrl;
   final String cardCode;
   final BoxFit fit;
-  final double? height;
 
   const _SharedResolvedCardImage({
     required this.imageUrl,
     required this.cardCode,
     this.fit = BoxFit.contain,
-    this.height,
   });
 
   @override
@@ -168,14 +183,12 @@ class _SharedResolvedCardImage extends ConsumerWidget {
     if (directUrl.isNotEmpty) {
       return Image.network(
         directUrl,
-        height: height,
         fit: fit,
         webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-        errorBuilder: (_, __, ___) {
+        errorBuilder: (_, _, _) {
           return _SharedResolvedCardImageFromApi(
             cardCode: cardCode,
             fit: fit,
-            height: height,
           );
         },
       );
@@ -184,7 +197,6 @@ class _SharedResolvedCardImage extends ConsumerWidget {
     return _SharedResolvedCardImageFromApi(
       cardCode: cardCode,
       fit: fit,
-      height: height,
     );
   }
 }
@@ -192,12 +204,10 @@ class _SharedResolvedCardImage extends ConsumerWidget {
 class _SharedResolvedCardImageFromApi extends ConsumerWidget {
   final String cardCode;
   final BoxFit fit;
-  final double? height;
 
   const _SharedResolvedCardImageFromApi({
     required this.cardCode,
     required this.fit,
-    this.height,
   });
 
   @override
@@ -208,41 +218,31 @@ class _SharedResolvedCardImageFromApi extends ConsumerWidget {
       future: api.findCardByCode(cardCode),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return SizedBox(
-            height: height,
-            child: const Center(
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
+          return const Center(
+            child: CircularProgressIndicator(strokeWidth: 2),
           );
         }
 
         final resolvedUrl = snapshot.data?.image.trim() ?? '';
 
         if (resolvedUrl.isEmpty) {
-          return SizedBox(
-            height: height,
-            child: Container(
-              color: Colors.grey.shade200,
-              child: const Center(
-                child: Icon(Icons.image_not_supported_outlined),
-              ),
+          return Container(
+            color: Colors.grey.shade200,
+            child: const Center(
+              child: Icon(Icons.image_not_supported_outlined),
             ),
           );
         }
 
         return Image.network(
           resolvedUrl,
-          height: height,
           fit: fit,
           webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-          errorBuilder: (_, __, ___) {
-            return SizedBox(
-              height: height,
-              child: Container(
-                color: Colors.grey.shade200,
-                child: const Center(
-                  child: Icon(Icons.broken_image_outlined),
-                ),
+          errorBuilder: (_, _, _) {
+            return Container(
+              color: Colors.grey.shade200,
+              child: const Center(
+                child: Icon(Icons.broken_image_outlined),
               ),
             );
           },

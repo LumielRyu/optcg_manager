@@ -396,68 +396,104 @@ class CodeImportController extends StateNotifier<CodeImportState> {
         }
       }
 
+      final existingByExactKey = <String, CardRecord>{
+        for (final record in _repo.getAll())
+          if (record.collectionType == collectionType &&
+              (record.deckName ?? '').trim() == (deckName ?? '').trim())
+            _recordKey(
+              cardCode: record.cardCode,
+              collectionType: record.collectionType,
+              deckName: record.deckName,
+              imageUrl: record.imageUrl,
+            ): record,
+      };
+      final existingByLooseKey = <String, CardRecord>{
+        for (final record in _repo.getAll())
+          if (record.collectionType == collectionType &&
+              (record.deckName ?? '').trim() == (deckName ?? '').trim())
+            _recordKey(
+              cardCode: record.cardCode,
+              collectionType: record.collectionType,
+              deckName: record.deckName,
+            ): record,
+      };
+      final changedRecords = <String, CardRecord>{};
+
       for (final item in state.candidates) {
         if (!item.canImport) continue;
 
-        final existing = _repo.findByCodeAndCollection(
+        final key = _recordKey(
           cardCode: item.code,
           collectionType: collectionType,
           deckName: deckName,
           imageUrl: item.imageUrl,
         );
+        final looseKey = _recordKey(
+          cardCode: item.code,
+          collectionType: collectionType,
+          deckName: deckName,
+        );
+        final existing =
+            changedRecords[key] ??
+            changedRecords[looseKey] ??
+            ((item.imageUrl?.trim().isNotEmpty ?? false)
+                ? existingByExactKey[key]
+                : existingByLooseKey[looseKey]);
 
         if (existing != null) {
-          await _repo.upsert(
-            existing.copyWith(
-              quantity: existing.quantity + item.quantity,
-              imageUrl: (item.imageUrl?.isNotEmpty ?? false)
-                  ? item.imageUrl!
-                  : existing.imageUrl,
-              name: (item.name?.isNotEmpty ?? false)
-                  ? item.name!
-                  : existing.name,
-              setName: (item.setName?.isNotEmpty ?? false)
-                  ? item.setName!
-                  : existing.setName,
-              rarity: (item.rarity?.isNotEmpty ?? false)
-                  ? item.rarity!
-                  : existing.rarity,
-              color: (item.color?.isNotEmpty ?? false)
-                  ? item.color!
-                  : existing.color,
-              type: (item.type?.isNotEmpty ?? false)
-                  ? item.type!
-                  : existing.type,
-              text: (item.text?.isNotEmpty ?? false)
-                  ? item.text!
-                  : existing.text,
-              attribute: (item.attribute?.isNotEmpty ?? false)
-                  ? item.attribute!
-                  : existing.attribute,
-            ),
+          final updatedRecord = existing.copyWith(
+            quantity: existing.quantity + item.quantity,
+            imageUrl: (item.imageUrl?.isNotEmpty ?? false)
+                ? item.imageUrl!
+                : existing.imageUrl,
+            name: (item.name?.isNotEmpty ?? false) ? item.name! : existing.name,
+            setName: (item.setName?.isNotEmpty ?? false)
+                ? item.setName!
+                : existing.setName,
+            rarity: (item.rarity?.isNotEmpty ?? false)
+                ? item.rarity!
+                : existing.rarity,
+            color: (item.color?.isNotEmpty ?? false)
+                ? item.color!
+                : existing.color,
+            type: (item.type?.isNotEmpty ?? false) ? item.type! : existing.type,
+            text: (item.text?.isNotEmpty ?? false) ? item.text! : existing.text,
+            attribute: (item.attribute?.isNotEmpty ?? false)
+                ? item.attribute!
+                : existing.attribute,
           );
+          final updatedKey = _recordKey(
+            cardCode: updatedRecord.cardCode,
+            collectionType: updatedRecord.collectionType,
+            deckName: updatedRecord.deckName,
+            imageUrl: updatedRecord.imageUrl,
+          );
+          changedRecords.remove(key);
+          changedRecords.remove(looseKey);
+          changedRecords[updatedKey] = updatedRecord;
         } else {
-          await _repo.upsert(
-            CardRecord(
-              id: _randomId(),
-              cardCode: item.code,
-              name: (item.name?.trim().isNotEmpty ?? false) ? item.name!.trim() : item.code,
-              imageUrl: item.imageUrl ?? '',
-              dateAddedUtc: DateTime.now(),
-              setName: item.setName ?? '',
-              rarity: item.rarity ?? '',
-              color: item.color ?? '',
-              type: item.type ?? '',
-              text: item.text ?? '',
-              attribute: item.attribute ?? '',
-              quantity: item.quantity,
-              collectionType: collectionType,
-              deckName: deckName,
-            ),
+          changedRecords[key] = CardRecord(
+            id: _randomId(),
+            cardCode: item.code,
+            name: (item.name?.trim().isNotEmpty ?? false)
+                ? item.name!.trim()
+                : item.code,
+            imageUrl: item.imageUrl ?? '',
+            dateAddedUtc: DateTime.now(),
+            setName: item.setName ?? '',
+            rarity: item.rarity ?? '',
+            color: item.color ?? '',
+            type: item.type ?? '',
+            text: item.text ?? '',
+            attribute: item.attribute ?? '',
+            quantity: item.quantity,
+            collectionType: collectionType,
+            deckName: deckName,
           );
         }
       }
 
+      await _repo.upsertMany(changedRecords.values.toList(growable: false));
       await _ref.read(collectionControllerProvider.notifier).load();
       state = const CodeImportState(isBusy: false);
       _pendingQueue = [];
@@ -537,6 +573,20 @@ class CodeImportController extends StateNotifier<CodeImportState> {
   String _randomId() {
     final r = Random();
     return List.generate(20, (_) => r.nextInt(16).toRadixString(16)).join();
+  }
+
+  String _recordKey({
+    required String cardCode,
+    required String collectionType,
+    String? deckName,
+    String? imageUrl,
+  }) {
+    return [
+      cardCode.trim().toUpperCase(),
+      collectionType.trim(),
+      (deckName ?? '').trim(),
+      (imageUrl ?? '').trim(),
+    ].join('|');
   }
 }
 

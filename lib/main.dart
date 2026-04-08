@@ -16,11 +16,11 @@ Future<void> main() async {
   final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'];
 
   if (supabaseUrl == null || supabaseUrl.isEmpty) {
-    throw Exception('SUPABASE_URL não foi carregada do .env');
+    throw Exception('SUPABASE_URL nao foi carregada do .env');
   }
 
   if (supabaseAnonKey == null || supabaseAnonKey.isEmpty) {
-    throw Exception('SUPABASE_ANON_KEY não foi carregada do .env');
+    throw Exception('SUPABASE_ANON_KEY nao foi carregada do .env');
   }
 
   await Supabase.initialize(

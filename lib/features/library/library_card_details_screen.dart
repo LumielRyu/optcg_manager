@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/painting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/utils/share_link_helper.dart';
@@ -183,7 +182,7 @@ class _LibraryCardDetailsContent extends StatelessWidget {
             color: theme.colorScheme.surfaceContainerLow,
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: theme.colorScheme.outlineVariant.withOpacity(0.45),
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
             ),
           ),
           child: Column(
@@ -255,7 +254,7 @@ class _LibraryCardDetailsContent extends StatelessWidget {
               color: theme.colorScheme.surfaceContainerLowest,
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                color: theme.colorScheme.outlineVariant.withOpacity(0.35),
+                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
               ),
             ),
             child: Text(card.text),
@@ -330,7 +329,7 @@ class _LibraryZoomableCardImage extends StatelessWidget {
             : () {
                 showDialog<void>(
                   context: context,
-                  barrierColor: Colors.black.withOpacity(0.92),
+                  barrierColor: Colors.black.withValues(alpha: 0.92),
                   builder: (_) => _LibraryCardImageFullscreenDialog(
                     imageUrl: imageUrl,
                     title: title,
@@ -342,7 +341,7 @@ class _LibraryZoomableCardImage extends StatelessWidget {
           imageUrl,
           fit: BoxFit.contain,
           webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-          errorBuilder: (_, __, ___) {
+          errorBuilder: (_, _, _) {
             return const Center(
               child: Icon(Icons.broken_image_outlined),
             );
@@ -380,7 +379,7 @@ class _LibraryCardImageFullscreenDialog extends StatelessWidget {
                   imageUrl,
                   fit: BoxFit.contain,
                   webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-                  errorBuilder: (_, __, ___) {
+                  errorBuilder: (_, _, _) {
                     return const Center(
                       child: Icon(
                         Icons.broken_image_outlined,

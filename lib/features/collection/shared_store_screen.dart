@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/painting.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/utils/share_link_helper.dart';
 import '../../core/widgets/catalog_grid_card.dart';
+import '../../core/widgets/summary_stat_card.dart';
 import '../../data/models/marketplace_listing.dart';
 import '../../data/repositories/marketplace_repository.dart';
 import '../../data/services/op_api_service.dart';
-import '../../core/widgets/home_navigation_button.dart';
 
 class SharedStoreScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -21,17 +19,23 @@ class SharedStoreScreen extends ConsumerStatefulWidget {
 }
 
 class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
-  static const double _cardMaxWidth = 220;
   static const double _cardSpacing = 12;
-  static const double _gridAspectRatio = 0.53;
+  static const double _contentMaxWidth = 1480;
 
   final TextEditingController _searchController = TextEditingController();
   final Map<String, int> _cartQuantities = {};
   String _query = '';
+  late Future<List<MarketplaceListing>> _listingsFuture;
+  List<MarketplaceListing> _cachedSourceItems = const [];
+  List<MarketplaceListing> _cachedVisibleItems = const [];
+  String _cachedQuery = '';
+  String _cachedSellerName = '';
+  int _cachedTotalCards = 0;
 
   @override
   void initState() {
     super.initState();
+    _listingsFuture = _loadListings();
     _searchController.addListener(() {
       setState(() {
         _query = _searchController.text.trim().toLowerCase();
@@ -43,6 +47,35 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<List<MarketplaceListing>> _loadListings() {
+    return ref
+        .read(marketplaceRepositoryProvider)
+        .getPublicListingsByUser(widget.userId);
+  }
+
+  void _updateVisibleItems(List<MarketplaceListing> allItems) {
+    final sourceChanged = !identical(_cachedSourceItems, allItems);
+    final queryChanged = _cachedQuery != _query;
+
+    if (!sourceChanged && !queryChanged) {
+      return;
+    }
+
+    _cachedSourceItems = allItems;
+    _cachedQuery = _query;
+    _cachedSellerName = allItems
+        .map((item) => item.sellerName.trim())
+        .firstWhere((name) => name.isNotEmpty, orElse: () => '');
+    _cachedTotalCards = allItems.fold<int>(0, (sum, item) => sum + item.quantity);
+    _cachedVisibleItems = allItems.where((item) {
+      if (_query.isEmpty) return true;
+
+      return item.name.toLowerCase().contains(_query) ||
+          item.cardCode.toLowerCase().contains(_query) ||
+          item.setName.toLowerCase().contains(_query);
+    }).toList(growable: false);
   }
 
   String _buildPublicStoreLink() {
@@ -125,6 +158,20 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
     return _cartQuantities[item.id] ?? 0;
   }
 
+  double _gridMaxExtentFor(double width) {
+    if (width >= 1400) return 280;
+    if (width >= 1100) return 260;
+    if (width >= 800) return 240;
+    return 220;
+  }
+
+  double _gridAspectRatioFor(double width) {
+    if (width >= 1400) return 0.5;
+    if (width >= 1100) return 0.48;
+    if (width >= 800) return 0.46;
+    return 0.42;
+  }
+
   String _formatCents(int cents) {
     final reais = cents ~/ 100;
     final centavos = (cents % 100).toString().padLeft(2, '0');
@@ -167,9 +214,7 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
           ? ' - Extra: ${item.notes.trim()}'
           : '';
 
-      lines.add(
-        '${quantity}x ${item.name} - ${item.formattedPrice}$extras',
-      );
+      lines.add('${quantity}x ${item.name} - ${item.formattedPrice}$extras');
     }
 
     lines.add('');
@@ -204,29 +249,22 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
       'https://wa.me/${contactItem.normalizedWhatsAppNumber}?text=${Uri.encodeComponent(message)}',
     );
 
-    final launched = await launchUrl(
-      uri,
-      mode: LaunchMode.externalApplication,
-    );
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
 
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Não foi possível abrir o WhatsApp.'),
-        ),
+        const SnackBar(content: Text('Não foi possível abrir o WhatsApp.')),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final repo = ref.read(marketplaceRepositoryProvider);
     final theme = Theme.of(context);
-    final listingsFuture = repo.getPublicListingsByUser(widget.userId);
 
     return Scaffold(
       body: FutureBuilder<List<MarketplaceListing>>(
-        future: listingsFuture,
+        future: _listingsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -244,22 +282,11 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
             );
           }
 
-          final allItems = snapshot.data ?? [];
-          final sellerName = allItems
-              .map((item) => item.sellerName.trim())
-              .firstWhere((name) => name.isNotEmpty, orElse: () => '');
-          final items = allItems.where((item) {
-            if (_query.isEmpty) return true;
-
-            return item.name.toLowerCase().contains(_query) ||
-                item.cardCode.toLowerCase().contains(_query) ||
-                item.setName.toLowerCase().contains(_query);
-          }).toList();
-
-          final totalCards = allItems.fold<int>(
-            0,
-            (sum, item) => sum + item.quantity,
-          );
+          final allItems = snapshot.data ?? const <MarketplaceListing>[];
+          _updateVisibleItems(allItems);
+          final sellerName = _cachedSellerName;
+          final items = _cachedVisibleItems;
+          final totalCards = _cachedTotalCards;
           final selectedItems = allItems
               .where((item) => (_cartQuantities[item.id] ?? 0) > 0)
               .toList(growable: false);
@@ -267,11 +294,8 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
             0,
             (sum, item) => sum + _selectedQuantityFor(item),
           );
-          final selectedTotal = selectedItems.fold<int>(
-            0,
-            (sum, item) =>
-                sum + ((_selectedQuantityFor(item)) * (item.priceInCents ?? 0)),
-          );
+          final screenWidth = MediaQuery.sizeOf(context).width;
+          final isCompactLayout = screenWidth < 760;
 
           return Column(
             children: [
@@ -302,78 +326,121 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                     end: Alignment.bottomRight,
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      sellerName.isNotEmpty
-                          ? 'Vitrine pública de $sellerName'
-                          : 'Vitrine pública',
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: _contentMaxWidth,
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      sellerName.isNotEmpty
-                          ? 'Veja todas as cartas disponíveis para venda por $sellerName.'
-                          : 'Veja todas as cartas disponíveis para venda deste usuário.',
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 14),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _MarketStatCard(
-                          title: 'Cartas únicas',
-                          value:
-                              '${allItems.map((item) => item.cardCode).toSet().length}',
-                          icon: Icons.style_outlined,
+                        Text(
+                          sellerName.isNotEmpty
+                              ? 'Vitrine publica de $sellerName'
+                              : 'Vitrine publica',
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
-                        _MarketStatCard(
-                          title: 'Quantidade total',
-                          value: '$totalCards',
-                          icon: Icons.inventory_2_outlined,
+                        const SizedBox(height: 8),
+                        Text(
+                          sellerName.isNotEmpty
+                              ? 'Veja todas as cartas disponiveis para venda por $sellerName.'
+                              : 'Veja todas as cartas disponiveis para venda deste usuario.',
+                          style: theme.textTheme.bodyMedium,
                         ),
-                        _MarketStatCard(
-                          title: 'Carrinho',
-                          value: '$selectedCount',
-                          icon: Icons.shopping_cart_outlined,
+                        const SizedBox(height: 14),
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          children: [
+                            SummaryStatCard(
+                              label: 'Cartas unicas',
+                              value:
+                                  '${allItems.map((item) => item.cardCode).toSet().length}',
+                              icon: Icons.style_outlined,
+                              minWidth: 180,
+                              surfaceAlpha: 0.92,
+                            ),
+                            SummaryStatCard(
+                              label: 'Quantidade total',
+                              value: '$totalCards',
+                              icon: Icons.inventory_2_outlined,
+                              minWidth: 180,
+                              surfaceAlpha: 0.92,
+                            ),
+                            SummaryStatCard(
+                              label: 'Carrinho',
+                              value: '$selectedCount',
+                              icon: Icons.shopping_cart_outlined,
+                              minWidth: 180,
+                              surfaceAlpha: 0.92,
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
+                        const SizedBox(height: 14),
+                        if (isCompactLayout) ...[
+                          TextField(
                             controller: _searchController,
                             decoration: InputDecoration(
-                              hintText: 'Buscar por nome, código ou set',
+                              hintText: 'Buscar por nome, codigo ou set',
                               prefixIcon: const Icon(Icons.search),
                               suffixIcon: _searchController.text.isNotEmpty
                                   ? IconButton(
-                                      onPressed: () => _searchController.clear(),
+                                      onPressed: () =>
+                                          _searchController.clear(),
                                       icon: const Icon(Icons.close),
                                     )
                                   : null,
                               filled: true,
-                              fillColor: theme.colorScheme.surface.withOpacity(
-                                0.9,
+                              fillColor: theme.colorScheme.surface.withValues(
+                                alpha: 0.9,
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        FilledButton.icon(
-                          onPressed: _copyStoreLink,
-                          icon: const Icon(Icons.copy_outlined),
-                          label: const Text('Copiar link'),
-                        ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              onPressed: _copyStoreLink,
+                              icon: const Icon(Icons.copy_outlined),
+                              label: const Text('Copiar link'),
+                            ),
+                          ),
+                        ] else
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _searchController,
+                                  decoration: InputDecoration(
+                                    hintText: 'Buscar por nome, codigo ou set',
+                                    prefixIcon: const Icon(Icons.search),
+                                    suffixIcon:
+                                        _searchController.text.isNotEmpty
+                                        ? IconButton(
+                                            onPressed: () =>
+                                                _searchController.clear(),
+                                            icon: const Icon(Icons.close),
+                                          )
+                                        : null,
+                                    filled: true,
+                                    fillColor: theme.colorScheme.surface
+                                        .withValues(alpha: 0.9),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              FilledButton.icon(
+                                onPressed: _copyStoreLink,
+                                icon: const Icon(Icons.copy_outlined),
+                                label: const Text('Copiar link'),
+                              ),
+                            ],
+                          ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
               ),
               Expanded(
@@ -387,146 +454,164 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                           ),
                         ),
                       )
-                    : GridView.builder(
-                        padding: const EdgeInsets.all(12),
-                        gridDelegate:
-                            const SliverGridDelegateWithMaxCrossAxisExtent(
-                              maxCrossAxisExtent: _cardMaxWidth,
-                              crossAxisSpacing: _cardSpacing,
-                              mainAxisSpacing: _cardSpacing,
-                              childAspectRatio: _gridAspectRatio,
-                            ),
-                        itemCount: items.length,
-                        itemBuilder: (context, index) {
-                          final item = items[index];
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          final contentWidth = constraints.maxWidth.clamp(
+                            320.0,
+                            _contentMaxWidth,
+                          );
+                          final horizontalInset =
+                              constraints.maxWidth > _contentMaxWidth
+                              ? (constraints.maxWidth - _contentMaxWidth) / 2
+                              : 12.0;
 
-                          return CatalogGridCard(
-                            key: ValueKey(
-                              'shared-store-card-${item.id}-${item.cardCode}-${item.imageUrl}',
+                          return GridView.builder(
+                            padding: EdgeInsets.fromLTRB(
+                              horizontalInset,
+                              12,
+                              horizontalInset,
+                              18,
                             ),
-                            code: item.cardCode,
-                            title: item.name,
-                            metadata: [
-                              item.formattedPrice,
-                              '${item.statusLabel} - ${item.conditionLabel}',
-                              'Quantidade: ${item.quantity}x',
-                              if (item.setName.trim().isNotEmpty) item.setName,
-                            ],
-                            maxMetadataItems: 4,
-                            image: _SharedStoreZoomableCardImage(
-                              key: ValueKey(
-                                'shared-store-image-${item.id}-${item.cardCode}-${item.imageUrl}',
-                              ),
-                              imageUrl: item.imageUrl,
-                              cardCode: item.cardCode,
-                              title: item.name,
-                              fit: BoxFit.contain,
-                            ),
-                            footer: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                if (item.hasContactInfo)
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          item.contactInfo,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(fontSize: 11.5),
-                                        ),
-                                      ),
-                                      IconButton(
-                                        tooltip: 'Copiar contato',
-                                        onPressed: () async {
-                                          await Clipboard.setData(
-                                            ClipboardData(text: item.contactInfo),
-                                          );
-                                          if (!context.mounted) return;
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(
-                                              content: Text('Contato copiado.'),
-                                            ),
-                                          );
-                                        },
-                                        icon: const Icon(Icons.copy_outlined),
-                                      ),
-                                      if (item.hasWhatsAppContact)
-                                        IconButton(
+                            gridDelegate:
+                                SliverGridDelegateWithMaxCrossAxisExtent(
+                                  maxCrossAxisExtent: _gridMaxExtentFor(
+                                    contentWidth,
+                                  ),
+                                  crossAxisSpacing: _cardSpacing,
+                                  mainAxisSpacing: _cardSpacing,
+                                  childAspectRatio: _gridAspectRatioFor(
+                                    contentWidth,
+                                  ),
+                                ),
+                            itemCount: items.length,
+                            itemBuilder: (context, index) {
+                              final item = items[index];
+
+                              return CatalogGridCard(
+                                key: ValueKey(
+                                  'shared-store-card-${item.id}-${item.cardCode}-${item.imageUrl}',
+                                ),
+                                code: item.cardCode,
+                                title: item.name,
+                                metadata: [
+                                  item.formattedPrice,
+                                  '${item.statusLabel} - ${item.conditionLabel}',
+                                  'Quantidade: ${item.quantity}x',
+                                  if (item.setName.trim().isNotEmpty)
+                                    item.setName,
+                                ],
+                                maxMetadataItems: 3,
+                                image: _SharedStoreZoomableCardImage(
+                                  key: ValueKey(
+                                    'shared-store-image-${item.id}-${item.cardCode}-${item.imageUrl}',
+                                  ),
+                                  imageUrl: item.imageUrl,
+                                  cardCode: item.cardCode,
+                                  title: item.name,
+                                  fit: BoxFit.contain,
+                                ),
+                                footer: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    if (item.hasWhatsAppContact)
+                                      Align(
+                                        alignment: Alignment.centerRight,
+                                        child: IconButton.filledTonal(
                                           tooltip: 'Abrir WhatsApp',
+                                          visualDensity: VisualDensity.compact,
                                           onPressed: () async {
-                                            final uri = Uri.parse(item.whatsappUrl);
+                                            final messenger =
+                                                ScaffoldMessenger.of(context);
+                                            final uri = Uri.parse(
+                                              item.whatsappUrl,
+                                            );
                                             final launched = await launchUrl(
                                               uri,
-                                              mode: LaunchMode.externalApplication,
+                                              mode: LaunchMode
+                                                  .externalApplication,
                                             );
                                             if (!launched && context.mounted) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
+                                              messenger.showSnackBar(
                                                 const SnackBar(
                                                   content: Text(
-                                                    'N?o foi poss?vel abrir o WhatsApp.',
+                                                    'Nao foi possivel abrir o WhatsApp.',
                                                   ),
                                                 ),
                                               );
                                             }
                                           },
-                                          icon: const Icon(Icons.open_in_new),
+                                          icon: const Icon(Icons.chat_outlined),
                                         ),
-                                    ],
-                                  ),
-                                if (item.hasNotes)
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 6),
-                                    child: Text(
-                                      item.notes,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 11.5,
-                                        color: Colors.grey.shade700,
                                       ),
-                                    ),
-                                  ),
-                                Row(
-                                  children: [
-                                    IconButton(
-                                      tooltip: 'Remover',
-                                      onPressed: _selectedQuantityFor(item) <= 0
-                                          ? null
-                                          : () => _setCartQuantity(
-                                              item,
-                                              _selectedQuantityFor(item) - 1,
+                                    if (item.hasNotes)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 6,
+                                        ),
+                                        child: Text(
+                                          item.notes,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 11.5,
+                                            color: Colors.grey.shade700,
+                                          ),
+                                        ),
+                                      ),
+                                    Row(
+                                      children: [
+                                        IconButton(
+                                          tooltip: 'Remover',
+                                          visualDensity: VisualDensity.compact,
+                                          onPressed:
+                                              _selectedQuantityFor(item) <= 0
+                                              ? null
+                                              : () => _setCartQuantity(
+                                                  item,
+                                                  _selectedQuantityFor(item) -
+                                                      1,
+                                                ),
+                                          icon: const Icon(
+                                            Icons.remove_circle_outline,
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: Text(
+                                            _selectedQuantityFor(item) <= 0
+                                                ? 'Adicionar ao carrinho'
+                                                : 'No carrinho: ${_selectedQuantityFor(item)}x',
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: theme.colorScheme.primary,
                                             ),
-                                      icon: const Icon(Icons.remove_circle_outline),
-                                    ),
-                                    Expanded(
-                                      child: Text(
-                                        _selectedQuantityFor(item) <= 0
-                                            ? 'Adicionar ao carrinho'
-                                            : 'No carrinho: ${_selectedQuantityFor(item)}x',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          fontSize: 11.5,
-                                          fontWeight: FontWeight.w700,
-                                          color: theme.colorScheme.primary,
+                                          ),
                                         ),
-                                      ),
-                                    ),
-                                    IconButton(
-                                      tooltip: 'Adicionar',
-                                      onPressed: item.isActive &&
-                                              _selectedQuantityFor(item) < item.quantity
-                                          ? () => _setCartQuantity(
-                                              item,
-                                              _selectedQuantityFor(item) + 1,
-                                            )
-                                          : null,
-                                      icon: const Icon(Icons.add_circle_outline),
+                                        IconButton(
+                                          tooltip: 'Adicionar',
+                                          visualDensity: VisualDensity.compact,
+                                          onPressed:
+                                              item.isActive &&
+                                                  _selectedQuantityFor(item) <
+                                                      item.quantity
+                                              ? () => _setCartQuantity(
+                                                  item,
+                                                  _selectedQuantityFor(item) +
+                                                      1,
+                                                )
+                                              : null,
+                                          icon: const Icon(
+                                            Icons.add_circle_outline,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
-                              ],
-                            ),
+                              );
+                            },
                           );
                         },
                       ),
@@ -536,7 +621,7 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
         },
       ),
       bottomNavigationBar: FutureBuilder<List<MarketplaceListing>>(
-        future: listingsFuture,
+        future: _listingsFuture,
         builder: (context, snapshot) {
           final allItems = snapshot.data ?? const <MarketplaceListing>[];
           final selectedItems = allItems
@@ -561,11 +646,9 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
             child: Container(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surface.withOpacity(0.98),
+                color: theme.colorScheme.surface.withValues(alpha: 0.98),
                 border: Border(
-                  top: BorderSide(
-                    color: theme.colorScheme.outlineVariant,
-                  ),
+                  top: BorderSide(color: theme.colorScheme.outlineVariant),
                 ),
               ),
               child: Row(
@@ -577,9 +660,7 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                       children: [
                         Text(
                           '$selectedCount card(s) no carrinho',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                          ),
+                          style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 2),
                         Text('Total: ${_formatCents(selectedTotal)}'),
@@ -602,63 +683,15 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
   }
 }
 
-class _MarketStatCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-
-  const _MarketStatCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      constraints: const BoxConstraints(minWidth: 180),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface.withOpacity(0.92),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              Text(title),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _SharedStoreResolvedCardImage extends ConsumerWidget {
   final String imageUrl;
   final String cardCode;
   final BoxFit fit;
-  final double? height;
 
   const _SharedStoreResolvedCardImage({
-    super.key,
     required this.imageUrl,
     required this.cardCode,
     this.fit = BoxFit.contain,
-    this.height,
   });
 
   @override
@@ -669,16 +702,14 @@ class _SharedStoreResolvedCardImage extends ConsumerWidget {
       return Image.network(
         directUrl,
         key: ValueKey('shared-direct-image-$cardCode-$directUrl'),
-        height: height,
         fit: fit,
         gaplessPlayback: false,
         webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-        errorBuilder: (_, __, ___) {
+        errorBuilder: (_, _, _) {
           return _SharedStoreResolvedCardImageFromApi(
             key: ValueKey('shared-fallback-api-$cardCode'),
             cardCode: cardCode,
             fit: fit,
-            height: height,
           );
         },
       );
@@ -688,7 +719,6 @@ class _SharedStoreResolvedCardImage extends ConsumerWidget {
       key: ValueKey('shared-api-image-$cardCode'),
       cardCode: cardCode,
       fit: fit,
-      height: height,
     );
   }
 }
@@ -696,13 +726,11 @@ class _SharedStoreResolvedCardImage extends ConsumerWidget {
 class _SharedStoreResolvedCardImageFromApi extends ConsumerWidget {
   final String cardCode;
   final BoxFit fit;
-  final double? height;
 
   const _SharedStoreResolvedCardImageFromApi({
     super.key,
     required this.cardCode,
     required this.fit,
-    this.height,
   });
 
   @override
@@ -714,24 +742,16 @@ class _SharedStoreResolvedCardImageFromApi extends ConsumerWidget {
       future: api.findCardByCode(cardCode),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return SizedBox(
-            height: height,
-            child: const Center(
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          );
+          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
         }
 
         final resolvedUrl = snapshot.data?.image.trim() ?? '';
 
         if (resolvedUrl.isEmpty) {
-          return SizedBox(
-            height: height,
-            child: Container(
-              color: Colors.grey.shade200,
-              child: const Center(
-                child: Icon(Icons.image_not_supported_outlined),
-              ),
+          return Container(
+            color: Colors.grey.shade200,
+            child: const Center(
+              child: Icon(Icons.image_not_supported_outlined),
             ),
           );
         }
@@ -739,17 +759,13 @@ class _SharedStoreResolvedCardImageFromApi extends ConsumerWidget {
         return Image.network(
           resolvedUrl,
           key: ValueKey('shared-resolved-image-$cardCode-$resolvedUrl'),
-          height: height,
           fit: fit,
           gaplessPlayback: false,
           webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-          errorBuilder: (_, __, ___) {
-            return SizedBox(
-              height: height,
-              child: Container(
-                color: Colors.grey.shade200,
-                child: const Center(child: Icon(Icons.broken_image_outlined)),
-              ),
+          errorBuilder: (_, _, _) {
+            return Container(
+              color: Colors.grey.shade200,
+              child: const Center(child: Icon(Icons.broken_image_outlined)),
             );
           },
         );
@@ -763,7 +779,6 @@ class _SharedStoreZoomableCardImage extends ConsumerWidget {
   final String cardCode;
   final String title;
   final BoxFit fit;
-  final double? height;
 
   const _SharedStoreZoomableCardImage({
     super.key,
@@ -771,7 +786,6 @@ class _SharedStoreZoomableCardImage extends ConsumerWidget {
     required this.cardCode,
     required this.title,
     this.fit = BoxFit.contain,
-    this.height,
   });
 
   @override
@@ -784,7 +798,6 @@ class _SharedStoreZoomableCardImage extends ConsumerWidget {
         _SharedStoreResolvedCardImage(
           imageUrl: directUrl,
           cardCode: cardCode,
-          height: height,
           fit: fit,
         ),
         directUrl,
@@ -803,7 +816,6 @@ class _SharedStoreZoomableCardImage extends ConsumerWidget {
           _SharedStoreResolvedCardImage(
             imageUrl: imageUrl,
             cardCode: cardCode,
-            height: height,
             fit: fit,
           ),
           resolvedUrl,
@@ -825,7 +837,7 @@ class _SharedStoreZoomableCardImage extends ConsumerWidget {
             : () {
                 showDialog(
                   context: context,
-                  barrierColor: Colors.black.withOpacity(0.92),
+                  barrierColor: Colors.black.withValues(alpha: 0.92),
                   builder: (_) => _SharedStoreCardImageFullscreenDialog(
                     imageUrl: resolvedUrl,
                     title: title,
@@ -866,7 +878,7 @@ class _SharedStoreCardImageFullscreenDialog extends StatelessWidget {
                   imageUrl,
                   fit: BoxFit.contain,
                   webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-                  errorBuilder: (_, __, ___) {
+                  errorBuilder: (_, _, _) {
                     return const Center(
                       child: Icon(
                         Icons.broken_image_outlined,

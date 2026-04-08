@@ -2,6 +2,16 @@ alter table public.profiles enable row level security;
 
 do $$
 begin
+  if exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'profiles'
+      and policyname = 'Public can read seller profile names'
+  ) then
+    drop policy "Public can read seller profile names" on public.profiles;
+  end if;
+
   if not exists (
     select 1
     from pg_policies

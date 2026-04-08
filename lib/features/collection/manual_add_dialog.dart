@@ -1,7 +1,6 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/painting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/collection_types.dart';
@@ -191,10 +190,11 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
         _error = 'Erro ao salvar carta.';
       });
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -359,7 +359,7 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _destination,
+              initialValue: _destination,
               items: CollectionTypes.all.map((type) {
                 return DropdownMenuItem(
                   value: type,
@@ -398,7 +398,7 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: _manualColor,
+                initialValue: _manualColor,
                 decoration: const InputDecoration(labelText: 'Cor da carta'),
                 items: _manualColors.map((color) {
                   return DropdownMenuItem<String>(
@@ -456,7 +456,7 @@ class _VariantPreviewImage extends StatelessWidget {
       imageUrl,
       fit: fit,
       webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-      errorBuilder: (_, __, ___) {
+      errorBuilder: (_, _, _) {
         return const Icon(Icons.broken_image_outlined);
       },
     );

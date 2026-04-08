@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
@@ -138,10 +137,11 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
         const SnackBar(content: Text('Não foi possível capturar a foto.')),
       );
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _isCapturing = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isCapturing = false;
+        });
+      }
     }
   }
 
@@ -188,10 +188,11 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
         ),
       );
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _isCapturing = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isCapturing = false;
+        });
+      }
     }
   }
 

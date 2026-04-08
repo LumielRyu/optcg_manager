@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/painting.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -56,10 +55,11 @@ class _DeckDetailsDialogState extends ConsumerState<DeckDetailsDialog> {
         ),
       );
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _isSharingBusy = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isSharingBusy = false;
+        });
+      }
     }
   }
 
@@ -91,10 +91,11 @@ class _DeckDetailsDialogState extends ConsumerState<DeckDetailsDialog> {
         ),
       );
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _isSharingBusy = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isSharingBusy = false;
+        });
+      }
     }
   }
 
@@ -162,7 +163,7 @@ class _DeckDetailsDialogState extends ConsumerState<DeckDetailsDialog> {
               child: ListView.separated(
                 padding: const EdgeInsets.all(12),
                 itemCount: sortedItems.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
                 itemBuilder: (context, index) {
                   final item = sortedItems[index];
 
@@ -344,14 +345,12 @@ class _ZoomableCardImage extends ConsumerWidget {
   final String cardCode;
   final String title;
   final BoxFit fit;
-  final double? height;
 
   const _ZoomableCardImage({
     required this.imageUrl,
     required this.cardCode,
     required this.title,
     this.fit = BoxFit.contain,
-    this.height,
   });
 
   @override
@@ -364,7 +363,6 @@ class _ZoomableCardImage extends ConsumerWidget {
         _buildNetworkImage(
           url: directUrl,
           fit: fit,
-          height: height,
           onError: () => _fallback(ref),
         ),
         directUrl,
@@ -383,20 +381,14 @@ class _ZoomableCardImage extends ConsumerWidget {
         final url = snapshot.data?.image.trim() ?? '';
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return SizedBox(
-            height: height,
-            child: const Center(
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
+          return const Center(
+            child: CircularProgressIndicator(strokeWidth: 2),
           );
         }
 
         if (url.isEmpty) {
-          return SizedBox(
-            height: height,
-            child: const Center(
-              child: Icon(Icons.image_not_supported),
-            ),
+          return const Center(
+            child: Icon(Icons.image_not_supported),
           );
         }
 
@@ -405,7 +397,6 @@ class _ZoomableCardImage extends ConsumerWidget {
           _buildNetworkImage(
             url: url,
             fit: fit,
-            height: height,
             onError: () => const Center(
               child: Icon(Icons.broken_image_outlined),
             ),
@@ -422,7 +413,7 @@ class _ZoomableCardImage extends ConsumerWidget {
       onTap: () {
         showDialog(
           context: context,
-          barrierColor: Colors.black.withOpacity(0.92),
+          barrierColor: Colors.black.withValues(alpha: 0.92),
           builder: (_) => _CardImageFullscreenDialog(
             imageUrl: resolvedUrl,
             title: title,
@@ -438,15 +429,13 @@ class _ZoomableCardImage extends ConsumerWidget {
     required String url,
     required BoxFit fit,
     required Widget Function() onError,
-    double? height,
   }) {
     return Image.network(
       url,
-      height: height,
       fit: fit,
       gaplessPlayback: false,
       webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-      errorBuilder: (_, __, ___) => onError(),
+      errorBuilder: (_, _, _) => onError(),
     );
   }
 }
@@ -478,7 +467,7 @@ class _CardImageFullscreenDialog extends StatelessWidget {
                   imageUrl,
                   fit: BoxFit.contain,
                   webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-                  errorBuilder: (_, __, ___) {
+                  errorBuilder: (_, _, _) {
                     return const Center(
                       child: Icon(
                         Icons.broken_image_outlined,

@@ -101,7 +101,7 @@ class OptcgManagerApp extends ConsumerWidget {
 
     return base.copyWith(
       appBarTheme: AppBarTheme(
-        backgroundColor: scheme.surface.withOpacity(0.94),
+        backgroundColor: scheme.surface.withValues(alpha: 0.94),
         foregroundColor: scheme.onSurface,
         elevation: 0,
         centerTitle: false,
@@ -113,19 +113,19 @@ class OptcgManagerApp extends ConsumerWidget {
         ),
       ),
       cardTheme: CardThemeData(
-        color: scheme.surface.withOpacity(0.94),
+        color: scheme.surface.withValues(alpha: 0.94),
         elevation: 2,
-        shadowColor: scheme.shadow.withOpacity(0.08),
+        shadowColor: scheme.shadow.withValues(alpha: 0.08),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
           side: BorderSide(
-            color: scheme.outlineVariant.withOpacity(0.5),
+            color: scheme.outlineVariant.withValues(alpha: 0.5),
           ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: scheme.surface.withOpacity(0.9),
+        fillColor: scheme.surface.withValues(alpha: 0.9),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 14,
@@ -210,7 +210,7 @@ class _PreferenceBootstrapperState
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(authStateProvider, (_, __) {
+    ref.listen(authStateProvider, (_, _) {
       _loadPreferences();
     });
 

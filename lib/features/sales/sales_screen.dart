@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter/painting.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -10,9 +7,13 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/collection_types.dart';
 import '../../core/providers/collection_view_mode_provider.dart';
 import '../../core/providers/theme_mode_provider.dart';
+import '../../core/widgets/catalog_search_field.dart';
+import '../../core/widgets/dashboard_header_panel.dart';
+import '../../core/widgets/store_share_actions.dart';
 import '../../core/utils/share_link_helper.dart';
 import '../../core/widgets/catalog_grid_card.dart';
 import '../../core/widgets/catalog_list_card.dart';
+import '../../core/widgets/summary_stat_card.dart';
 import '../../data/models/marketplace_listing.dart';
 import '../../data/repositories/marketplace_repository.dart';
 import '../../data/services/op_api_service.dart';
@@ -32,12 +33,18 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
   bool _isSharingBusy = false;
-  bool _headerCollapsed = false;
-  int _reloadSeed = 0;
+  late Future<List<MarketplaceListing>> _listingsFuture;
+  List<MarketplaceListing> _cachedSourceItems = const [];
+  List<MarketplaceListing> _cachedFilteredItems = const [];
+  String _cachedQuery = '';
+  int _cachedTotalUnique = 0;
+  int _cachedTotalCards = 0;
+  int _cachedPricedItems = 0;
 
   @override
   void initState() {
     super.initState();
+    _listingsFuture = _loadListings();
     _searchController.addListener(() {
       setState(() {
         _query = _searchController.text.trim().toLowerCase();
@@ -51,10 +58,39 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     super.dispose();
   }
 
+  Future<List<MarketplaceListing>> _loadListings() {
+    return ref.read(marketplaceRepositoryProvider).getMyListings();
+  }
+
+  void _updateSalesDerivedData(List<MarketplaceListing> allItems) {
+    final sourceChanged = !identical(_cachedSourceItems, allItems);
+    final queryChanged = _cachedQuery != _query;
+
+    if (!sourceChanged && !queryChanged) {
+      return;
+    }
+
+    _cachedSourceItems = allItems;
+    _cachedQuery = _query;
+    _cachedFilteredItems = allItems.where((card) {
+      if (_query.isEmpty) return true;
+
+      return card.name.toLowerCase().contains(_query) ||
+          card.cardCode.toLowerCase().contains(_query) ||
+          card.setName.toLowerCase().contains(_query);
+    }).toList(growable: false);
+    _cachedTotalUnique = _cachedFilteredItems.map((e) => e.cardCode).toSet().length;
+    _cachedTotalCards = _cachedFilteredItems.fold<int>(
+      0,
+      (sum, item) => sum + item.quantity,
+    );
+    _cachedPricedItems = _cachedFilteredItems.where((item) => item.hasPrice).length;
+  }
+
   void _reloadListings() {
     if (!mounted) return;
     setState(() {
-      _reloadSeed++;
+      _listingsFuture = _loadListings();
     });
   }
 
@@ -81,14 +117,13 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Não foi possível copiar automaticamente neste navegador. Use o link abaixo:',
+                'N\u00E3o foi poss\u00EDvel copiar automaticamente neste navegador. Use o link abaixo:',
               ),
               const SizedBox(height: 12),
               SelectableText(link),
             ],
           ),
           actions: [
-          const HomeNavigationButton(),
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
               child: const Text('Fechar'),
@@ -105,6 +140,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     });
 
     try {
+      final messenger = ScaffoldMessenger.of(context);
       final repo = ref.read(marketplaceRepositoryProvider);
       await repo.enablePublicStoreSharingForUser();
 
@@ -120,7 +156,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(
           content: Text(
             action == 'shared'
@@ -145,7 +181,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       if (mounted) {
         setState(() {
           _isSharingBusy = false;
-          _reloadSeed++;
+          _listingsFuture = _loadListings();
         });
       }
     }
@@ -157,12 +193,13 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     });
 
     try {
+      final messenger = ScaffoldMessenger.of(context);
       await ref
           .read(marketplaceRepositoryProvider)
           .disablePublicStoreSharingForUser();
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text('Vitrine p\u00FAblica desativada.')),
       );
     } catch (e) {
@@ -174,7 +211,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       if (mounted) {
         setState(() {
           _isSharingBusy = false;
-          _reloadSeed++;
+          _listingsFuture = _loadListings();
         });
       }
     }
@@ -184,9 +221,6 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   Widget build(BuildContext context) {
     final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
     final viewMode = ref.watch(collectionViewModeProvider);
-    final listingsFuture = ref
-        .read(marketplaceRepositoryProvider)
-        .getMyListings();
 
     return Scaffold(
       appBar: AppBar(
@@ -242,8 +276,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
         ],
       ),
       body: FutureBuilder<List<MarketplaceListing>>(
-        key: ValueKey('sales-listings-$_reloadSeed'),
-        future: listingsFuture,
+        future: _listingsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const _SalesLoadingView();
@@ -262,23 +295,11 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
           }
 
           final allItems = snapshot.data ?? const <MarketplaceListing>[];
-          final filteredItems = allItems.where((card) {
-            if (_query.isEmpty) return true;
-
-            return card.name.toLowerCase().contains(_query) ||
-                card.cardCode.toLowerCase().contains(_query) ||
-                card.setName.toLowerCase().contains(_query);
-          }).toList();
-
-          final totalUnique = filteredItems
-              .map((e) => e.cardCode)
-              .toSet()
-              .length;
-          final totalCards = filteredItems.fold<int>(
-            0,
-            (sum, item) => sum + item.quantity,
-          );
-          final pricedItems = filteredItems.where((item) => item.hasPrice).length;
+          _updateSalesDerivedData(allItems);
+          final filteredItems = _cachedFilteredItems;
+          final totalUnique = _cachedTotalUnique;
+          final totalCards = _cachedTotalCards;
+          final pricedItems = _cachedPricedItems;
 
           return SingleChildScrollView(
             child: Column(
@@ -360,7 +381,6 @@ class _SalesHeaderSection extends StatelessWidget {
   final bool isSharingBusy;
 
   const _SalesHeaderSection({
-    super.key,
     required this.totalUnique,
     required this.totalCards,
     required this.pricedItems,
@@ -376,7 +396,6 @@ class _SalesHeaderSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final screenWidth = MediaQuery.of(context).size.width;
     final isCompact = screenWidth < 760;
     final segmentedControl = SegmentedButton<CollectionViewMode>(
@@ -397,38 +416,27 @@ class _SalesHeaderSection extends StatelessWidget {
         onViewModeChanged(selection.first);
       },
     );
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            theme.colorScheme.primaryContainer,
-            theme.colorScheme.surface,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Column(
+
+    return DashboardHeaderPanel(
+      stats: Column(
         children: [
           Wrap(
             spacing: 12,
             runSpacing: 12,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              _SalesStatCard(
-                label: 'Cartas únicas',
+              SummaryStatCard(
+                label: 'Cartas \u00FAnicas',
                 value: '$totalUnique',
                 icon: Icons.style_outlined,
               ),
-              _SalesStatCard(
+              SummaryStatCard(
                 label: 'Total geral',
                 value: '$totalCards',
                 icon: Icons.format_list_numbered,
               ),
-              _SalesStatCard(
-                label: 'Com preço',
+              SummaryStatCard(
+                label: 'Com pre\u00E7o',
                 value: '$pricedItems',
                 icon: Icons.sell_outlined,
               ),
@@ -437,145 +445,43 @@ class _SalesHeaderSection extends StatelessWidget {
           ),
           if (isCompact) ...[
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(child: segmentedControl),
-              ],
-            ),
+            Row(children: [Expanded(child: segmentedControl)]),
           ],
-          const SizedBox(height: 14),
-          if (isCompact)
-            Column(
+        ],
+      ),
+      search: isCompact
+          ? Column(
               children: [
-                TextField(
+                CatalogSearchField(
                   controller: searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Buscar por nome, código ou set',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: searchController.text.isNotEmpty
-                        ? IconButton(
-                            onPressed: () => searchController.clear(),
-                            icon: const Icon(Icons.close),
-                          )
-                        : null,
-                  ),
+                  hintText: 'Buscar por nome, c\u00F3digo ou set',
                 ),
                 const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: isSharingBusy ? null : onCopyLink,
-                        icon: isSharingBusy
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(Icons.copy_outlined),
-                        label: const Text('Copiar link'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: FilledButton.tonalIcon(
-                        onPressed: isSharingBusy ? null : onDisableLink,
-                        icon: const Icon(Icons.link_off),
-                        label: const Text('Desativar'),
-                      ),
-                    ),
-                  ],
+                StoreShareActions(
+                  isBusy: isSharingBusy,
+                  isCompact: true,
+                  onCopyLink: onCopyLink,
+                  onDisableLink: onDisableLink,
                 ),
               ],
             )
-          else
-            Row(
+          : Row(
               children: [
                 Expanded(
-                  child: TextField(
+                  child: CatalogSearchField(
                     controller: searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Buscar por nome, código ou set',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: searchController.text.isNotEmpty
-                          ? IconButton(
-                              onPressed: () => searchController.clear(),
-                              icon: const Icon(Icons.close),
-                            )
-                          : null,
-                    ),
+                    hintText: 'Buscar por nome, c\u00F3digo ou set',
                   ),
                 ),
                 const SizedBox(width: 8),
-                FilledButton.icon(
-                  onPressed: isSharingBusy ? null : onCopyLink,
-                  icon: isSharingBusy
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Icon(Icons.copy_outlined),
-                  label: const Text('Copiar link'),
-                ),
-                const SizedBox(width: 8),
-                FilledButton.tonalIcon(
-                  onPressed: isSharingBusy ? null : onDisableLink,
-                  icon: const Icon(Icons.link_off),
-                  label: const Text('Desativar'),
+                StoreShareActions(
+                  isBusy: isSharingBusy,
+                  isCompact: false,
+                  onCopyLink: onCopyLink,
+                  onDisableLink: onDisableLink,
                 ),
               ],
             ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SalesStatCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-
-  const _SalesStatCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              Text(label),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }
@@ -586,7 +492,6 @@ class _SalesLibraryView extends ConsumerWidget {
   final VoidCallback onChanged;
 
   const _SalesLibraryView({
-    super.key,
     required this.items,
     required this.viewMode,
     required this.onChanged,
@@ -617,7 +522,7 @@ class _SalesLibraryView extends ConsumerWidget {
         physics: const NeverScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
         itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
         itemBuilder: (context, index) {
           final item = items[index];
 
@@ -625,12 +530,12 @@ class _SalesLibraryView extends ConsumerWidget {
             key: ValueKey('sales-list-card-${item.id}-${item.cardCode}'),
             title: item.name,
             code: item.cardCode,
-          metadata: [
-            if (item.hasSellerName) 'Vendedor: ${item.sellerName}',
-            'Set: ${item.setName.isEmpty ? '-' : item.setName}',
-            item.formattedPrice,
-            'Status: ${item.statusLabel}',
-              'Condição: ${item.conditionLabel}',
+            metadata: [
+              if (item.hasSellerName) 'Vendedor: ${item.sellerName}',
+              'Set: ${item.setName.isEmpty ? '-' : item.setName}',
+              item.formattedPrice,
+              'Status: ${item.statusLabel}',
+              'CondiÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o: ${item.conditionLabel}',
               'Quantidade: ${item.quantity}x',
               if (item.hasContactInfo) 'Contato configurado',
             ],
@@ -683,10 +588,7 @@ class _SalesLibraryView extends ConsumerWidget {
           footer: item.hasContactInfo
               ? const Text(
                   'Contato configurado',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                 )
               : null,
           image: _SalesResolvedCardImage(
@@ -736,7 +638,7 @@ class _SalesResolvedCardImage extends ConsumerWidget {
         fit: fit,
         gaplessPlayback: false,
         webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-        errorBuilder: (_, __, ___) {
+        errorBuilder: (_, _, _) {
           return _SalesResolvedCardImageFromApi(
             key: ValueKey('sales-fallback-api-$cardCode'),
             cardCode: cardCode,
@@ -806,7 +708,7 @@ class _SalesResolvedCardImageFromApi extends ConsumerWidget {
           fit: fit,
           gaplessPlayback: false,
           webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-          errorBuilder: (_, __, ___) {
+          errorBuilder: (_, _, _) {
             return SizedBox(
               height: height,
               child: Container(
@@ -887,7 +789,7 @@ class _SalesZoomableCardImage extends ConsumerWidget {
             : () {
                 showDialog(
                   context: context,
-                  barrierColor: Colors.black.withOpacity(0.92),
+                  barrierColor: Colors.black.withValues(alpha: 0.92),
                   builder: (_) => _SalesCardImageFullscreenDialog(
                     imageUrl: resolvedUrl,
                     title: title,
@@ -928,7 +830,7 @@ class _SalesCardImageFullscreenDialog extends StatelessWidget {
                   imageUrl,
                   fit: BoxFit.contain,
                   webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-                  errorBuilder: (_, __, ___) {
+                  errorBuilder: (_, _, _) {
                     return const Center(
                       child: Icon(
                         Icons.broken_image_outlined,
@@ -1026,10 +928,7 @@ class _SalesSkeletonBox extends StatelessWidget {
   final double height;
   final double radius;
 
-  const _SalesSkeletonBox({
-    required this.height,
-    this.radius = 16,
-  });
+  const _SalesSkeletonBox({required this.height, this.radius = 16});
 
   @override
   Widget build(BuildContext context) {
@@ -1038,7 +937,7 @@ class _SalesSkeletonBox extends StatelessWidget {
     return Container(
       height: height,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.7),
+        color: color.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(radius),
       ),
     );
@@ -1107,7 +1006,8 @@ class _SalesCardDetailsDialogState
       });
     } catch (_) {
       setState(() {
-        _translatedText = 'N\u00E3o foi poss\u00EDvel traduzir o texto da carta.';
+        _translatedText =
+            'N\u00E3o foi poss\u00EDvel traduzir o texto da carta.';
         _showTranslated = true;
       });
     } finally {
@@ -1150,6 +1050,7 @@ class _SalesCardDetailsDialogState
     });
 
     try {
+      final messenger = ScaffoldMessenger.of(context);
       final normalizedPrice = _priceController.text.trim().replaceAll(',', '.');
       final parsedPrice = normalizedPrice.isEmpty
           ? null
@@ -1174,19 +1075,20 @@ class _SalesCardDetailsDialogState
       widget.onChanged();
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text('Dados do an\u00FAncio atualizados.')),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Erro ao salvar an\u00FAncio: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao salvar an\u00FAncio: $e')),
+      );
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _isSavingListing = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isSavingListing = false;
+        });
+      }
     }
   }
 
@@ -1230,40 +1132,41 @@ class _SalesCardDetailsDialogState
                     Text(
                       'Toque na imagem para ampliar',
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.black54,
-                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: Colors.black54),
                     ),
                     const SizedBox(height: 16),
                     _infoRow('Quantidade', '${card.quantity}x'),
-                    _infoRow('Preço', card.formattedPrice),
+                    _infoRow('PreÃƒÆ’Ã‚Â§o', card.formattedPrice),
                     if (card.hasSellerName)
                       _infoRow('Vendedor', card.sellerName),
                     _infoRow('Status', card.statusLabel),
                     _infoRow('Set', card.setName),
                     _infoRow('Raridade', card.rarity),
-                    _infoRow('Condição', card.conditionLabel),
+                    _infoRow('CondiÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o', card.conditionLabel),
                     _infoRow('Cor', card.color),
                     _infoRow('Tipo', card.type),
                     _infoRow('Atributo', card.attribute),
                     if (card.hasContactInfo)
                       _infoRow('WhatsApp do cadastro', card.contactInfo),
                     if (card.hasNotes)
-                      _infoRow('Observações', card.notes),
+                      _infoRow('ObservaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes', card.notes),
                     if (card.hasWhatsAppContact) ...[
                       const SizedBox(height: 8),
                       FilledButton.icon(
                         onPressed: () async {
+                          final messenger = ScaffoldMessenger.of(context);
                           final uri = Uri.parse(card.whatsappUrl);
                           final launched = await launchUrl(
                             uri,
                             mode: LaunchMode.externalApplication,
                           );
                           if (!launched && mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            messenger.showSnackBar(
                               const SnackBar(
                                 content: Text(
-                                  'Não foi possível abrir o WhatsApp.',
+                                  'NÃƒÆ’Ã‚Â£o foi possÃƒÆ’Ã‚Â­vel abrir o WhatsApp.',
                                 ),
                               ),
                             );
@@ -1274,9 +1177,7 @@ class _SalesCardDetailsDialogState
                       ),
                     ],
                     const SizedBox(height: 16),
-                    const Text(
-                      'Dados do anúncio',
-                    ),
+                    const Text('Dados do anÃƒÆ’Ã‚Âºncio'),
                     const SizedBox(height: 8),
                     TextField(
                       controller: _priceController,
@@ -1284,16 +1185,17 @@ class _SalesCardDetailsDialogState
                         decimal: true,
                       ),
                       decoration: const InputDecoration(
-                        labelText: 'Preço (ex: 12.50)',
+                        labelText: 'PreÃƒÆ’Ã‚Â§o (ex: 12.50)',
                       ),
                     ),
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.surfaceContainerHighest.withOpacity(0.55),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest
+                            .withValues(alpha: 0.55),
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Text(
@@ -1304,9 +1206,9 @@ class _SalesCardDetailsDialogState
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
-                      value: _saleStatus,
+                      initialValue: _saleStatus,
                       decoration: const InputDecoration(
-                        labelText: 'Status do anúncio',
+                        labelText: 'Status do anÃƒÆ’Ã‚Âºncio',
                       ),
                       items: MarketplaceListing.saleStatuses.map((status) {
                         final label = switch (status) {
@@ -1328,9 +1230,9 @@ class _SalesCardDetailsDialogState
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
-                      value: _cardCondition,
+                      initialValue: _cardCondition,
                       decoration: const InputDecoration(
-                        labelText: 'Condição da carta',
+                        labelText: 'CondiÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o da carta',
                       ),
                       items: MarketplaceListing.cardConditions.map((condition) {
                         final label = switch (condition) {
@@ -1358,7 +1260,8 @@ class _SalesCardDetailsDialogState
                       minLines: 2,
                       maxLines: 4,
                       decoration: const InputDecoration(
-                        labelText: 'Observações do anúncio',
+                        labelText:
+                            'ObservaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes do anÃƒÆ’Ã‚Âºncio',
                       ),
                     ),
                     const SizedBox(height: 8),

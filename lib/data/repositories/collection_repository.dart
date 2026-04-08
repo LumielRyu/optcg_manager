@@ -21,10 +21,7 @@ class DeckShareInfo {
   final bool isPublic;
   final String? shareCode;
 
-  const DeckShareInfo({
-    required this.isPublic,
-    required this.shareCode,
-  });
+  const DeckShareInfo({required this.isPublic, required this.shareCode});
 }
 
 class SharedDeckData {
@@ -43,25 +40,27 @@ class SaleCardShareInfo {
   final bool isPublic;
   final String? shareCode;
 
-  const SaleCardShareInfo({
-    required this.isPublic,
-    required this.shareCode,
-  });
+  const SaleCardShareInfo({required this.isPublic, required this.shareCode});
 }
 
 class SharedSaleCardData {
   final String shareCode;
   final CardRecord item;
 
-  const SharedSaleCardData({
-    required this.shareCode,
-    required this.item,
-  });
+  const SharedSaleCardData({required this.shareCode, required this.item});
 }
 
 class CollectionRepository {
   final SupabaseClient _client;
   final OpApiService _opApi;
+  static const String _collectionItemColumns =
+      'id, card_code, quantity, is_favorite, collection_type, created_at, '
+      'image_url, name, set_name, rarity, color, type, text, attribute, '
+      'is_public, share_code, sale_price_cents, sale_contact_info, sale_notes, '
+      'sale_status, card_condition';
+  static const String _deckItemColumns =
+      'id, card_code, quantity, is_favorite, created_at, image_url, name, '
+      'set_name, rarity, color, type, text, attribute';
 
   CollectionRepository(this._client, this._opApi);
 
@@ -89,22 +88,19 @@ class CollectionRepository {
 
     final collectionFuture = _client
         .from('collection_items')
-        .select()
+        .select(_collectionItemColumns)
         .eq('user_id', user.id)
         .order('created_at', ascending: false);
 
     final decksFuture = _client
         .from('decks')
         .select(
-          'id, name, created_at, is_public, share_code, deck_items(id, card_code, quantity, is_favorite, created_at, image_url, name, set_name, rarity, color, type, text, attribute)',
+          'id, name, created_at, is_public, share_code, deck_items($_deckItemColumns)',
         )
         .eq('user_id', user.id)
         .order('created_at', ascending: false);
 
-    final results = await Future.wait([
-      collectionFuture,
-      decksFuture,
-    ]);
+    final results = await Future.wait([collectionFuture, decksFuture]);
 
     final collectionResponse = results[0] as List;
     final decksResponse = results[1] as List;
@@ -113,8 +109,7 @@ class CollectionRepository {
 
     for (final raw in collectionResponse) {
       final map = Map<String, dynamic>.from(raw);
-      final cardCode =
-          (map['card_code'] ?? '').toString().trim().toUpperCase();
+      final cardCode = (map['card_code'] ?? '').toString().trim().toUpperCase();
       if (cardCode.isNotEmpty) {
         uniqueCodes.add(cardCode);
       }
@@ -126,8 +121,10 @@ class CollectionRepository {
 
       for (final rawItem in deckItemsRaw) {
         final itemMap = Map<String, dynamic>.from(rawItem);
-        final cardCode =
-            (itemMap['card_code'] ?? '').toString().trim().toUpperCase();
+        final cardCode = (itemMap['card_code'] ?? '')
+            .toString()
+            .trim()
+            .toUpperCase();
         if (cardCode.isNotEmpty) {
           uniqueCodes.add(cardCode);
         }
@@ -140,8 +137,7 @@ class CollectionRepository {
 
     for (final raw in collectionResponse) {
       final map = Map<String, dynamic>.from(raw);
-      final cardCode =
-          (map['card_code'] ?? '').toString().trim().toUpperCase();
+      final cardCode = (map['card_code'] ?? '').toString().trim().toUpperCase();
       final storedImageUrl = (map['image_url'] ?? '').toString();
       final storedName = (map['name'] ?? '').toString();
       final storedSetName = (map['set_name'] ?? '').toString();
@@ -156,13 +152,14 @@ class CollectionRepository {
         CardRecord(
           id: map['id'].toString(),
           cardCode: cardCode,
-          name: storedName.isNotEmpty ? storedName : (apiCard?.name ?? cardCode),
+          name: storedName.isNotEmpty
+              ? storedName
+              : (apiCard?.name ?? cardCode),
           imageUrl: storedImageUrl.isNotEmpty
               ? storedImageUrl
               : (apiCard?.image ?? ''),
-          dateAddedUtc: DateTime.tryParse(
-                (map['created_at'] ?? '').toString(),
-              ) ??
+          dateAddedUtc:
+              DateTime.tryParse((map['created_at'] ?? '').toString()) ??
               DateTime.now(),
           setName: storedSetName.isNotEmpty
               ? storedSetName
@@ -177,8 +174,8 @@ class CollectionRepository {
               ? storedAttribute
               : (apiCard?.attribute ?? ''),
           quantity: (map['quantity'] as num?)?.toInt() ?? 1,
-          collectionType:
-              (map['collection_type'] ?? CollectionTypes.owned).toString(),
+          collectionType: (map['collection_type'] ?? CollectionTypes.owned)
+              .toString(),
           deckName: null,
           isFavorite: (map['is_favorite'] as bool?) ?? false,
         ),
@@ -192,8 +189,10 @@ class CollectionRepository {
 
       for (final rawItem in deckItemsRaw) {
         final itemMap = Map<String, dynamic>.from(rawItem);
-        final cardCode =
-            (itemMap['card_code'] ?? '').toString().trim().toUpperCase();
+        final cardCode = (itemMap['card_code'] ?? '')
+            .toString()
+            .trim()
+            .toUpperCase();
         final storedImageUrl = (itemMap['image_url'] ?? '').toString();
         final storedName = (itemMap['name'] ?? '').toString();
         final storedSetName = (itemMap['set_name'] ?? '').toString();
@@ -208,13 +207,14 @@ class CollectionRepository {
           CardRecord(
             id: itemMap['id'].toString(),
             cardCode: cardCode,
-            name: storedName.isNotEmpty ? storedName : (apiCard?.name ?? cardCode),
+            name: storedName.isNotEmpty
+                ? storedName
+                : (apiCard?.name ?? cardCode),
             imageUrl: storedImageUrl.isNotEmpty
                 ? storedImageUrl
                 : (apiCard?.image ?? ''),
-            dateAddedUtc: DateTime.tryParse(
-                  (itemMap['created_at'] ?? '').toString(),
-                ) ??
+            dateAddedUtc:
+                DateTime.tryParse((itemMap['created_at'] ?? '').toString()) ??
                 DateTime.now(),
             setName: storedSetName.isNotEmpty
                 ? storedSetName
@@ -222,8 +222,9 @@ class CollectionRepository {
             rarity: storedRarity.isNotEmpty
                 ? storedRarity
                 : (apiCard?.rarity ?? ''),
-            color:
-                storedColor.isNotEmpty ? storedColor : (apiCard?.color ?? ''),
+            color: storedColor.isNotEmpty
+                ? storedColor
+                : (apiCard?.color ?? ''),
             type: storedType.isNotEmpty ? storedType : (apiCard?.type ?? ''),
             text: storedText.isNotEmpty ? storedText : (apiCard?.text ?? ''),
             attribute: storedAttribute.isNotEmpty
@@ -242,9 +243,78 @@ class CollectionRepository {
   }
 
   Future<void> upsert(CardRecord record) async {
+    await _upsertInternal(record);
+    await refreshAll();
+  }
+
+  Future<void> upsertMany(List<CardRecord> records) async {
+    if (records.isEmpty) return;
+
     final user = _client.auth.currentUser;
     if (user == null) {
-      throw Exception('Usu?rio n?o autenticado.');
+      throw Exception('Usuario nao autenticado.');
+    }
+
+    final enrichedRecords = await _enrichRecords(records);
+    final deckIdsByName = <String, String>{};
+
+    final collectionUpserts = <Map<String, dynamic>>[];
+    final collectionInserts = <Map<String, dynamic>>[];
+    final deckUpserts = <Map<String, dynamic>>[];
+    final deckInserts = <Map<String, dynamic>>[];
+
+    for (final record in enrichedRecords) {
+      if (record.collectionType == CollectionTypes.deck) {
+        final normalizedDeckName = (record.deckName ?? '').trim();
+        if (normalizedDeckName.isEmpty) {
+          throw Exception('Deck sem nome.');
+        }
+
+        final deckId =
+            deckIdsByName[normalizedDeckName] ??
+            await _ensureDeck(userId: user.id, deckName: normalizedDeckName);
+        deckIdsByName[normalizedDeckName] = deckId;
+
+        final payload = _buildDeckItemPayload(record, deckId);
+        if (_isValidUuid(record.id)) {
+          deckUpserts.add({'id': record.id, ...payload});
+        } else {
+          deckInserts.add(payload);
+        }
+        continue;
+      }
+
+      final payload = _buildCollectionItemPayload(record, user.id);
+      if (_isValidUuid(record.id)) {
+        collectionUpserts.add({'id': record.id, ...payload});
+      } else {
+        collectionInserts.add(payload);
+      }
+    }
+
+    if (collectionUpserts.isNotEmpty) {
+      await _client.from('collection_items').upsert(collectionUpserts);
+    }
+
+    if (collectionInserts.isNotEmpty) {
+      await _client.from('collection_items').insert(collectionInserts);
+    }
+
+    if (deckUpserts.isNotEmpty) {
+      await _client.from('deck_items').upsert(deckUpserts);
+    }
+
+    if (deckInserts.isNotEmpty) {
+      await _client.from('deck_items').insert(deckInserts);
+    }
+
+    await refreshAll();
+  }
+
+  Future<void> _upsertInternal(CardRecord record) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw Exception('Usuario nao autenticado.');
     }
 
     final enrichedRecord = await _enrichRecord(record);
@@ -260,20 +330,7 @@ class CollectionRepository {
         deckName: normalizedDeckName,
       );
 
-      final payload = {
-        'deck_id': deckId,
-        'card_code': enrichedRecord.cardCode,
-        'quantity': enrichedRecord.quantity,
-        'is_favorite': enrichedRecord.isFavorite,
-        'image_url': enrichedRecord.imageUrl,
-        'name': enrichedRecord.name,
-        'set_name': enrichedRecord.setName,
-        'rarity': enrichedRecord.rarity,
-        'color': enrichedRecord.color,
-        'type': enrichedRecord.type,
-        'text': enrichedRecord.text,
-        'attribute': enrichedRecord.attribute,
-      };
+      final payload = _buildDeckItemPayload(enrichedRecord, deckId);
 
       if (_isValidUuid(enrichedRecord.id)) {
         await _client.from('deck_items').upsert({
@@ -284,25 +341,10 @@ class CollectionRepository {
         await _client.from('deck_items').insert(payload);
       }
 
-      await refreshAll();
       return;
     }
 
-    final payload = {
-      'user_id': user.id,
-      'card_code': enrichedRecord.cardCode,
-      'quantity': enrichedRecord.quantity,
-      'collection_type': enrichedRecord.collectionType,
-      'is_favorite': enrichedRecord.isFavorite,
-      'image_url': enrichedRecord.imageUrl,
-      'name': enrichedRecord.name,
-      'set_name': enrichedRecord.setName,
-      'rarity': enrichedRecord.rarity,
-      'color': enrichedRecord.color,
-      'type': enrichedRecord.type,
-      'text': enrichedRecord.text,
-      'attribute': enrichedRecord.attribute,
-    };
+    final payload = _buildCollectionItemPayload(enrichedRecord, user.id);
 
     if (_isValidUuid(enrichedRecord.id)) {
       await _client.from('collection_items').upsert({
@@ -312,16 +354,13 @@ class CollectionRepository {
     } else {
       await _client.from('collection_items').insert(payload);
     }
-
-    await refreshAll();
   }
 
   Future<void> delete(String id) async {
-
     final existing = _cache.cast<CardRecord?>().firstWhere(
-          (item) => item?.id == id,
-          orElse: () => null,
-        );
+      (item) => item?.id == id,
+      orElse: () => null,
+    );
 
     if (existing == null) return;
 
@@ -350,9 +389,9 @@ class CollectionRepository {
 
     for (final id in ids) {
       final item = _cache.cast<CardRecord?>().firstWhere(
-            (e) => e?.id == id,
-            orElse: () => null,
-          );
+        (e) => e?.id == id,
+        orElse: () => null,
+      );
 
       if (item == null) continue;
 
@@ -423,15 +462,14 @@ class CollectionRepository {
     }
 
     final deckId = row['id'].toString();
-    final shareCode =
-        (row['share_code']?.toString().trim().isNotEmpty ?? false)
-            ? row['share_code'].toString()
-            : _generateShareCode();
+    final shareCode = (row['share_code']?.toString().trim().isNotEmpty ?? false)
+        ? row['share_code'].toString()
+        : _generateShareCode();
 
-    await _client.from('decks').update({
-      'is_public': true,
-      'share_code': shareCode,
-    }).eq('id', deckId);
+    await _client
+        .from('decks')
+        .update({'is_public': true, 'share_code': shareCode})
+        .eq('id', deckId);
 
     return shareCode;
   }
@@ -440,9 +478,11 @@ class CollectionRepository {
     final user = _client.auth.currentUser;
     if (user == null) return;
 
-    await _client.from('decks').update({
-      'is_public': false,
-    }).eq('user_id', user.id).eq('name', deckName.trim());
+    await _client
+        .from('decks')
+        .update({'is_public': false})
+        .eq('user_id', user.id)
+        .eq('name', deckName.trim());
   }
 
   Future<SharedDeckData?> getSharedDeck(String shareCode) async {
@@ -466,8 +506,10 @@ class CollectionRepository {
     final uniqueCodes = <String>{};
     for (final rawItem in itemsRaw) {
       final itemMap = Map<String, dynamic>.from(rawItem);
-      final cardCode =
-          (itemMap['card_code'] ?? '').toString().trim().toUpperCase();
+      final cardCode = (itemMap['card_code'] ?? '')
+          .toString()
+          .trim()
+          .toUpperCase();
       if (cardCode.isNotEmpty) {
         uniqueCodes.add(cardCode);
       }
@@ -477,8 +519,10 @@ class CollectionRepository {
 
     for (final rawItem in itemsRaw) {
       final itemMap = Map<String, dynamic>.from(rawItem);
-      final cardCode =
-          (itemMap['card_code'] ?? '').toString().trim().toUpperCase();
+      final cardCode = (itemMap['card_code'] ?? '')
+          .toString()
+          .trim()
+          .toUpperCase();
       final storedImageUrl = (itemMap['image_url'] ?? '').toString();
       final storedName = (itemMap['name'] ?? '').toString();
       final storedSetName = (itemMap['set_name'] ?? '').toString();
@@ -493,13 +537,14 @@ class CollectionRepository {
         CardRecord(
           id: itemMap['id'].toString(),
           cardCode: cardCode,
-          name: storedName.isNotEmpty ? storedName : (apiCard?.name ?? cardCode),
+          name: storedName.isNotEmpty
+              ? storedName
+              : (apiCard?.name ?? cardCode),
           imageUrl: storedImageUrl.isNotEmpty
               ? storedImageUrl
               : (apiCard?.image ?? ''),
-          dateAddedUtc: DateTime.tryParse(
-                (itemMap['created_at'] ?? '').toString(),
-              ) ??
+          dateAddedUtc:
+              DateTime.tryParse((itemMap['created_at'] ?? '').toString()) ??
               DateTime.now(),
           setName: storedSetName.isNotEmpty
               ? storedSetName
@@ -570,15 +615,14 @@ class CollectionRepository {
       throw Exception('Carta à venda não encontrada.');
     }
 
-    final shareCode =
-        (row['share_code']?.toString().trim().isNotEmpty ?? false)
-            ? row['share_code'].toString()
-            : _generateShareCode();
+    final shareCode = (row['share_code']?.toString().trim().isNotEmpty ?? false)
+        ? row['share_code'].toString()
+        : _generateShareCode();
 
-    await _client.from('collection_items').update({
-      'is_public': true,
-      'share_code': shareCode,
-    }).eq('id', itemId);
+    await _client
+        .from('collection_items')
+        .update({'is_public': true, 'share_code': shareCode})
+        .eq('id', itemId);
 
     await refreshAll();
     return shareCode;
@@ -590,9 +634,11 @@ class CollectionRepository {
       throw Exception('Usuário não autenticado.');
     }
 
-    await _client.from('collection_items').update({
-      'is_public': true,
-    }).eq('user_id', user.id).eq('collection_type', CollectionTypes.forSale);
+    await _client
+        .from('collection_items')
+        .update({'is_public': true})
+        .eq('user_id', user.id)
+        .eq('collection_type', CollectionTypes.forSale);
 
     await refreshAll();
   }
@@ -601,9 +647,11 @@ class CollectionRepository {
     final user = _client.auth.currentUser;
     if (user == null) return;
 
-    await _client.from('collection_items').update({
-      'is_public': false,
-    }).eq('user_id', user.id).eq('collection_type', CollectionTypes.forSale);
+    await _client
+        .from('collection_items')
+        .update({'is_public': false})
+        .eq('user_id', user.id)
+        .eq('collection_type', CollectionTypes.forSale);
 
     await refreshAll();
   }
@@ -613,7 +661,7 @@ class CollectionRepository {
 
     final response = await _client
         .from('collection_items')
-        .select()
+        .select(_collectionItemColumns)
         .eq('user_id', userId)
         .eq('is_public', true)
         .eq('collection_type', CollectionTypes.forSale)
@@ -625,8 +673,7 @@ class CollectionRepository {
 
     final uniqueCodes = <String>{};
     for (final row in rows) {
-      final cardCode =
-          (row['card_code'] ?? '').toString().trim().toUpperCase();
+      final cardCode = (row['card_code'] ?? '').toString().trim().toUpperCase();
       if (cardCode.isNotEmpty) {
         uniqueCodes.add(cardCode);
       }
@@ -637,8 +684,7 @@ class CollectionRepository {
     final items = <CardRecord>[];
 
     for (final map in rows) {
-      final cardCode =
-          (map['card_code'] ?? '').toString().trim().toUpperCase();
+      final cardCode = (map['card_code'] ?? '').toString().trim().toUpperCase();
       final storedImageUrl = (map['image_url'] ?? '').toString();
       final storedName = (map['name'] ?? '').toString();
       final storedSetName = (map['set_name'] ?? '').toString();
@@ -653,13 +699,14 @@ class CollectionRepository {
         CardRecord(
           id: map['id'].toString(),
           cardCode: cardCode,
-          name: storedName.isNotEmpty ? storedName : (apiCard?.name ?? cardCode),
+          name: storedName.isNotEmpty
+              ? storedName
+              : (apiCard?.name ?? cardCode),
           imageUrl: storedImageUrl.isNotEmpty
               ? storedImageUrl
               : (apiCard?.image ?? ''),
-          dateAddedUtc: DateTime.tryParse(
-                (map['created_at'] ?? '').toString(),
-              ) ??
+          dateAddedUtc:
+              DateTime.tryParse((map['created_at'] ?? '').toString()) ??
               DateTime.now(),
           setName: storedSetName.isNotEmpty
               ? storedSetName
@@ -688,9 +735,11 @@ class CollectionRepository {
     final user = _client.auth.currentUser;
     if (user == null || !_isValidUuid(itemId)) return;
 
-    await _client.from('collection_items').update({
-      'is_public': false,
-    }).eq('user_id', user.id).eq('id', itemId);
+    await _client
+        .from('collection_items')
+        .update({'is_public': false})
+        .eq('user_id', user.id)
+        .eq('id', itemId);
 
     await refreshAll();
   }
@@ -700,7 +749,7 @@ class CollectionRepository {
 
     final row = await _client
         .from('collection_items')
-        .select()
+        .select(_collectionItemColumns)
         .eq('share_code', shareCode)
         .eq('is_public', true)
         .eq('collection_type', CollectionTypes.forSale)
@@ -725,16 +774,16 @@ class CollectionRepository {
       id: row['id'].toString(),
       cardCode: cardCode,
       name: storedName.isNotEmpty ? storedName : (apiCard?.name ?? cardCode),
-      imageUrl:
-          storedImageUrl.isNotEmpty ? storedImageUrl : (apiCard?.image ?? ''),
-      dateAddedUtc: DateTime.tryParse(
-            (row['created_at'] ?? '').toString(),
-          ) ??
+      imageUrl: storedImageUrl.isNotEmpty
+          ? storedImageUrl
+          : (apiCard?.image ?? ''),
+      dateAddedUtc:
+          DateTime.tryParse((row['created_at'] ?? '').toString()) ??
           DateTime.now(),
-      setName:
-          storedSetName.isNotEmpty ? storedSetName : (apiCard?.setName ?? ''),
-      rarity:
-          storedRarity.isNotEmpty ? storedRarity : (apiCard?.rarity ?? ''),
+      setName: storedSetName.isNotEmpty
+          ? storedSetName
+          : (apiCard?.setName ?? ''),
+      rarity: storedRarity.isNotEmpty ? storedRarity : (apiCard?.rarity ?? ''),
       color: storedColor.isNotEmpty ? storedColor : (apiCard?.color ?? ''),
       type: storedType.isNotEmpty ? storedType : (apiCard?.type ?? ''),
       text: storedText.isNotEmpty ? storedText : (apiCard?.text ?? ''),
@@ -872,10 +921,7 @@ class CollectionRepository {
       };
 
       if (_isValidUuid(item.id)) {
-        await _client.from('deck_items').upsert({
-          'id': item.id,
-          ...payload,
-        });
+        await _client.from('deck_items').upsert({'id': item.id, ...payload});
       } else {
         await _client.from('deck_items').insert(payload);
       }
@@ -901,10 +947,7 @@ class CollectionRepository {
 
     final inserted = await _client
         .from('decks')
-        .insert({
-          'user_id': userId,
-          'name': deckName,
-        })
+        .insert({'user_id': userId, 'name': deckName})
         .select('id')
         .single();
 
@@ -958,6 +1001,21 @@ class CollectionRepository {
     );
   }
 
+  Future<List<CardRecord>> _enrichRecords(List<CardRecord> records) async {
+    final missingCodes = records
+        .where((record) => record.imageUrl.trim().isEmpty)
+        .map((record) => record.cardCode.trim().toUpperCase())
+        .where((code) => code.isNotEmpty)
+        .toSet();
+
+    if (missingCodes.isNotEmpty) {
+      await _opApi.preload();
+      await _warmUpApiCards(missingCodes);
+    }
+
+    return records.map(_enrichRecordFromCache).toList(growable: false);
+  }
+
   Future<CardRecord> _enrichRecord(CardRecord record) async {
     if (record.imageUrl.trim().isNotEmpty) {
       return record;
@@ -974,13 +1032,34 @@ class CollectionRepository {
       return record;
     }
 
+    return _mergeRecordWithApiCard(record, matchedCard);
+  }
+
+  CardRecord _enrichRecordFromCache(CardRecord record) {
+    if (record.imageUrl.trim().isNotEmpty) {
+      return record;
+    }
+
+    final matchedCard = _apiCardCache[record.cardCode.trim().toUpperCase()];
+    if (matchedCard == null) {
+      return record;
+    }
+
+    return _mergeRecordWithApiCard(record, matchedCard);
+  }
+
+  CardRecord _mergeRecordWithApiCard(CardRecord record, OpCard matchedCard) {
     return record.copyWith(
       name: record.name.trim().isNotEmpty ? record.name : matchedCard.name,
       imageUrl: matchedCard.image.trim().isNotEmpty
           ? matchedCard.image
           : record.imageUrl,
-      setName: record.setName.trim().isNotEmpty ? record.setName : matchedCard.setName,
-      rarity: record.rarity.trim().isNotEmpty ? record.rarity : matchedCard.rarity,
+      setName: record.setName.trim().isNotEmpty
+          ? record.setName
+          : matchedCard.setName,
+      rarity: record.rarity.trim().isNotEmpty
+          ? record.rarity
+          : matchedCard.rarity,
       color: record.color.trim().isNotEmpty ? record.color : matchedCard.color,
       type: record.type.trim().isNotEmpty ? record.type : matchedCard.type,
       text: record.text.trim().isNotEmpty ? record.text : matchedCard.text,
@@ -988,6 +1067,44 @@ class CollectionRepository {
           ? record.attribute
           : matchedCard.attribute,
     );
+  }
+
+  Map<String, dynamic> _buildDeckItemPayload(CardRecord record, String deckId) {
+    return {
+      'deck_id': deckId,
+      'card_code': record.cardCode,
+      'quantity': record.quantity,
+      'is_favorite': record.isFavorite,
+      'image_url': record.imageUrl,
+      'name': record.name,
+      'set_name': record.setName,
+      'rarity': record.rarity,
+      'color': record.color,
+      'type': record.type,
+      'text': record.text,
+      'attribute': record.attribute,
+    };
+  }
+
+  Map<String, dynamic> _buildCollectionItemPayload(
+    CardRecord record,
+    String userId,
+  ) {
+    return {
+      'user_id': userId,
+      'card_code': record.cardCode,
+      'quantity': record.quantity,
+      'collection_type': record.collectionType,
+      'is_favorite': record.isFavorite,
+      'image_url': record.imageUrl,
+      'name': record.name,
+      'set_name': record.setName,
+      'rarity': record.rarity,
+      'color': record.color,
+      'type': record.type,
+      'text': record.text,
+      'attribute': record.attribute,
+    };
   }
 
   bool _isValidUuid(String value) {

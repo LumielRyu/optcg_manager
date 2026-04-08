@@ -22,6 +22,7 @@ import '../features/library/library_compare_screen.dart';
 import '../features/library/one_piece_library_screen.dart';
 import '../features/marketplace/global_marketplace_screen.dart';
 import '../features/sales/sales_screen.dart';
+import '../data/repositories/user_preferences_repository.dart';
 
 class AuthRouterNotifier extends ChangeNotifier {
   AuthRouterNotifier() {
@@ -40,6 +41,8 @@ class AuthRouterNotifier extends ChangeNotifier {
 }
 
 final AuthRouterNotifier _authRouterNotifier = AuthRouterNotifier();
+final UserPreferencesRepository _userPreferencesRepository =
+    UserPreferencesRepository(Supabase.instance.client);
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
@@ -59,7 +62,10 @@ final GoRouter appRouter = GoRouter(
         isSharedDeckRoute || isSharedSaleRoute || isSharedStoreRoute;
 
     final isPublicRoute =
-        isRootRoute || isRegisterRoute || isSharedRoute || isCompleteProfileRoute;
+        isRootRoute ||
+        isRegisterRoute ||
+        isSharedRoute ||
+        isCompleteProfileRoute;
 
     if (isSharedRoute) {
       return null;
@@ -70,14 +76,12 @@ final GoRouter appRouter = GoRouter(
     }
 
     if (loggedIn) {
-      final row = await Supabase.instance.client
-          .from('profiles')
-          .select('whatsapp_phone, name')
-          .eq('id', user.id)
-          .maybeSingle();
-      final whatsAppPhone = (row?['whatsapp_phone'] ?? '').toString().trim();
-      final displayName = (row?['name'] ?? '').toString().trim();
-      final needsCompletion = whatsAppPhone.isEmpty || displayName.isEmpty;
+      final hasCompletedProfile =
+          _userPreferencesRepository.getCachedProfileCompletionStatus() ??
+          await _userPreferencesRepository.hasCompletedProfile(
+            preferCache: false,
+          );
+      final needsCompletion = !hasCompletedProfile;
 
       if (needsCompletion && !isCompleteProfileRoute && !isSharedRoute) {
         return '/complete-profile';

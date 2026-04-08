@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/painting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/op_card.dart';
@@ -119,7 +118,7 @@ class _ComparisonCard extends StatelessWidget {
               aspectRatio: 0.72,
               child: Container(
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.35),
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 padding: const EdgeInsets.all(10),
@@ -127,7 +126,7 @@ class _ComparisonCard extends StatelessWidget {
                   card.image,
                   fit: BoxFit.contain,
                   webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-                  errorBuilder: (_, __, ___) {
+                  errorBuilder: (_, _, _) {
                     return const Center(
                       child: Icon(Icons.broken_image_outlined),
                     );

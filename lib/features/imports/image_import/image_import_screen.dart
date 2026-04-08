@@ -1,9 +1,6 @@
 import 'dart:io';
-import 'dart:typed_data';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/painting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/collection_types.dart';
@@ -158,7 +155,7 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: _selectedDestination,
+                  initialValue: _selectedDestination,
                   decoration: const InputDecoration(
                     labelText: 'Destino',
                     border: OutlineInputBorder(),
@@ -286,6 +283,8 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
                       return;
                     }
 
+                    final navigator = Navigator.of(context);
+                    final messenger = ScaffoldMessenger.of(context);
                     final error = await notifier.confirmImport(
                       collectionType: _selectedDestination,
                       deckName: _selectedDestination == CollectionTypes.deck
@@ -296,11 +295,9 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
                     if (!mounted) return;
 
                     if (error == null) {
-                      Navigator.of(context).pop();
+                      navigator.pop();
                     } else {
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(SnackBar(content: Text(error)));
+                      messenger.showSnackBar(SnackBar(content: Text(error)));
                     }
                   },
             icon: const Icon(Icons.playlist_add_check),
@@ -411,7 +408,9 @@ class _ImageCandidateCard extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               DropdownButtonFormField<String>(
-                value: colorOptions.contains(candidate.color) ? candidate.color : null,
+                initialValue: colorOptions.contains(candidate.color)
+                    ? candidate.color
+                    : null,
                 decoration: const InputDecoration(
                   labelText: 'Cor da carta',
                   border: OutlineInputBorder(),
@@ -486,7 +485,9 @@ class _OcrDebugPanel extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.45),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.45,
+        ),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
@@ -566,7 +567,7 @@ class _ImageImportPreviewCard extends StatelessWidget {
         height: 52,
         fit: BoxFit.cover,
         webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-        errorBuilder: (_, __, ___) {
+        errorBuilder: (_, _, _) {
           return const Icon(Icons.broken_image_outlined);
         },
       ),

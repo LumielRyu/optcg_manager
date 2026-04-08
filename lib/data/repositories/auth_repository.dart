@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -46,7 +47,7 @@ class AuthRepository {
       );
 
       if (response.user == null) {
-        throw Exception('Usuário não retornado pelo Supabase.');
+        throw Exception('Usuario nao retornado pelo Supabase.');
       }
 
       await _prefs.ensureProfile(
@@ -55,38 +56,29 @@ class AuthRepository {
         whatsAppPhone: whatsAppPhone,
       );
     } catch (e) {
-      print('ERRO REAL SIGNUP: $e');
+      debugPrint('SIGNUP ERROR: $e');
       rethrow;
     }
   }
 
-  Future<void> signIn({
-    required String email,
-    required String password,
-  }) async {
+  Future<void> signIn({required String email, required String password}) async {
     try {
       final response = await _client.auth.signInWithPassword(
         email: email,
         password: password,
       );
 
-      print('SIGNIN USER: ${response.user?.id}');
-      print('SIGNIN EMAIL: ${response.user?.email}');
-      print('SIGNIN SESSION: ${response.session != null ? 'OK' : 'NULL'}');
-
       if (response.user == null) {
-        throw Exception('Usuário não retornado no login.');
+        throw Exception('Usuario nao retornado no login.');
       }
     } catch (e) {
-      print('ERRO REAL SIGNIN: $e');
+      debugPrint('SIGNIN ERROR: $e');
       rethrow;
     }
   }
 
   Future<bool> needsWhatsAppCompletion() async {
-    final phone = await _prefs.getCurrentWhatsAppPhone();
-    final name = await _prefs.getCurrentDisplayName();
-    return phone.isEmpty || name.isEmpty;
+    return !(await _prefs.hasCompletedProfile());
   }
 
   Future<void> signOut() async {

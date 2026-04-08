@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/painting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -323,7 +322,7 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface.withOpacity(0.9),
+        color: theme.colorScheme.surface.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(18),
       ),
       child: Row(
@@ -353,7 +352,6 @@ class _StandardLibraryView extends StatelessWidget {
   final CollectionViewMode viewMode;
 
   const _StandardLibraryView({
-    super.key,
     required this.items,
     required this.viewMode,
   });
@@ -380,7 +378,7 @@ class _StandardLibraryView extends StatelessWidget {
         key: ValueKey('collection-list-$itemsSignature'),
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
         itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
         itemBuilder: (context, index) {
           final item = items[index];
 
@@ -488,7 +486,7 @@ class _StandardLibraryView extends StatelessWidget {
                           color: Theme.of(context)
                               .colorScheme
                               .surfaceContainerHighest
-                              .withOpacity(0.35),
+                              .withValues(alpha: 0.35),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         padding: const EdgeInsets.all(8),
@@ -566,7 +564,7 @@ class _DeckLibraryView extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
       itemCount: decks.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
         final deck = decks[index];
         final totalCards = deck.value.fold<int>(
@@ -595,14 +593,12 @@ class _CollectionCardImage extends StatelessWidget {
   final String imageUrl;
   final String cardCode;
   final BoxFit fit;
-  final double? height;
 
   const _CollectionCardImage({
     super.key,
     required this.imageUrl,
     required this.cardCode,
     this.fit = BoxFit.contain,
-    this.height,
   });
 
   @override
@@ -610,45 +606,36 @@ class _CollectionCardImage extends StatelessWidget {
     final directUrl = imageUrl.trim();
 
     if (directUrl.isEmpty) {
-      return _ImagePlaceholder(height: height);
+      return const _ImagePlaceholder();
     }
 
     return Image.network(
       directUrl,
       key: ValueKey('collection-image-$cardCode-$directUrl'),
-      height: height,
       fit: fit,
       gaplessPlayback: false,
       webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
       filterQuality: FilterQuality.low,
-      errorBuilder: (_, __, ___) {
-        return _ImagePlaceholder(height: height);
+      errorBuilder: (_, _, _) {
+        return const _ImagePlaceholder();
       },
       loadingBuilder: (context, child, progress) {
         if (progress == null) return child;
 
-        return SizedBox(
-          height: height,
-          child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-        );
+        return const Center(child: CircularProgressIndicator(strokeWidth: 2));
       },
     );
   }
 }
 
 class _ImagePlaceholder extends StatelessWidget {
-  final double? height;
-
-  const _ImagePlaceholder({this.height});
+  const _ImagePlaceholder();
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: height,
-      child: Container(
-        color: Colors.grey.shade200,
-        child: const Center(child: Icon(Icons.image_not_supported_outlined)),
-      ),
+    return Container(
+      color: Colors.grey.shade200,
+      child: const Center(child: Icon(Icons.image_not_supported_outlined)),
     );
   }
 }
@@ -735,7 +722,7 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
 
     showDialog(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.92),
+      barrierColor: Colors.black.withValues(alpha: 0.92),
       builder: (_) {
         return Dialog.fullscreen(
           backgroundColor: Colors.black,
@@ -749,7 +736,7 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
                     card.imageUrl,
                     fit: BoxFit.contain,
                     webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-                    errorBuilder: (_, __, ___) {
+                    errorBuilder: (_, _, _) {
                       return const Center(
                         child: Icon(
                           Icons.broken_image_outlined,
@@ -903,7 +890,7 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
                                   child: Container(
                                     padding: const EdgeInsets.all(6),
                                     decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.55),
+                                      color: Colors.black.withValues(alpha: 0.55),
                                       borderRadius: BorderRadius.circular(999),
                                     ),
                                     child: const Icon(

@@ -177,23 +177,36 @@ class _HomeFeatureCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(24),
         side: BorderSide(
-          color: theme.colorScheme.outlineVariant.withOpacity(0.45),
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
         ),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(24),
-        splashColor: theme.colorScheme.primary.withOpacity(0.05),
+        splashColor: theme.colorScheme.primary.withValues(alpha: 0.05),
         highlightColor: Colors.transparent,
-        hoverColor: theme.colorScheme.primary.withOpacity(0.04),
+        hoverColor: theme.colorScheme.primary.withValues(alpha: 0.04),
         onTap: () => context.go(route),
         child: Padding(
           padding: EdgeInsets.all(compact ? 14 : 22),
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: compact ? 210 : 240),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Icon(icon, size: compact ? 24 : 32),
+                Container(
+                  width: compact ? 52 : 64,
+                  height: compact ? 52 : 64,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(
+                    icon,
+                    size: compact ? 24 : 30,
+                    color: theme.colorScheme.onPrimaryContainer,
+                  ),
+                ),
                 SizedBox(height: compact ? 12 : 18),
                 Text(
                   title,
@@ -201,6 +214,7 @@ class _HomeFeatureCard extends StatelessWidget {
                     fontWeight: FontWeight.w800,
                     fontSize: compact ? 18 : null,
                   ),
+                  textAlign: TextAlign.center,
                 ),
                 SizedBox(height: compact ? 6 : 8),
                 Text(
@@ -210,6 +224,7 @@ class _HomeFeatureCard extends StatelessWidget {
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontSize: compact ? 13 : null,
                   ),
+                  textAlign: TextAlign.center,
                 ),
                 const Spacer(),
                 FilledButton.icon(

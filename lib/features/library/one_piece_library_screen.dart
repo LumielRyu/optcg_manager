@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/painting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -155,6 +154,7 @@ class _OnePieceLibraryScreenState
                 allCards.map((card) => card.attribute),
                 initialValue: 'Todos',
               );
+              if (!context.mounted) return;
               _openFiltersPanel(
                 context: context,
                 types: types,
@@ -361,14 +361,15 @@ class _OnePieceLibraryScreenState
                                   final rarities = _buildOptions(
                                     allCards.map((card) => card.rarity),
                                   );
-                                  final attributes = _buildOptions(
-                                    allCards.map((card) => card.attribute),
-                                    initialValue: 'Todos',
-                                  );
-                                  _openFiltersPanel(
-                                    context: context,
-                                    types: types,
-                                    sets: sets,
+                                final attributes = _buildOptions(
+                                  allCards.map((card) => card.attribute),
+                                  initialValue: 'Todos',
+                                );
+                                if (!context.mounted) return;
+                                _openFiltersPanel(
+                                  context: context,
+                                  types: types,
+                                  sets: sets,
                                     rarities: rarities,
                                     attributes: attributes,
                                   );
@@ -484,7 +485,7 @@ class _OnePieceLibraryScreenState
                               fit: BoxFit.contain,
                               webHtmlElementStrategy:
                                   WebHtmlElementStrategy.prefer,
-                              errorBuilder: (_, __, ___) {
+                              errorBuilder: (_, _, _) {
                                 return const Center(
                                   child: Icon(Icons.broken_image_outlined),
                                 );
@@ -893,7 +894,7 @@ class _LibraryStatCard extends StatelessWidget {
       width: 126,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface.withOpacity(0.92),
+        color: theme.colorScheme.surface.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(18),
       ),
       child: Row(
@@ -942,7 +943,7 @@ class _LibraryDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       decoration: InputDecoration(labelText: label),
       items: options.map((option) {
         return DropdownMenuItem<String>(
@@ -974,7 +975,7 @@ class _LibrarySkeletonBox extends StatelessWidget {
     return Container(
       height: height,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.7),
+        color: color.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(radius),
       ),
     );

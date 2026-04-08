@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/painting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/collection_types.dart';
@@ -102,7 +101,7 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
                 const SizedBox(height: 12),
                 if (_isSingleCodeMode) ...[
                   DropdownButtonFormField<int>(
-                    value: _singleCodeQuantity,
+                    initialValue: _singleCodeQuantity,
                     decoration: const InputDecoration(
                       labelText: 'Quantidade para código único',
                       border: OutlineInputBorder(),
@@ -120,7 +119,7 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
                   const SizedBox(height: 12),
                 ],
                 DropdownButtonFormField<String>(
-                  value: _selectedDestination,
+                  initialValue: _selectedDestination,
                   decoration: const InputDecoration(
                     labelText: 'Destino',
                     border: OutlineInputBorder(),
@@ -184,7 +183,7 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
                 : ListView.separated(
                     padding: const EdgeInsets.all(12),
                     itemCount: state.candidates.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
                       return _CodeCandidateCard(
                         candidate: state.candidates[index],
@@ -236,6 +235,8 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
                       return;
                     }
 
+                    final navigator = Navigator.of(context);
+                    final messenger = ScaffoldMessenger.of(context);
                     final error = await notifier.confirmImport(
                       collectionType: _selectedDestination,
                       deckName: _selectedDestination == CollectionTypes.deck
@@ -246,11 +247,9 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
                     if (!mounted) return;
 
                     if (error == null) {
-                      Navigator.of(context).pop();
+                      navigator.pop();
                     } else {
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(SnackBar(content: Text(error)));
+                      messenger.showSnackBar(SnackBar(content: Text(error)));
                     }
                   },
             icon: const Icon(Icons.playlist_add_check),
@@ -413,7 +412,9 @@ class _CodeCandidateCard extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               DropdownButtonFormField<String>(
-                value: colorOptions.contains(candidate.color) ? candidate.color : null,
+                initialValue: colorOptions.contains(candidate.color)
+                    ? candidate.color
+                    : null,
                 decoration: const InputDecoration(
                   labelText: 'Cor da carta',
                   border: OutlineInputBorder(),
@@ -456,7 +457,7 @@ class _ImportPreviewImage extends StatelessWidget {
         height: 48,
         fit: fit,
         webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-        errorBuilder: (_, __, ___) {
+        errorBuilder: (_, _, _) {
           return const Icon(Icons.broken_image_outlined);
         },
       ),

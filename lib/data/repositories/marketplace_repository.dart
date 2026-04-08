@@ -18,6 +18,11 @@ class MarketplaceRepository {
   final SupabaseClient _client;
   final OpApiService _opApi;
   final UserPreferencesRepository _prefs;
+  static const String _listingColumns =
+      'id, user_id, card_code, quantity, is_favorite, is_public, share_code, '
+      'created_at, image_url, name, set_name, rarity, color, type, text, '
+      'attribute, sale_price_cents, sale_contact_info, sale_notes, '
+      'sale_status, card_condition';
   final Map<String, OpCard?> _apiCardCache = {};
   final Map<String, String> _sellerNameCache = {};
 
@@ -47,7 +52,7 @@ class MarketplaceRepository {
 
     final row = await _client
         .from('collection_items')
-        .select()
+        .select(_listingColumns)
         .eq('share_code', shareCode)
         .eq('is_public', true)
         .eq('collection_type', 'forSale')
@@ -77,10 +82,7 @@ class MarketplaceRepository {
 
     await _client
         .from('collection_items')
-        .update({
-          'is_public': true,
-          'sale_contact_info': whatsAppPhone,
-        })
+        .update({'is_public': true, 'sale_contact_info': whatsAppPhone})
         .eq('user_id', user.id)
         .eq('collection_type', 'forSale');
   }
@@ -143,7 +145,7 @@ class MarketplaceRepository {
 
     var query = _client
         .from('collection_items')
-        .select()
+        .select(_listingColumns)
         .eq('collection_type', 'forSale');
 
     if (userId != null) {
@@ -172,17 +174,27 @@ class MarketplaceRepository {
       }
     }
 
-    await _warmUpApiCards(uniqueCodes);
-    await _warmUpSellerNames(uniqueUserIds);
+    await Future.wait([
+      _warmUpApiCards(uniqueCodes),
+      _warmUpSellerNames(uniqueUserIds),
+    ]);
 
     return rows.map(_mapRowToListing).toList(growable: false);
   }
 
   Future<void> _warmUpApiCards(Set<String> cardCodes) async {
-    for (final code in cardCodes) {
-      if (_apiCardCache.containsKey(code)) continue;
-      _apiCardCache[code] = await _opApi.findCardByCode(code);
-    }
+    final missingCodes = cardCodes
+        .map((code) => code.trim().toUpperCase())
+        .where((code) => code.isNotEmpty && !_apiCardCache.containsKey(code))
+        .toList(growable: false);
+
+    if (missingCodes.isEmpty) return;
+
+    await Future.wait(
+      missingCodes.map((code) async {
+        _apiCardCache[code] = await _opApi.findCardByCode(code);
+      }),
+    );
   }
 
   Future<void> _warmUpSellerNames(Set<String> userIds) async {
@@ -192,10 +204,10 @@ class MarketplaceRepository {
 
     if (missingUserIds.isEmpty) return;
 
-    final response = await _client
-        .from('profiles')
-        .select('id, name')
-        .inFilter('id', missingUserIds);
+    final response = await _client.rpc(
+      'get_public_seller_profiles',
+      params: {'user_ids': missingUserIds},
+    );
 
     for (final raw in (response as List)) {
       final row = Map<String, dynamic>.from(raw);
@@ -254,9 +266,8 @@ class MarketplaceRepository {
       notes: (map['sale_notes'] ?? '').toString(),
       saleStatus: (map['sale_status'] ?? MarketplaceListing.activeStatus)
           .toString(),
-      cardCondition:
-          (map['card_condition'] ?? MarketplaceListing.mintCondition)
-              .toString(),
+      cardCondition: (map['card_condition'] ?? MarketplaceListing.mintCondition)
+          .toString(),
     );
   }
 }

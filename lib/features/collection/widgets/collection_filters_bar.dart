@@ -67,7 +67,7 @@ class CollectionFiltersBar extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: DropdownButtonFormField<CollectionSortOption>(
-                  value: sortOption,
+                  initialValue: sortOption,
                   decoration: const InputDecoration(
                     labelText: 'Ordenação',
                     border: OutlineInputBorder(),
@@ -87,7 +87,7 @@ class CollectionFiltersBar extends StatelessWidget {
           if (showDeckFilter) ...[
             const SizedBox(height: 12),
             DropdownButtonFormField<String?>(
-              value: selectedDeckFilter,
+              initialValue: selectedDeckFilter,
               decoration: const InputDecoration(
                 labelText: 'Filtrar deck',
                 border: OutlineInputBorder(),

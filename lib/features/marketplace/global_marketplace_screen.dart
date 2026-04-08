@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/painting.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/providers/theme_mode_provider.dart';
+import '../../core/widgets/catalog_dropdown_field.dart';
+import '../../core/widgets/catalog_search_field.dart';
 import '../../core/widgets/catalog_grid_card.dart';
+import '../../core/widgets/dashboard_header_panel.dart';
 import '../../core/widgets/home_navigation_button.dart';
+import '../../core/widgets/summary_stat_card.dart';
 import '../../data/models/marketplace_listing.dart';
 import '../../data/repositories/marketplace_repository.dart';
 
@@ -37,10 +39,24 @@ class _GlobalMarketplaceScreenState
   int _visibleCount = _pageSize;
   final Map<String, int> _cartQuantities = {};
   List<MarketplaceListing> _loadedPublicItems = const [];
+  late Future<List<MarketplaceListing>> _publicListingsFuture;
+  List<MarketplaceListing> _cachedSourceItems = const [];
+  List<MarketplaceListing> _cachedFilteredItems = const [];
+  List<String> _cachedColorOptions = const ['Todas'];
+  List<String> _cachedTypeOptions = const ['Todos'];
+  List<String> _cachedRarityOptions = const ['Todas'];
+  String _cachedQuery = '';
+  bool _cachedShowOnlyPriced = false;
+  bool _cachedShowOnlyActive = true;
+  String _cachedSelectedColor = 'Todas';
+  String _cachedSelectedType = 'Todos';
+  String _cachedSelectedRarity = 'Todas';
+  String _cachedSelectedSort = 'Mais recentes';
 
   @override
   void initState() {
     super.initState();
+    _publicListingsFuture = _loadPublicListings();
     _searchController.addListener(() {
       setState(() {
         _query = _searchController.text.trim().toLowerCase();
@@ -55,12 +71,95 @@ class _GlobalMarketplaceScreenState
     super.dispose();
   }
 
+  Future<List<MarketplaceListing>> _loadPublicListings() {
+    return ref.read(marketplaceRepositoryProvider).getGlobalPublicListings();
+  }
+
+  void _updateMarketplaceDerivedData(List<MarketplaceListing> allItems) {
+    final sourceChanged = !identical(_cachedSourceItems, allItems);
+    final filtersChanged =
+        _cachedQuery != _query ||
+        _cachedShowOnlyPriced != _showOnlyPriced ||
+        _cachedShowOnlyActive != _showOnlyActive ||
+        _cachedSelectedColor != _selectedColor ||
+        _cachedSelectedType != _selectedType ||
+        _cachedSelectedRarity != _selectedRarity ||
+        _cachedSelectedSort != _selectedSort;
+
+    if (sourceChanged) {
+      _cachedSourceItems = allItems;
+      _cachedColorOptions = _buildOptions(
+        allItems.map((item) => item.color.trim()),
+        defaultValue: 'Todas',
+      );
+      _cachedTypeOptions = _buildOptions(
+        allItems.map((item) => item.type.trim()),
+        defaultValue: 'Todos',
+      );
+      _cachedRarityOptions = _buildOptions(
+        allItems.map((item) => item.rarity.trim()),
+        defaultValue: 'Todas',
+      );
+    }
+
+    if (!sourceChanged && !filtersChanged) {
+      return;
+    }
+
+    _cachedQuery = _query;
+    _cachedShowOnlyPriced = _showOnlyPriced;
+    _cachedShowOnlyActive = _showOnlyActive;
+    _cachedSelectedColor = _selectedColor;
+    _cachedSelectedType = _selectedType;
+    _cachedSelectedRarity = _selectedRarity;
+    _cachedSelectedSort = _selectedSort;
+
+    _cachedFilteredItems =
+        allItems
+            .where((item) {
+              final matchesQuery =
+                  _query.isEmpty ||
+                  item.name.toLowerCase().contains(_query) ||
+                  item.cardCode.toLowerCase().contains(_query) ||
+                  item.setName.toLowerCase().contains(_query);
+              final matchesPrice = !_showOnlyPriced || item.hasPrice;
+              final matchesStatus = !_showOnlyActive || item.isActive;
+              final matchesColor =
+                  _selectedColor == 'Todas' || item.color == _selectedColor;
+              final matchesType =
+                  _selectedType == 'Todos' || item.type == _selectedType;
+              final matchesRarity =
+                  _selectedRarity == 'Todas' || item.rarity == _selectedRarity;
+
+              return matchesQuery &&
+                  matchesPrice &&
+                  matchesStatus &&
+                  matchesColor &&
+                  matchesType &&
+                  matchesRarity;
+            })
+            .toList(growable: false)
+          ..sort(_compareListings);
+  }
+
+  List<String> _buildOptions(
+    Iterable<String> values, {
+    required String defaultValue,
+  }) {
+    final options = {
+      ...values.where((value) => value.isNotEmpty),
+    }.toList(growable: false)..sort();
+    return <String>[defaultValue, ...options];
+  }
+
   Future<void> _openWhatsApp(MarketplaceListing item) async {
     if (!item.hasWhatsAppContact) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Este anúncio não possui WhatsApp configurado.'),
+          content: Text(
+            'Este an\u00FAncio n\u00E3o possui WhatsApp configurado.',
+          ),
         ),
       );
       return;
@@ -75,7 +174,9 @@ class _GlobalMarketplaceScreenState
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Não foi possível abrir o WhatsApp do vendedor.'),
+          content: Text(
+            'N\u00E3o foi poss\u00EDvel abrir o WhatsApp do vendedor.',
+          ),
         ),
       );
     }
@@ -166,7 +267,9 @@ class _GlobalMarketplaceScreenState
     return lines.join('\n');
   }
 
-  Future<void> _openSellerCartWhatsApp(List<MarketplaceListing> sellerItems) async {
+  Future<void> _openSellerCartWhatsApp(
+    List<MarketplaceListing> sellerItems,
+  ) async {
     if (sellerItems.isEmpty) return;
     final contactItem = sellerItems.firstWhere(
       (item) => item.hasWhatsAppContact,
@@ -177,7 +280,9 @@ class _GlobalMarketplaceScreenState
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Este vendedor não possui WhatsApp configurado.'),
+          content: Text(
+            'Este vendedor nÃƒÆ’Ã‚Â£o possui WhatsApp configurado.',
+          ),
         ),
       );
       return;
@@ -192,7 +297,9 @@ class _GlobalMarketplaceScreenState
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Não foi possível abrir o WhatsApp do vendedor.'),
+          content: Text(
+            'N\u00E3o foi poss\u00EDvel abrir o WhatsApp do vendedor.',
+          ),
         ),
       );
     }
@@ -205,7 +312,7 @@ class _GlobalMarketplaceScreenState
 
     if (selectedItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Seu carrinho está vazio.')),
+        const SnackBar(content: Text('Seu carrinho estÃƒÆ’Ã‚Â¡ vazio.')),
       );
       return;
     }
@@ -245,92 +352,120 @@ class _GlobalMarketplaceScreenState
                   Flexible(
                     child: ListView(
                       shrinkWrap: true,
-                      children: grouped.entries.map((entry) {
-                        final sellerItems = entry.value;
-                        final sellerName = sellerItems.first.sellerName.trim().isEmpty
-                            ? 'Vendedor'
-                            : sellerItems.first.sellerName;
-                        final sellerTotal = sellerItems.fold<int>(
-                          0,
-                          (sum, item) =>
-                              sum + ((item.priceInCents ?? 0) * _selectedQuantityFor(item)),
-                        );
+                      children: grouped.entries
+                          .map((entry) {
+                            final sellerItems = entry.value;
+                            final sellerName =
+                                sellerItems.first.sellerName.trim().isEmpty
+                                ? 'Vendedor'
+                                : sellerItems.first.sellerName;
+                            final sellerTotal = sellerItems.fold<int>(
+                              0,
+                              (sum, item) =>
+                                  sum +
+                                  ((item.priceInCents ?? 0) *
+                                      _selectedQuantityFor(item)),
+                            );
 
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  sellerName,
-                                  style: const TextStyle(fontWeight: FontWeight.w800),
-                                ),
-                                const SizedBox(height: 8),
-                                for (final item in sellerItems) ...[
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          '${item.name} - ${item.formattedPrice}',
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      IconButton(
-                                        onPressed: () {
-                                          _setCartQuantity(
-                                            item,
-                                            _selectedQuantityFor(item) - 1,
-                                          );
-                                          setModalState(() {});
-                                        },
-                                        icon: const Icon(Icons.remove_circle_outline),
-                                      ),
-                                      Text('${_selectedQuantityFor(item)}x'),
-                                      IconButton(
-                                        onPressed: () {
-                                          _setCartQuantity(
-                                            item,
-                                            _selectedQuantityFor(item) + 1,
-                                          );
-                                          setModalState(() {});
-                                        },
-                                        icon: const Icon(Icons.add_circle_outline),
-                                      ),
-                                    ],
-                                  ),
-                                  if (item.notes.trim().isNotEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.only(bottom: 6),
-                                      child: Text(
-                                        'Extra: ${item.notes.trim()}',
-                                        style: Theme.of(context).textTheme.bodySmall,
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      sellerName,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
                                       ),
                                     ),
-                                ],
-                                const SizedBox(height: 8),
-                                Text('Total: ${_formatCents(sellerTotal)}'),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: FilledButton.icon(
-                                        onPressed: () => _openSellerCartWhatsApp(
-                                          sellerItems.where((item) => _selectedQuantityFor(item) > 0).toList(),
-                                        ),
-                                        icon: const Icon(Icons.open_in_new),
-                                        label: const Text('Enviar interesse'),
+                                    const SizedBox(height: 8),
+                                    for (final item in sellerItems) ...[
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              '${item.name} - ${item.formattedPrice}',
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          IconButton(
+                                            onPressed: () {
+                                              _setCartQuantity(
+                                                item,
+                                                _selectedQuantityFor(item) - 1,
+                                              );
+                                              setModalState(() {});
+                                            },
+                                            icon: const Icon(
+                                              Icons.remove_circle_outline,
+                                            ),
+                                          ),
+                                          Text(
+                                            '${_selectedQuantityFor(item)}x',
+                                          ),
+                                          IconButton(
+                                            onPressed: () {
+                                              _setCartQuantity(
+                                                item,
+                                                _selectedQuantityFor(item) + 1,
+                                              );
+                                              setModalState(() {});
+                                            },
+                                            icon: const Icon(
+                                              Icons.add_circle_outline,
+                                            ),
+                                          ),
+                                        ],
                                       ),
+                                      if (item.notes.trim().isNotEmpty)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 6,
+                                          ),
+                                          child: Text(
+                                            'Extra: ${item.notes.trim()}',
+                                            style: Theme.of(
+                                              context,
+                                            ).textTheme.bodySmall,
+                                          ),
+                                        ),
+                                    ],
+                                    const SizedBox(height: 8),
+                                    Text('Total: ${_formatCents(sellerTotal)}'),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: FilledButton.icon(
+                                            onPressed: () =>
+                                                _openSellerCartWhatsApp(
+                                                  sellerItems
+                                                      .where(
+                                                        (item) =>
+                                                            _selectedQuantityFor(
+                                                              item,
+                                                            ) >
+                                                            0,
+                                                      )
+                                                      .toList(),
+                                                ),
+                                            icon: const Icon(Icons.open_in_new),
+                                            label: const Text(
+                                              'Enviar interesse',
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }).toList(growable: false),
+                              ),
+                            );
+                          })
+                          .toList(growable: false),
                     ),
                   ),
                 ],
@@ -349,13 +484,13 @@ class _GlobalMarketplaceScreenState
 
   int _compareListings(MarketplaceListing a, MarketplaceListing b) {
     switch (_selectedSort) {
-      case 'Preço: menor':
+      case 'PreÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o: menor':
         return (a.priceInCents ?? 1 << 30).compareTo(b.priceInCents ?? 1 << 30);
-      case 'Preço: maior':
+      case 'PreÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o: maior':
         return (b.priceInCents ?? -1).compareTo(a.priceInCents ?? -1);
       case 'Nome':
         return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-      case 'Código':
+      case 'CÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³digo':
         return a.cardCode.toLowerCase().compareTo(b.cardCode.toLowerCase());
       default:
         return b.dateAddedUtc.compareTo(a.dateAddedUtc);
@@ -371,9 +506,11 @@ class _GlobalMarketplaceScreenState
 
   @override
   Widget build(BuildContext context) {
-    final repo = ref.read(marketplaceRepositoryProvider);
     final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
-    final cartCount = _cartQuantities.values.fold<int>(0, (sum, qty) => sum + qty);
+    final cartCount = _cartQuantities.values.fold<int>(
+      0,
+      (sum, qty) => sum + qty,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -401,7 +538,7 @@ class _GlobalMarketplaceScreenState
         ],
       ),
       body: FutureBuilder<List<MarketplaceListing>>(
-        future: repo.getGlobalPublicListings(),
+        future: _publicListingsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const _GlobalMarketplaceLoadingView();
@@ -423,30 +560,9 @@ class _GlobalMarketplaceScreenState
               .where((item) => item.isPublic)
               .toList(growable: false);
           _loadedPublicItems = allItems;
+          _updateMarketplaceDerivedData(allItems);
 
-          final filteredItems = allItems.where((item) {
-            final matchesQuery =
-                _query.isEmpty ||
-                item.name.toLowerCase().contains(_query) ||
-                item.cardCode.toLowerCase().contains(_query) ||
-                item.setName.toLowerCase().contains(_query);
-            final matchesPrice = !_showOnlyPriced || item.hasPrice;
-            final matchesStatus = !_showOnlyActive || item.isActive;
-            final matchesColor =
-                _selectedColor == 'Todas' || item.color == _selectedColor;
-            final matchesType =
-                _selectedType == 'Todos' || item.type == _selectedType;
-            final matchesRarity =
-                _selectedRarity == 'Todas' || item.rarity == _selectedRarity;
-
-            return matchesQuery &&
-                matchesPrice &&
-                matchesStatus &&
-                matchesColor &&
-                matchesType &&
-                matchesRarity;
-          }).toList(growable: false)
-            ..sort(_compareListings);
+          final filteredItems = _cachedFilteredItems;
 
           final visibleItems = filteredItems
               .take(_visibleCount.clamp(0, filteredItems.length))
@@ -457,33 +573,9 @@ class _GlobalMarketplaceScreenState
             (sum, item) => sum + item.quantity,
           );
           final totalListings = filteredItems.length;
-          final totalWithPrice =
-              filteredItems.where((item) => item.hasPrice).length;
-
-          final colors = <String>[
-            'Todas',
-            ...{
-              ...allItems
-                  .map((item) => item.color.trim())
-                  .where((value) => value.isNotEmpty),
-            },
-          ];
-          final types = <String>[
-            'Todos',
-            ...{
-              ...allItems
-                  .map((item) => item.type.trim())
-                  .where((value) => value.isNotEmpty),
-            },
-          ];
-          final rarities = <String>[
-            'Todas',
-            ...{
-              ...allItems
-                  .map((item) => item.rarity.trim())
-                  .where((value) => value.isNotEmpty),
-            },
-          ];
+          final totalWithPrice = filteredItems
+              .where((item) => item.hasPrice)
+              .length;
 
           return SingleChildScrollView(
             child: Column(
@@ -500,9 +592,9 @@ class _GlobalMarketplaceScreenState
                   selectedType: _selectedType,
                   selectedRarity: _selectedRarity,
                   selectedSort: _selectedSort,
-                  colorOptions: colors,
-                  typeOptions: types,
-                  rarityOptions: rarities,
+                  colorOptions: _cachedColorOptions,
+                  typeOptions: _cachedTypeOptions,
+                  rarityOptions: _cachedRarityOptions,
                   onToggleCollapsed: () {},
                   onToggleOnlyPriced: () {
                     setState(() {
@@ -555,7 +647,7 @@ class _GlobalMarketplaceScreenState
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
                           key: ValueKey(
-                            'global-marketplace-${_query}-${_showOnlyPriced}-${_showOnlyActive}-${_selectedColor}-${_selectedType}-${_selectedRarity}-${_selectedSort}-${visibleItems.length}',
+                            'global-marketplace-$_query-$_showOnlyPriced-$_showOnlyActive-$_selectedColor-$_selectedType-$_selectedRarity-$_selectedSort-${visibleItems.length}',
                           ),
                           padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
                           gridDelegate:
@@ -565,7 +657,8 @@ class _GlobalMarketplaceScreenState
                                 mainAxisSpacing: _cardSpacing,
                                 childAspectRatio: _gridAspectRatio,
                               ),
-                          itemCount: visibleItems.length +
+                          itemCount:
+                              visibleItems.length +
                               (visibleItems.length < filteredItems.length
                                   ? 1
                                   : 0),
@@ -602,7 +695,10 @@ class _GlobalMarketplaceScreenState
                                         style: FilledButton.styleFrom(
                                           padding: EdgeInsets.zero,
                                         ),
-                                        child: const Icon(Icons.open_in_new, size: 18),
+                                        child: const Icon(
+                                          Icons.open_in_new,
+                                          size: 18,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -631,17 +727,22 @@ class _GlobalMarketplaceScreenState
                               onTap: () {
                                 showDialog<void>(
                                   context: context,
-                                  builder: (_) => _GlobalMarketplaceCardDetailsDialog(
-                                    card: item,
-                                    onOpenWhatsApp: () => _openWhatsApp(item),
-                                    onOpenSellerStore: item.ownerUserId.trim().isEmpty
-                                        ? null
-                                        : () => _openSellerStore(item),
-                                    selectedQuantity: _selectedQuantityFor(item),
-                                    onQuantityChanged: (quantity) {
-                                      _setCartQuantity(item, quantity);
-                                    },
-                                  ),
+                                  builder: (_) =>
+                                      _GlobalMarketplaceCardDetailsDialog(
+                                        card: item,
+                                        onOpenWhatsApp: () =>
+                                            _openWhatsApp(item),
+                                        onOpenSellerStore:
+                                            item.ownerUserId.trim().isEmpty
+                                            ? null
+                                            : () => _openSellerStore(item),
+                                        selectedQuantity: _selectedQuantityFor(
+                                          item,
+                                        ),
+                                        onQuantityChanged: (quantity) {
+                                          _setCartQuantity(item, quantity);
+                                        },
+                                      ),
                                 );
                               },
                             );
@@ -688,7 +789,6 @@ class _GlobalMarketplaceHeader extends StatelessWidget {
   final ValueChanged<String> onSortChanged;
 
   const _GlobalMarketplaceHeader({
-    super.key,
     required this.totalListings,
     required this.totalCards,
     required this.totalWithPrice,
@@ -715,71 +815,43 @@ class _GlobalMarketplaceHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            theme.colorScheme.primaryContainer,
-            theme.colorScheme.surface,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+
+    return DashboardHeaderPanel(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      top: Text(
+        'Encontre cartas \u00E0 venda de toda a plataforma em um s\u00F3 lugar.',
+        style: theme.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w700,
         ),
       ),
-      child: Column(
+      stats: Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        children: [
+          SummaryStatCard(
+            label: 'An\u00FAncios',
+            value: '$totalListings',
+            icon: Icons.storefront_outlined,
+          ),
+          SummaryStatCard(
+            label: 'Cartas',
+            value: '$totalCards',
+            icon: Icons.style_outlined,
+          ),
+          SummaryStatCard(
+            label: 'Com pre\u00E7o',
+            value: '$totalWithPrice',
+            icon: Icons.sell_outlined,
+          ),
+        ],
+      ),
+      search: CatalogSearchField(
+        controller: searchController,
+        hintText: 'Buscar por nome, c\u00F3digo ou edi\u00E7\u00E3o',
+      ),
+      footer: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Encontre cartas à venda de toda a plataforma em um só lugar.',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              _GlobalMarketplaceStatCard(
-                label: 'Anúncios',
-                value: '$totalListings',
-                icon: Icons.storefront_outlined,
-              ),
-              _GlobalMarketplaceStatCard(
-                label: 'Cartas',
-                value: '$totalCards',
-                icon: Icons.style_outlined,
-              ),
-              _GlobalMarketplaceStatCard(
-                label: 'Com preço',
-                value: '$totalWithPrice',
-                icon: Icons.sell_outlined,
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: searchController,
-            decoration: InputDecoration(
-              hintText: 'Buscar por nome, código ou edição',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: searchController.text.isNotEmpty
-                  ? IconButton(
-                      onPressed: () => searchController.clear(),
-                      icon: const Icon(Icons.close),
-                    )
-                  : null,
-            ),
-          ),
-          const SizedBox(height: 12),
           Wrap(
             spacing: 10,
             runSpacing: 10,
@@ -790,7 +862,7 @@ class _GlobalMarketplaceHeader extends StatelessWidget {
                 onSelected: (_) => onToggleOnlyActive(),
               ),
               FilterChip(
-                label: const Text('Somente com preço'),
+                label: const Text('Somente com pre\u00E7o'),
                 selected: showOnlyPriced,
                 onSelected: (_) => onToggleOnlyPriced(),
               ),
@@ -801,128 +873,48 @@ class _GlobalMarketplaceHeader extends StatelessWidget {
             spacing: 12,
             runSpacing: 12,
             children: [
-              SizedBox(
+              CatalogDropdownField<String>(
                 width: 180,
-                child: DropdownButtonFormField<String>(
-                  value: selectedColor,
-                  decoration: const InputDecoration(labelText: 'Cor'),
-                  items: colorOptions
-                      .map(
-                        (value) => DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
-                        ),
-                      )
-                      .toList(growable: false),
-                  onChanged: (value) {
-                    if (value != null) onColorChanged(value);
-                  },
-                ),
+                label: 'Cor',
+                value: selectedColor,
+                options: colorOptions,
+                onChanged: (value) {
+                  if (value != null) onColorChanged(value);
+                },
               ),
-              SizedBox(
+              CatalogDropdownField<String>(
                 width: 180,
-                child: DropdownButtonFormField<String>(
-                  value: selectedType,
-                  decoration: const InputDecoration(labelText: 'Tipo'),
-                  items: typeOptions
-                      .map(
-                        (value) => DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
-                        ),
-                      )
-                      .toList(growable: false),
-                  onChanged: (value) {
-                    if (value != null) onTypeChanged(value);
-                  },
-                ),
+                label: 'Tipo',
+                value: selectedType,
+                options: typeOptions,
+                onChanged: (value) {
+                  if (value != null) onTypeChanged(value);
+                },
               ),
-              SizedBox(
+              CatalogDropdownField<String>(
                 width: 180,
-                child: DropdownButtonFormField<String>(
-                  value: selectedRarity,
-                  decoration: const InputDecoration(labelText: 'Raridade'),
-                  items: rarityOptions
-                      .map(
-                        (value) => DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
-                        ),
-                      )
-                      .toList(growable: false),
-                  onChanged: (value) {
-                    if (value != null) onRarityChanged(value);
-                  },
-                ),
+                label: 'Raridade',
+                value: selectedRarity,
+                options: rarityOptions,
+                onChanged: (value) {
+                  if (value != null) onRarityChanged(value);
+                },
               ),
-              SizedBox(
+              CatalogDropdownField<String>(
                 width: 200,
-                child: DropdownButtonFormField<String>(
-                  value: selectedSort,
-                  decoration: const InputDecoration(labelText: 'Ordenar por'),
-                  items: const [
-                    'Mais recentes',
-                    'Preço: menor',
-                    'Preço: maior',
-                    'Nome',
-                    'Código',
-                  ]
-                      .map(
-                        (value) => DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
-                        ),
-                      )
-                      .toList(growable: false),
-                  onChanged: (value) {
-                    if (value != null) onSortChanged(value);
-                  },
-                ),
+                label: 'Ordenar por',
+                value: selectedSort,
+                options: const [
+                  'Mais recentes',
+                  'Pre\u00E7o: menor',
+                  'Pre\u00E7o: maior',
+                  'Nome',
+                  'C\u00F3digo',
+                ],
+                onChanged: (value) {
+                  if (value != null) onSortChanged(value);
+                },
               ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GlobalMarketplaceStatCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-
-  const _GlobalMarketplaceStatCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              Text(label),
             ],
           ),
         ],
@@ -1008,23 +1000,36 @@ class _GlobalMarketplaceCardDetailsDialogState
                     Text(
                       'Toque na imagem para ampliar',
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.black54,
-                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: Colors.black54),
                     ),
                     const SizedBox(height: 16),
-                    _globalInfoRow('Preço', card.formattedPrice),
+                    _globalInfoRow(
+                      'PreÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o',
+                      card.formattedPrice,
+                    ),
                     if (card.hasSellerName)
                       _globalInfoRow('Vendedor', card.sellerName),
                     _globalInfoRow('Status', card.statusLabel),
-                    _globalInfoRow('Condição', card.conditionLabel),
-                    _globalInfoRow('Quantidade disponível', '${card.quantity}x'),
+                    _globalInfoRow(
+                      'CondiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o',
+                      card.conditionLabel,
+                    ),
+                    _globalInfoRow(
+                      'Quantidade disponÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel',
+                      '${card.quantity}x',
+                    ),
                     _globalInfoRow('Set', card.setName),
                     _globalInfoRow('Raridade', card.rarity),
                     _globalInfoRow('Cor', card.color),
                     _globalInfoRow('Tipo', card.type),
                     _globalInfoRow('Atributo', card.attribute),
-                    if (card.hasNotes) _globalInfoRow('Observações', card.notes),
+                    if (card.hasNotes)
+                      _globalInfoRow(
+                        'ObservaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes',
+                        card.notes,
+                      ),
                     if (card.text.trim().isNotEmpty)
                       _globalInfoRow('Texto da carta', card.text),
                     const SizedBox(height: 8),
@@ -1095,10 +1100,7 @@ Widget _globalInfoRow(String label, String value) {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 12,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
         ),
         const SizedBox(height: 4),
         Text(value),
@@ -1136,7 +1138,9 @@ class _GlobalMarketplaceZoomableCardImage extends StatelessWidget {
         );
       },
       child: Container(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.35),
+        color: Theme.of(
+          context,
+        ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
         height: height,
         child: directUrl.isEmpty
             ? const Center(child: Icon(Icons.image_not_supported_outlined))
@@ -1144,7 +1148,7 @@ class _GlobalMarketplaceZoomableCardImage extends StatelessWidget {
                 directUrl,
                 fit: BoxFit.contain,
                 webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-                errorBuilder: (_, __, ___) {
+                errorBuilder: (_, _, _) {
                   return Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -1185,7 +1189,7 @@ class _GlobalMarketplaceCardImageFullscreenDialog extends StatelessWidget {
                 imageUrl,
                 fit: BoxFit.contain,
                 webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-                errorBuilder: (_, __, ___) {
+                errorBuilder: (_, _, _) {
                   return const Center(
                     child: Icon(
                       Icons.broken_image_outlined,
@@ -1254,7 +1258,7 @@ class _GlobalMarketplaceCardImage extends StatelessWidget {
       imageUrl,
       fit: BoxFit.contain,
       webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-      errorBuilder: (_, __, ___) {
+      errorBuilder: (_, _, _) {
         return Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1298,7 +1302,7 @@ class _GlobalMarketplaceEmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'Nenhum anúncio encontrado.',
+              'Nenhum anÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºncio encontrado.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleMedium,
             ),
@@ -1353,7 +1357,7 @@ class _GlobalMarketplaceLoadMoreCard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'Carregando mais anúncios...',
+                'Carregando mais anÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºncios...',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium,
               ),
@@ -1381,7 +1385,7 @@ class _GlobalMarketplaceSkeletonBox extends StatelessWidget {
     return Container(
       height: height,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.7),
+        color: color.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(radius),
       ),
     );

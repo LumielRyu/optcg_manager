@@ -7,27 +7,36 @@ import '../models/remote_collection_item.dart';
 import '../services/op_api_service.dart';
 import '../services/supabase_client_provider.dart';
 
-final remoteCollectionRepositoryProvider =
-    Provider<RemoteCollectionRepository>((ref) {
-  final client = ref.watch(supabaseClientProvider);
-  final opApi = ref.watch(opApiServiceProvider);
-  return RemoteCollectionRepository(client, opApi);
-});
+final remoteCollectionRepositoryProvider = Provider<RemoteCollectionRepository>(
+  (ref) {
+    final client = ref.watch(supabaseClientProvider);
+    final opApi = ref.watch(opApiServiceProvider);
+    return RemoteCollectionRepository(client, opApi);
+  },
+);
 
 class RemoteCollectionRepository {
   final SupabaseClient _client;
   final OpApiService _opApiService;
+  static const String _remoteCollectionColumns =
+      'id, card_code, quantity, collection_type, is_favorite, created_at';
 
   RemoteCollectionRepository(this._client, this._opApiService);
 
-  String get _userId => _client.auth.currentUser!.id;
+  String get _userId {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw StateError('Usuario nao autenticado.');
+    }
+    return user.id;
+  }
 
   Future<List<CardRecord>> getAll() async {
     await _opApiService.preload();
 
     final response = await _client
         .from('collection_items')
-        .select()
+        .select(_remoteCollectionColumns)
         .eq('user_id', _userId)
         .order('created_at', ascending: false);
 
@@ -35,26 +44,35 @@ class RemoteCollectionRepository {
         .map((e) => RemoteCollectionItem.fromJson(Map<String, dynamic>.from(e)))
         .toList();
 
-    final result = <CardRecord>[];
+    final uniqueCodes = rows
+        .map((row) => row.cardCode)
+        .toSet()
+        .toList(growable: false);
+    final apiCards = await Future.wait(
+      uniqueCodes.map(
+        (code) async =>
+            MapEntry(code, await _opApiService.findCardByCode(code)),
+      ),
+    );
+    final apiCardByCode = {
+      for (final entry in apiCards) entry.key: entry.value,
+    };
 
-    for (final row in rows) {
-      final apiCard = await _opApiService.findCardByCode(row.cardCode);
-
-      result.add(
-        row.toCardRecord(
-          name: apiCard?.name ?? row.cardCode,
-          imageUrl: apiCard?.image ?? '',
-          setName: apiCard?.setName ?? '',
-          rarity: apiCard?.rarity ?? '',
-          color: apiCard?.color ?? '',
-          type: apiCard?.type ?? '',
-          text: apiCard?.text ?? '',
-          attribute: apiCard?.attribute ?? '',
-        ),
-      );
-    }
-
-    return result;
+    return rows
+        .map((row) {
+          final apiCard = apiCardByCode[row.cardCode];
+          return row.toCardRecord(
+            name: apiCard?.name ?? row.cardCode,
+            imageUrl: apiCard?.image ?? '',
+            setName: apiCard?.setName ?? '',
+            rarity: apiCard?.rarity ?? '',
+            color: apiCard?.color ?? '',
+            type: apiCard?.type ?? '',
+            text: apiCard?.text ?? '',
+            attribute: apiCard?.attribute ?? '',
+          );
+        })
+        .toList(growable: false);
   }
 
   Future<void> upsert(CardRecord record) async {
@@ -87,7 +105,7 @@ class RemoteCollectionRepository {
 
     final response = await _client
         .from('collection_items')
-        .select()
+        .select(_remoteCollectionColumns)
         .eq('user_id', _userId)
         .eq('card_code', cardCode)
         .eq('collection_type', collectionType);

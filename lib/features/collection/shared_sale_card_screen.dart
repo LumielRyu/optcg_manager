@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/painting.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -9,7 +8,7 @@ import '../../data/repositories/marketplace_repository.dart';
 import '../../data/services/op_api_service.dart';
 import '../../core/widgets/home_navigation_button.dart';
 
-class SharedSaleCardScreen extends ConsumerWidget {
+class SharedSaleCardScreen extends ConsumerStatefulWidget {
   final String shareCode;
 
   const SharedSaleCardScreen({
@@ -18,16 +17,34 @@ class SharedSaleCardScreen extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final repo = ref.read(marketplaceRepositoryProvider);
+  ConsumerState<SharedSaleCardScreen> createState() =>
+      _SharedSaleCardScreenState();
+}
 
+class _SharedSaleCardScreenState extends ConsumerState<SharedSaleCardScreen> {
+  late Future<MarketplaceListing?> _listingFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _listingFuture = _loadListing();
+  }
+
+  Future<MarketplaceListing?> _loadListing() {
+    return ref
+        .read(marketplaceRepositoryProvider)
+        .getPublicListingByShareCode(widget.shareCode);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Carta \u00E0 venda'),
         actions: const [HomeNavigationButton()],
       ),
       body: FutureBuilder<MarketplaceListing?>(
-        future: repo.getPublicListingByShareCode(shareCode),
+        future: _listingFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
@@ -232,14 +249,12 @@ class _ZoomableCardImage extends ConsumerWidget {
   final String cardCode;
   final String title;
   final BoxFit fit;
-  final double? height;
 
   const _ZoomableCardImage({
     required this.imageUrl,
     required this.cardCode,
     required this.title,
     this.fit = BoxFit.contain,
-    this.height,
   });
 
   @override
@@ -252,7 +267,6 @@ class _ZoomableCardImage extends ConsumerWidget {
         _buildNetworkImage(
           url: directUrl,
           fit: fit,
-          height: height,
           onError: () => _fallback(ref),
         ),
         directUrl,
@@ -271,20 +285,14 @@ class _ZoomableCardImage extends ConsumerWidget {
         final url = snapshot.data?.image.trim() ?? '';
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return SizedBox(
-            height: height,
-            child: const Center(
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
+          return const Center(
+            child: CircularProgressIndicator(strokeWidth: 2),
           );
         }
 
         if (url.isEmpty) {
-          return SizedBox(
-            height: height,
-            child: const Center(
-              child: Icon(Icons.image_not_supported),
-            ),
+          return const Center(
+            child: Icon(Icons.image_not_supported),
           );
         }
 
@@ -293,7 +301,6 @@ class _ZoomableCardImage extends ConsumerWidget {
           _buildNetworkImage(
             url: url,
             fit: fit,
-            height: height,
             onError: () => const Center(
               child: Icon(Icons.broken_image_outlined),
             ),
@@ -312,7 +319,7 @@ class _ZoomableCardImage extends ConsumerWidget {
         onTap: () {
           showDialog(
             context: context,
-            barrierColor: Colors.black.withOpacity(0.92),
+            barrierColor: Colors.black.withValues(alpha: 0.92),
             builder: (_) => _CardImageFullscreenDialog(
               imageUrl: resolvedUrl,
               title: title,
@@ -329,15 +336,13 @@ class _ZoomableCardImage extends ConsumerWidget {
     required String url,
     required BoxFit fit,
     required Widget Function() onError,
-    double? height,
   }) {
     return Image.network(
       url,
-      height: height,
       fit: fit,
       gaplessPlayback: false,
       webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-      errorBuilder: (_, __, ___) => onError(),
+      errorBuilder: (_, _, _) => onError(),
     );
   }
 }
@@ -369,7 +374,7 @@ class _CardImageFullscreenDialog extends StatelessWidget {
                   imageUrl,
                   fit: BoxFit.contain,
                   webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-                  errorBuilder: (_, __, ___) {
+                  errorBuilder: (_, _, _) {
                     return const Center(
                       child: Icon(
                         Icons.broken_image_outlined,

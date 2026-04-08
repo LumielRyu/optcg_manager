@@ -66,7 +66,7 @@ class CatalogGridCard extends StatelessWidget {
                 child: Container(
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surfaceContainerHighest
-                        .withOpacity(0.35),
+                        .withValues(alpha: 0.35),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   padding: const EdgeInsets.all(8),

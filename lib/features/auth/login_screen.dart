@@ -43,18 +43,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
-      await ref.read(authRepositoryProvider).signIn(
-            email: email,
-            password: password,
-          );
-
-      if (!mounted) return;
-      final needsCompletion = await ref
+      await ref
           .read(authRepositoryProvider)
-          .needsWhatsAppCompletion();
-      if (!mounted) return;
+          .signIn(email: email, password: password);
 
-      context.go(needsCompletion ? '/complete-profile' : '/home');
+      if (!mounted) return;
+      context.go('/home');
     } catch (e) {
       final msg = e.toString();
 
@@ -62,7 +56,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       setState(() {
         if (msg.toLowerCase().contains('invalid login credentials')) {
-          _error = 'Email ou senha inválidos.';
+          _error = 'Email ou senha invalidos.';
         } else if (msg.toLowerCase().contains('email not confirmed')) {
           _error = 'Confirme seu email antes de entrar.';
         } else {
@@ -70,10 +64,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         }
       });
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _isBusy = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isBusy = false;
+        });
+      }
     }
   }
 

@@ -5,8 +5,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../local/hive_boxes.dart';
 import '../services/supabase_client_provider.dart';
 
-final userPreferencesRepositoryProvider =
-    Provider<UserPreferencesRepository>((ref) {
+final userPreferencesRepositoryProvider = Provider<UserPreferencesRepository>((
+  ref,
+) {
   final client = ref.watch(supabaseClientProvider);
   return UserPreferencesRepository(client);
 });
@@ -29,6 +30,9 @@ class UserPreferencesRepository {
   final SupabaseClient _client;
   static const _themeModeKey = 'theme_mode';
   static const _collectionViewModeKey = 'collection_view_mode';
+  static const _profileUserIdKey = 'profile_user_id';
+  static const _profileNameKey = 'profile_name';
+  static const _profileWhatsAppKey = 'profile_whatsapp_phone';
 
   UserPreferencesRepository(this._client);
 
@@ -48,6 +52,48 @@ class UserPreferencesRepository {
       return value;
     }
     return 'grid';
+  }
+
+  String? _currentUserIdOrNull() => _client.auth.currentUser?.id;
+
+  bool _hasCachedProfileForCurrentUser() {
+    final userId = _currentUserIdOrNull();
+    if (userId == null) return false;
+
+    return _appPrefsBox.get(_profileUserIdKey) == userId;
+  }
+
+  String getCachedDisplayName() {
+    if (!_hasCachedProfileForCurrentUser()) return '';
+    final value = _appPrefsBox.get(_profileNameKey);
+    return value is String ? value.trim() : '';
+  }
+
+  String getCachedWhatsAppPhone() {
+    if (!_hasCachedProfileForCurrentUser()) return '';
+    final value = _appPrefsBox.get(_profileWhatsAppKey);
+    return value is String ? value.trim() : '';
+  }
+
+  bool? getCachedProfileCompletionStatus() {
+    if (!_hasCachedProfileForCurrentUser()) return null;
+    final name = getCachedDisplayName();
+    final phone = getCachedWhatsAppPhone();
+    return name.isNotEmpty && phone.isNotEmpty;
+  }
+
+  void _cacheProfileSnapshot({
+    required String userId,
+    String? name,
+    String? whatsAppPhone,
+  }) {
+    _appPrefsBox.put(_profileUserIdKey, userId);
+    if (name != null) {
+      _appPrefsBox.put(_profileNameKey, name.trim());
+    }
+    if (whatsAppPhone != null) {
+      _appPrefsBox.put(_profileWhatsAppKey, whatsAppPhone.trim());
+    }
   }
 
   Future<UserPreferences> load() async {
@@ -77,7 +123,9 @@ class UserPreferencesRepository {
     }
 
     final themeMode = (row['theme_mode'] ?? '').toString().trim();
-    final collectionViewMode = (row['collection_view_mode'] ?? '').toString().trim();
+    final collectionViewMode = (row['collection_view_mode'] ?? '')
+        .toString()
+        .trim();
 
     if (themeMode.isNotEmpty) {
       _appPrefsBox.put(_themeModeKey, themeMode);
@@ -86,6 +134,12 @@ class UserPreferencesRepository {
     if (collectionViewMode.isNotEmpty) {
       _appPrefsBox.put(_collectionViewModeKey, collectionViewMode);
     }
+
+    _cacheProfileSnapshot(
+      userId: user.id,
+      name: (row['name'] ?? '').toString(),
+      whatsAppPhone: (row['whatsapp_phone'] ?? '').toString(),
+    );
 
     return UserPreferences(
       themeMode: themeMode.isNotEmpty ? themeMode : getSavedThemeMode(),
@@ -111,6 +165,12 @@ class UserPreferencesRepository {
       if (name != null) 'name': name.trim(),
       if (whatsAppPhone != null) 'whatsapp_phone': whatsAppPhone.trim(),
     });
+
+    _cacheProfileSnapshot(
+      userId: user.id,
+      name: name ?? getCachedDisplayName(),
+      whatsAppPhone: whatsAppPhone ?? getCachedWhatsAppPhone(),
+    );
   }
 
   Future<void> saveThemeMode(String mode) async {
@@ -148,6 +208,12 @@ class UserPreferencesRepository {
       'email': user.email,
       'whatsapp_phone': phone.trim(),
     });
+
+    _cacheProfileSnapshot(
+      userId: user.id,
+      name: getCachedDisplayName(),
+      whatsAppPhone: phone,
+    );
   }
 
   Future<void> saveDisplayName(String name) async {
@@ -159,6 +225,12 @@ class UserPreferencesRepository {
       'email': user.email,
       'name': name.trim(),
     });
+
+    _cacheProfileSnapshot(
+      userId: user.id,
+      name: name,
+      whatsAppPhone: getCachedWhatsAppPhone(),
+    );
   }
 
   Future<void> saveProfileDetails({
@@ -174,14 +246,35 @@ class UserPreferencesRepository {
       'name': name.trim(),
       'whatsapp_phone': whatsAppPhone.trim(),
     });
+
+    _cacheProfileSnapshot(
+      userId: user.id,
+      name: name,
+      whatsAppPhone: whatsAppPhone,
+    );
+  }
+
+  Future<bool> hasCompletedProfile({bool preferCache = true}) async {
+    final cached = getCachedProfileCompletionStatus();
+    if (preferCache && cached != null) {
+      return cached;
+    }
+
+    final prefs = await load();
+    return prefs.displayName.trim().isNotEmpty &&
+        prefs.whatsAppPhone.trim().isNotEmpty;
   }
 
   Future<String> getCurrentWhatsAppPhone() async {
+    final cached = getCachedWhatsAppPhone();
+    if (cached.isNotEmpty) return cached;
     final prefs = await load();
     return prefs.whatsAppPhone.trim();
   }
 
   Future<String> getCurrentDisplayName() async {
+    final cached = getCachedDisplayName();
+    if (cached.isNotEmpty) return cached;
     final prefs = await load();
     return prefs.displayName.trim();
   }
