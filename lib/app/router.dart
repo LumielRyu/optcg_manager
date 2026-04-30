@@ -14,6 +14,7 @@ import '../features/collection/shared_sale_card_screen.dart';
 import '../features/collection/shared_store_screen.dart';
 import '../features/decks/shared_deck_screen.dart';
 import '../features/home/home_screen.dart';
+import '../features/integrations/liga_one_piece_test_screen.dart';
 import '../features/imports/camera_import/camera_import_screen.dart';
 import '../features/imports/code_import/code_import_screen.dart';
 import '../features/imports/image_import/image_import_screen.dart';
@@ -130,6 +131,10 @@ final GoRouter appRouter = GoRouter(
       },
     ),
     GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
+    GoRoute(
+      path: '/integrations/liga-one-piece-test',
+      builder: (context, state) => const LigaOnePieceTestScreen(),
+    ),
     GoRoute(
       path: '/library',
       builder: (context, state) => const OnePieceLibraryScreen(),

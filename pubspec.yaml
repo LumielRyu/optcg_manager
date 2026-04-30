@@ -36,3 +36,4 @@ flutter:
   assets:
     - .env
     - assets/visual_card_fingerprints.json
+    - assets/liga_one_piece_price_cache.json

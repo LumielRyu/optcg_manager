@@ -274,7 +274,7 @@ class _OnePieceLibraryScreenState
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Todas as cartas do One Piece Card Game em um so lugar.',
+                          'Todas as cartas do One Piece Card Game em um só lugar.',
                           style: theme.textTheme.bodyMedium,
                         ),
                         const SizedBox(height: 12),

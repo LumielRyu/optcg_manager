@@ -2,9 +2,14 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "outputDirectory": "build/web",
   "cleanUrls": true,
+  "functions": {
+    "api/liga-one-piece.js": {
+      "regions": ["gru1"]
+    }
+  },
   "rewrites": [
     {
-      "source": "/((?!.*\\.).*)",
+      "source": "/((?!api(?:/|$)|.*\\.).*)",
       "destination": "/index.html"
     }
   ]

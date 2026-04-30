@@ -1,0 +1,50 @@
+insert into public.liga_card_price_cache (
+  lookup_code,
+  source_url,
+  card_name,
+  card_code,
+  edition_code,
+  image_url,
+  minimum_price,
+  average_price,
+  maximum_price,
+  listing_count,
+  lowest_listing,
+  lowest_store,
+  used_verified_fallback,
+  note,
+  resolved_at
+)
+values (
+  'EB01-015',
+  'https://www.ligaonepiece.com.br/?view=cards%2Fcard&card=Scratchmen+Apoo+%28015%29+%28Reprint%29+%28EB01-015-RE%29&tipo=1',
+  'Scratchmen Apoo (015) (Reprint) (EB01-015-RE)',
+  'EB01-015-RE',
+  'PRB2',
+  'https://repositorio.sbrauble.com/arquivos/in/onepiece/65/68d7351ae75fc-bn291-sb7ke-82423f12f883dbbb977f3533ac78c394.jpg',
+  0.89,
+  0.89,
+  0.89,
+  19,
+  '{"id": 27055643, "quantity": 2, "price": 0.40, "storeId": 544743, "state": "DF"}'::jsonb,
+  '{"name": "Cafofo TCG", "city": "Brasília", "state": "DF", "phone": "(61) 99556-0015"}'::jsonb,
+  true,
+  'Entrada manual validada a partir da página pública da LigaOnePiece para Scratchmen Apoo (Reprint).',
+  timezone('utc', now())
+)
+on conflict (lookup_code) do update
+set
+  source_url = excluded.source_url,
+  card_name = excluded.card_name,
+  card_code = excluded.card_code,
+  edition_code = excluded.edition_code,
+  image_url = excluded.image_url,
+  minimum_price = excluded.minimum_price,
+  average_price = excluded.average_price,
+  maximum_price = excluded.maximum_price,
+  listing_count = excluded.listing_count,
+  lowest_listing = excluded.lowest_listing,
+  lowest_store = excluded.lowest_store,
+  used_verified_fallback = excluded.used_verified_fallback,
+  note = excluded.note,
+  resolved_at = excluded.resolved_at;

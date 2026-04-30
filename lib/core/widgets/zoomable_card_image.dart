@@ -91,16 +91,6 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
             icon: const Icon(Icons.content_paste_outlined),
           ),
           IconButton(
-            tooltip: 'Importar por imagem',
-            onPressed: () => context.push('/image-import'),
-            icon: const Icon(Icons.image_outlined),
-          ),
-          IconButton(
-            tooltip: 'Importar com câmera',
-            onPressed: () => context.push('/camera-import'),
-            icon: const Icon(Icons.camera_alt_outlined),
-          ),
-          IconButton(
             tooltip: 'Adicionar carta',
             onPressed: () async {
               await showDialog(

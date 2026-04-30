@@ -336,8 +336,8 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                       children: [
                         Text(
                           sellerName.isNotEmpty
-                              ? 'Vitrine publica de $sellerName'
-                              : 'Vitrine publica',
+                              ? 'Vitrine pública de $sellerName'
+                              : 'Vitrine pública',
                           style: theme.textTheme.headlineSmall?.copyWith(
                             fontWeight: FontWeight.w800,
                           ),
@@ -345,8 +345,8 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                         const SizedBox(height: 8),
                         Text(
                           sellerName.isNotEmpty
-                              ? 'Veja todas as cartas disponiveis para venda por $sellerName.'
-                              : 'Veja todas as cartas disponiveis para venda deste usuario.',
+                              ? 'Veja todas as cartas disponíveis para venda por $sellerName.'
+                              : 'Veja todas as cartas disponíveis para venda deste usuário.',
                           style: theme.textTheme.bodyMedium,
                         ),
                         const SizedBox(height: 14),

@@ -42,7 +42,11 @@ class HomeScreen extends ConsumerWidget {
           final horizontalPadding = width < 600 ? 16.0 : 20.0;
           final contentWidth = width < 1200 ? width : 1200.0;
           final availableWidth = contentWidth - (horizontalPadding * 2);
-          final cardsPerRow = width >= 1280 ? 4 : 2;
+          final cardsPerRow = width >= 1280
+              ? 4
+              : width >= 720
+              ? 2
+              : 1;
           final totalSpacing = 16.0 * (cardsPerRow - 1);
           final cardWidth = (availableWidth - totalSpacing) / cardsPerRow;
 

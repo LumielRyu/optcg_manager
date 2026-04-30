@@ -245,22 +245,6 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
             icon: const Icon(Icons.content_paste_outlined),
           ),
           IconButton(
-            tooltip: 'Importar por imagem',
-            onPressed: () async {
-              await context.push('/image-import?destination=forSale');
-              _reloadListings();
-            },
-            icon: const Icon(Icons.image_outlined),
-          ),
-          IconButton(
-            tooltip: 'Importar com c\u00E2mera',
-            onPressed: () async {
-              await context.push('/camera-import?destination=forSale');
-              _reloadListings();
-            },
-            icon: const Icon(Icons.camera_alt_outlined),
-          ),
-          IconButton(
             tooltip: 'Adicionar carta',
             onPressed: () async {
               await showDialog(

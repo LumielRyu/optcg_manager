@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/utils/share_link_helper.dart';
 import '../../core/widgets/home_navigation_button.dart';
 import '../../data/models/op_card.dart';
+import '../../data/services/liga_one_piece_service.dart';
 import '../../data/services/op_api_service.dart';
 
 class LibraryCardDetailsScreen extends ConsumerWidget {
@@ -61,7 +63,7 @@ class LibraryCardDetailsScreen extends ConsumerWidget {
               child: Padding(
                 padding: EdgeInsets.all(24),
                 child: Text(
-                  'Carta não encontrada na biblioteca.',
+                  'Carta nao encontrada na biblioteca.',
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -112,7 +114,7 @@ class LibraryCardDetailsScreen extends ConsumerWidget {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Não foi possível compartilhar o link da carta.'),
+          content: Text('Nao foi possivel compartilhar o link da carta.'),
         ),
       );
     }
@@ -149,11 +151,18 @@ class LibraryCardDetailsScreen extends ConsumerWidget {
   }
 }
 
-class _LibraryCardDetailsContent extends StatelessWidget {
+class _LibraryCardDetailsContent extends ConsumerStatefulWidget {
   final OpCard card;
 
   const _LibraryCardDetailsContent({required this.card});
 
+  @override
+  ConsumerState<_LibraryCardDetailsContent> createState() =>
+      _LibraryCardDetailsContentState();
+}
+
+class _LibraryCardDetailsContentState
+    extends ConsumerState<_LibraryCardDetailsContent> {
   List<String> _variantBadges(OpCard card) {
     final source = '${card.name} ${card.setName} ${card.image}'.toLowerCase();
     final badges = <String>[];
@@ -171,6 +180,7 @@ class _LibraryCardDetailsContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final card = widget.card;
     final badges = _variantBadges(card);
 
     return ListView(
@@ -236,7 +246,7 @@ class _LibraryCardDetailsContent extends StatelessWidget {
             _LibraryInfoChip(label: 'Cor', value: card.color),
             _LibraryInfoChip(label: 'Raridade', value: card.rarity),
             _LibraryInfoChip(label: 'Atributo', value: card.attribute),
-            _LibraryInfoChip(label: 'Edição', value: card.setName),
+            _LibraryInfoChip(label: 'Edicao', value: card.setName),
           ],
         ),
         if (card.text.trim().isNotEmpty) ...[
@@ -324,19 +334,21 @@ class _LibraryZoomableCardImage extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: imageUrl.trim().isEmpty
-            ? null
-            : () {
-                showDialog<void>(
-                  context: context,
-                  barrierColor: Colors.black.withValues(alpha: 0.92),
-                  builder: (_) => _LibraryCardImageFullscreenDialog(
-                    imageUrl: imageUrl,
-                    title: title,
-                    cardCode: cardCode,
-                  ),
-                );
-              },
+        onTap:
+            imageUrl.trim().isEmpty
+                ? null
+                : () {
+                  showDialog<void>(
+                    context: context,
+                    barrierColor: Colors.black.withValues(alpha: 0.92),
+                    builder:
+                        (_) => _LibraryCardImageFullscreenDialog(
+                          imageUrl: imageUrl,
+                          title: title,
+                          cardCode: cardCode,
+                        ),
+                  );
+                },
         child: Image.network(
           imageUrl,
           fit: BoxFit.contain,
@@ -436,5 +448,406 @@ class _LibraryCardImageFullscreenDialog extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _LibraryMarketplaceInfoCard extends StatelessWidget {
+  final String title;
+  final String message;
+  final String? price;
+  final String? storeName;
+  final String? note;
+  final Future<String>? linkUrlFuture;
+  final VoidCallback? onManualRegister;
+  final bool loading;
+
+  const _LibraryMarketplaceInfoCard._({
+    required this.title,
+    required this.message,
+    required this.loading,
+    this.price,
+    this.storeName,
+    this.note,
+    this.linkUrlFuture,
+    this.onManualRegister,
+  });
+
+  factory _LibraryMarketplaceInfoCard.loading() {
+    return const _LibraryMarketplaceInfoCard._(
+      title: 'Menor valor publico na LigaOnePiece',
+      message: 'Consultando a menor oferta publica desta carta...',
+      loading: true,
+    );
+  }
+
+  factory _LibraryMarketplaceInfoCard.unavailable({
+    required String message,
+    Future<String>? linkUrlFuture,
+    VoidCallback? onManualRegister,
+  }) {
+    return _LibraryMarketplaceInfoCard._(
+      title: 'Menor valor publico na LigaOnePiece',
+      message: message,
+      loading: false,
+      linkUrlFuture: linkUrlFuture,
+      onManualRegister: onManualRegister,
+    );
+  }
+
+  factory _LibraryMarketplaceInfoCard.data({
+    required LigaOnePieceCardSnapshot snapshot,
+    required String formattedPrice,
+  }) {
+    final store = snapshot.lowestStore?.name ?? 'Loja publica';
+    final note =
+        snapshot.usedVerifiedFallback
+            ? snapshot.note
+            : 'Base publica da pagina da carta.';
+
+    return _LibraryMarketplaceInfoCard._(
+      title: 'Menor valor publico na LigaOnePiece',
+      message: 'Menor oferta encontrada em uma loja publica.',
+      loading: false,
+      price: formattedPrice,
+      storeName: store,
+      note: note,
+      linkUrlFuture: Future<String>.value(snapshot.sourceUrl),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (loading)
+            const LinearProgressIndicator(minHeight: 4)
+          else if (price != null) ...[
+            Text(
+              price!,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Loja: ${storeName ?? '-'}',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(message),
+            _ResolvedLinkButton(linkUrlFuture: linkUrlFuture),
+            if ((note ?? '').trim().isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                note!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ] else ...[
+            Text(message),
+            _ResolvedLinkButton(linkUrlFuture: linkUrlFuture),
+            if (onManualRegister != null) ...[
+              const SizedBox(height: 8),
+              FilledButton.tonalIcon(
+                onPressed: onManualRegister,
+                icon: const Icon(Icons.edit_note_outlined),
+                label: const Text('Cadastrar manualmente'),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ResolvedLinkButton extends StatelessWidget {
+  final Future<String>? linkUrlFuture;
+
+  const _ResolvedLinkButton({required this.linkUrlFuture});
+
+  @override
+  Widget build(BuildContext context) {
+    if (linkUrlFuture == null) {
+      return const SizedBox.shrink();
+    }
+
+    return FutureBuilder<String>(
+      future: linkUrlFuture,
+      builder: (context, snapshot) {
+        final linkUrl = snapshot.data?.trim() ?? '';
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: LinearProgressIndicator(minHeight: 3),
+          );
+        }
+
+        if (linkUrl.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: OutlinedButton.icon(
+            onPressed: () => _openLink(context, linkUrl),
+            icon: const Icon(Icons.open_in_new),
+            label: const Text('Abrir pagina da carta'),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openLink(BuildContext context, String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      return;
+    }
+
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nao foi possivel abrir o link da carta.'),
+        ),
+      );
+    }
+  }
+}
+
+class _ManualLigaCacheDialog extends ConsumerStatefulWidget {
+  final OpCard card;
+  final String sourceUrl;
+
+  const _ManualLigaCacheDialog({
+    required this.card,
+    required this.sourceUrl,
+  });
+
+  @override
+  ConsumerState<_ManualLigaCacheDialog> createState() =>
+      _ManualLigaCacheDialogState();
+}
+
+class _ManualLigaCacheDialogState
+    extends ConsumerState<_ManualLigaCacheDialog> {
+  late final TextEditingController _sourceUrlController;
+  late final TextEditingController _editionCodeController;
+  late final TextEditingController _minimumPriceController;
+  late final TextEditingController _averagePriceController;
+  late final TextEditingController _maximumPriceController;
+  late final TextEditingController _listingCountController;
+  late final TextEditingController _lowestPriceController;
+  late final TextEditingController _quantityController;
+  late final TextEditingController _storeNameController;
+  late final TextEditingController _storeCityController;
+  late final TextEditingController _storeStateController;
+  late final TextEditingController _storePhoneController;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _sourceUrlController = TextEditingController(text: widget.sourceUrl);
+    _editionCodeController = TextEditingController();
+    _minimumPriceController = TextEditingController();
+    _averagePriceController = TextEditingController();
+    _maximumPriceController = TextEditingController();
+    _listingCountController = TextEditingController();
+    _lowestPriceController = TextEditingController();
+    _quantityController = TextEditingController(text: '1');
+    _storeNameController = TextEditingController();
+    _storeCityController = TextEditingController();
+    _storeStateController = TextEditingController();
+    _storePhoneController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _sourceUrlController.dispose();
+    _editionCodeController.dispose();
+    _minimumPriceController.dispose();
+    _averagePriceController.dispose();
+    _maximumPriceController.dispose();
+    _listingCountController.dispose();
+    _lowestPriceController.dispose();
+    _quantityController.dispose();
+    _storeNameController.dispose();
+    _storeCityController.dispose();
+    _storeStateController.dispose();
+    _storePhoneController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Cadastrar cache manual'),
+      content: SizedBox(
+        width: 520,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _sourceUrlController,
+                decoration: const InputDecoration(labelText: 'Link da carta'),
+              ),
+              TextField(
+                controller: _editionCodeController,
+                decoration: const InputDecoration(labelText: 'Edicao'),
+              ),
+              TextField(
+                controller: _minimumPriceController,
+                decoration: const InputDecoration(labelText: 'Menor preco'),
+              ),
+              TextField(
+                controller: _averagePriceController,
+                decoration: const InputDecoration(labelText: 'Preco medio'),
+              ),
+              TextField(
+                controller: _maximumPriceController,
+                decoration: const InputDecoration(labelText: 'Maior preco'),
+              ),
+              TextField(
+                controller: _listingCountController,
+                decoration: const InputDecoration(labelText: 'Qtd. de ofertas'),
+              ),
+              TextField(
+                controller: _lowestPriceController,
+                decoration: const InputDecoration(labelText: 'Menor oferta'),
+              ),
+              TextField(
+                controller: _quantityController,
+                decoration: const InputDecoration(labelText: 'Quantidade'),
+              ),
+              TextField(
+                controller: _storeNameController,
+                decoration: const InputDecoration(labelText: 'Loja'),
+              ),
+              TextField(
+                controller: _storeCityController,
+                decoration: const InputDecoration(labelText: 'Cidade'),
+              ),
+              TextField(
+                controller: _storeStateController,
+                decoration: const InputDecoration(labelText: 'Estado'),
+              ),
+              TextField(
+                controller: _storePhoneController,
+                decoration: const InputDecoration(labelText: 'Telefone'),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.of(context).pop(false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: _saving ? null : _save,
+          child:
+              _saving
+                  ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                  : const Text('Salvar'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _save() async {
+    setState(() {
+      _saving = true;
+    });
+
+    try {
+      final service = ref.read(ligaOnePieceServiceProvider);
+      await service.saveManualSnapshotForCard(
+        lookupCode: widget.card.code,
+        sourceUrl: _sourceUrlController.text.trim(),
+        cardName: widget.card.name,
+        cardCode: widget.card.code,
+        editionCode: _editionCodeController.text.trim(),
+        imageUrl: widget.card.image,
+        minimumPrice: _parseDouble(_minimumPriceController.text),
+        averagePrice: _parseDouble(_averagePriceController.text),
+        maximumPrice: _parseDouble(_maximumPriceController.text),
+        listingCount: _parseInt(_listingCountController.text) ?? 0,
+        lowestListing:
+            _parseDouble(_lowestPriceController.text) == null
+                ? null
+                : LigaOnePieceListing(
+                  id: 0,
+                  quantity: _parseInt(_quantityController.text) ?? 1,
+                  price: _parseDouble(_lowestPriceController.text) ?? 0,
+                  storeId: 0,
+                  state: _storeStateController.text.trim(),
+                ),
+        lowestStore:
+            _storeNameController.text.trim().isEmpty
+                ? null
+                : LigaOnePieceStore(
+                  name: _storeNameController.text.trim(),
+                  city: _storeCityController.text.trim(),
+                  state: _storeStateController.text.trim(),
+                  phone: _storePhoneController.text.trim(),
+                ),
+      );
+
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nao foi possivel salvar o cache manual desta carta.'),
+        ),
+      );
+      setState(() {
+        _saving = false;
+      });
+    }
+  }
+
+  double? _parseDouble(String text) {
+    final normalized = text.trim().replaceAll('.', '').replaceAll(',', '.');
+    if (normalized.isEmpty) return null;
+    return double.tryParse(normalized);
+  }
+
+  int? _parseInt(String text) {
+    final normalized = text.trim();
+    if (normalized.isEmpty) return null;
+    return int.tryParse(normalized);
   }
 }
