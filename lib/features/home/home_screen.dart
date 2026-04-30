@@ -16,8 +16,13 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('OPTCG Manager'),
+        title: const Text('One Piece'),
         actions: [
+          IconButton(
+            tooltip: 'Trocar TCG',
+            onPressed: () => context.go('/home'),
+            icon: const Icon(Icons.swap_horiz_outlined),
+          ),
           IconButton(
             tooltip: isDark ? 'Modo claro' : 'Modo escuro',
             onPressed: () {
@@ -74,7 +79,7 @@ class HomeScreen extends ConsumerWidget {
                       child: Column(
                         children: [
                           Text(
-                            'Bem-vindo ao OPTCG Manager',
+                            'Hub One Piece',
                             style: Theme.of(context).textTheme.headlineSmall
                                 ?.copyWith(fontWeight: FontWeight.w800),
                             textAlign: TextAlign.center,
@@ -149,7 +154,7 @@ class HomeScreen extends ConsumerWidget {
         },
       ),
       bottomNavigationBar: const PrimaryBottomNavigation(
-        currentRoute: '/home',
+        currentRoute: '/home/one-piece',
       ),
     );
   }

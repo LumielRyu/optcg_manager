@@ -10,7 +10,7 @@ class PrimaryBottomNavigation extends StatelessWidget {
   });
 
   static const _routes = <String>[
-    '/home',
+    '/home/one-piece',
     '/collection',
     '/sales',
     '/library',
@@ -21,7 +21,8 @@ class PrimaryBottomNavigation extends StatelessWidget {
   }
 
   int _selectedIndex() {
-    final normalized = _routes.contains(currentRoute) ? currentRoute : '/home';
+    final normalized =
+        _routes.contains(currentRoute) ? currentRoute : '/home/one-piece';
     return _routes.indexOf(normalized);
   }
 
@@ -42,7 +43,7 @@ class PrimaryBottomNavigation extends StatelessWidget {
         NavigationDestination(
           icon: Icon(Icons.home_outlined),
           selectedIcon: Icon(Icons.home),
-          label: 'Home',
+          label: 'One Piece',
         ),
         NavigationDestination(
           icon: Icon(Icons.collections_bookmark_outlined),

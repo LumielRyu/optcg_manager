@@ -8,7 +8,7 @@ class HomeNavigationButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return IconButton(
       tooltip: 'Voltar ao Home',
-      onPressed: () => context.go('/'),
+      onPressed: () => context.go('/home'),
       icon: const Icon(Icons.home_outlined),
     );
   }

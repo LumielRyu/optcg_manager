@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -22,7 +22,11 @@ import '../features/library/library_card_details_screen.dart';
 import '../features/library/library_compare_screen.dart';
 import '../features/library/one_piece_library_screen.dart';
 import '../features/marketplace/global_marketplace_screen.dart';
+import '../features/pokemon/pokemon_library_screen.dart';
 import '../features/sales/sales_screen.dart';
+import '../features/tcg/tcg_hub_screen.dart';
+import '../features/tcg/tcg_selector_screen.dart';
+import '../features/yugioh/yugioh_library_screen.dart';
 import '../data/repositories/user_preferences_repository.dart';
 
 class AuthRouterNotifier extends ChangeNotifier {
@@ -130,7 +134,48 @@ final GoRouter appRouter = GoRouter(
         return SharedStoreScreen(userId: userId);
       },
     ),
-    GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
+    GoRoute(
+      path: '/home',
+      builder: (context, state) => const TcgSelectorScreen(),
+    ),
+    GoRoute(
+      path: '/home/one-piece',
+      builder: (context, state) => const HomeScreen(),
+    ),
+    GoRoute(
+      path: '/pokemon',
+      builder: (context, state) => const TcgHubScreen(
+        title: 'Pokemon',
+        subtitle:
+            'Entrada inicial do ecossistema Pokemon dentro do TCG Manager, com biblioteca conectada a API e espaco pronto para futuras expansoes.',
+        sourceLabel: 'Fonte: Pokemon TCG API',
+        accent: Color(0xFFD62828),
+        heroIcon: Icons.catching_pokemon,
+        libraryRoute: '/pokemon/library',
+        highlights: ['Busca em API', 'Biblioteca inicial'],
+      ),
+    ),
+    GoRoute(
+      path: '/pokemon/library',
+      builder: (context, state) => const PokemonLibraryScreen(),
+    ),
+    GoRoute(
+      path: '/yugioh',
+      builder: (context, state) => const TcgHubScreen(
+        title: 'Yu-Gi-Oh',
+        subtitle:
+            'Entrada inicial do ecossistema Yu-Gi-Oh dentro do TCG Manager, com biblioteca conectada ao YGOPRODeck e espaco para modulos futuros.',
+        sourceLabel: 'Fonte: YGOPRODeck',
+        accent: Color(0xFF4A4E9B),
+        heroIcon: Icons.auto_awesome_outlined,
+        libraryRoute: '/yugioh/library',
+        highlights: ['Busca em API', 'Biblioteca inicial'],
+      ),
+    ),
+    GoRoute(
+      path: '/yugioh/library',
+      builder: (context, state) => const YugiohLibraryScreen(),
+    ),
     GoRoute(
       path: '/integrations/liga-one-piece-test',
       builder: (context, state) => const LigaOnePieceTestScreen(),
