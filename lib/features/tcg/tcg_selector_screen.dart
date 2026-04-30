@@ -81,7 +81,7 @@ class TcgSelectorScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: 10),
                           Text(
-                            'Entre no universo que quiser explorar agora. One Piece continua com colecao, vendas e marketplace; Pokemon e Yu-Gi-Oh ja entram com bibliotecas conectadas a API.',
+                            'Entre no universo que quiser explorar agora. One Piece continua com colecao, vendas e marketplace; os demais TCGs entram com hubs e bibliotecas conectadas a APIs publicas.',
                             style: Theme.of(context).textTheme.bodyLarge,
                           ),
                         ],
@@ -126,6 +126,42 @@ class TcgSelectorScreen extends ConsumerWidget {
                             chipLabel: 'Nova biblioteca',
                             icon: Icons.auto_awesome_outlined,
                             onTap: () => context.go('/yugioh'),
+                          ),
+                        ),
+                        SizedBox(
+                          width: cardWidth,
+                          child: _TcgChoiceCard(
+                            title: 'Digimon',
+                            subtitle:
+                                'Biblioteca inicial com busca em tempo real usando a Heroicc Digimon API.',
+                            accent: const Color(0xFF0F766E),
+                            chipLabel: 'Nova biblioteca',
+                            icon: Icons.memory_outlined,
+                            onTap: () => context.go('/digimon'),
+                          ),
+                        ),
+                        SizedBox(
+                          width: cardWidth,
+                          child: _TcgChoiceCard(
+                            title: 'Magic',
+                            subtitle:
+                                'Biblioteca inicial conectada ao Scryfall para pesquisar cartas e metadados.',
+                            accent: const Color(0xFFB45309),
+                            chipLabel: 'Nova biblioteca',
+                            icon: Icons.auto_fix_high_outlined,
+                            onTap: () => context.go('/magic'),
+                          ),
+                        ),
+                        SizedBox(
+                          width: cardWidth,
+                          child: _TcgChoiceCard(
+                            title: 'Riftbound',
+                            subtitle:
+                                'Biblioteca inicial com listagem e busca aproximada de cartas via Riftcodex.',
+                            accent: const Color(0xFF2563EB),
+                            chipLabel: 'Nova biblioteca',
+                            icon: Icons.bolt_outlined,
+                            onTap: () => context.go('/riftbound'),
                           ),
                         ),
                       ],
@@ -192,7 +228,10 @@ class _TcgChoiceCard extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(999),

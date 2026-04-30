@@ -13,6 +13,7 @@ import '../features/collection/collection_screen.dart';
 import '../features/collection/shared_sale_card_screen.dart';
 import '../features/collection/shared_store_screen.dart';
 import '../features/decks/shared_deck_screen.dart';
+import '../features/digimon/digimon_library_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/integrations/liga_one_piece_test_screen.dart';
 import '../features/imports/camera_import/camera_import_screen.dart';
@@ -22,7 +23,9 @@ import '../features/library/library_card_details_screen.dart';
 import '../features/library/library_compare_screen.dart';
 import '../features/library/one_piece_library_screen.dart';
 import '../features/marketplace/global_marketplace_screen.dart';
+import '../features/magic/magic_library_screen.dart';
 import '../features/pokemon/pokemon_library_screen.dart';
+import '../features/riftbound/riftbound_library_screen.dart';
 import '../features/sales/sales_screen.dart';
 import '../features/tcg/tcg_hub_screen.dart';
 import '../features/tcg/tcg_selector_screen.dart';
@@ -143,6 +146,40 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const HomeScreen(),
     ),
     GoRoute(
+      path: '/digimon',
+      builder: (context, state) => const TcgHubScreen(
+        title: 'Digimon',
+        subtitle:
+            'Entrada inicial do ecossistema Digimon dentro do TCG Manager, com biblioteca conectada a API publica e espaco para futuras expansoes.',
+        sourceLabel: 'Fonte: Heroicc Digimon API',
+        accent: Color(0xFF0F766E),
+        heroIcon: Icons.memory_outlined,
+        libraryRoute: '/digimon/library',
+        highlights: ['Busca em API', 'Biblioteca inicial'],
+      ),
+    ),
+    GoRoute(
+      path: '/digimon/library',
+      builder: (context, state) => const DigimonLibraryScreen(),
+    ),
+    GoRoute(
+      path: '/magic',
+      builder: (context, state) => const TcgHubScreen(
+        title: 'Magic',
+        subtitle:
+            'Entrada inicial do ecossistema Magic: The Gathering dentro do TCG Manager, com biblioteca conectada ao Scryfall e estrutura pronta para modulos futuros.',
+        sourceLabel: 'Fonte: Scryfall',
+        accent: Color(0xFFB45309),
+        heroIcon: Icons.auto_fix_high_outlined,
+        libraryRoute: '/magic/library',
+        highlights: ['Busca em API', 'Biblioteca inicial'],
+      ),
+    ),
+    GoRoute(
+      path: '/magic/library',
+      builder: (context, state) => const MagicLibraryScreen(),
+    ),
+    GoRoute(
       path: '/pokemon',
       builder: (context, state) => const TcgHubScreen(
         title: 'Pokemon',
@@ -158,6 +195,23 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/pokemon/library',
       builder: (context, state) => const PokemonLibraryScreen(),
+    ),
+    GoRoute(
+      path: '/riftbound',
+      builder: (context, state) => const TcgHubScreen(
+        title: 'Riftbound',
+        subtitle:
+            'Entrada inicial do ecossistema Riftbound dentro do TCG Manager, com biblioteca conectada ao Riftcodex e espaco para consolidar modulos depois.',
+        sourceLabel: 'Fonte: Riftcodex',
+        accent: Color(0xFF2563EB),
+        heroIcon: Icons.bolt_outlined,
+        libraryRoute: '/riftbound/library',
+        highlights: ['Busca em API', 'Biblioteca inicial'],
+      ),
+    ),
+    GoRoute(
+      path: '/riftbound/library',
+      builder: (context, state) => const RiftboundLibraryScreen(),
     ),
     GoRoute(
       path: '/yugioh',
