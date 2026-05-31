@@ -17,6 +17,7 @@ import '../features/digimon/digimon_library_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/integrations/liga_one_piece_test_screen.dart';
 import '../features/imports/camera_import/camera_import_screen.dart';
+import '../features/imports/card_scan_test/card_scan_test_screen.dart';
 import '../features/imports/code_import/code_import_screen.dart';
 import '../features/imports/image_import/image_import_screen.dart';
 import '../features/library/library_card_details_screen.dart';
@@ -30,6 +31,7 @@ import '../features/sales/sales_screen.dart';
 import '../features/tcg/tcg_hub_screen.dart';
 import '../features/tcg/tcg_selector_screen.dart';
 import '../features/yugioh/yugioh_library_screen.dart';
+import '../features/weeklies/weekly_dashboard_screen.dart';
 import '../data/repositories/user_preferences_repository.dart';
 
 class AuthRouterNotifier extends ChangeNotifier {
@@ -155,6 +157,7 @@ final GoRouter appRouter = GoRouter(
         accent: Color(0xFF0F766E),
         heroIcon: Icons.memory_outlined,
         libraryRoute: '/digimon/library',
+        weeklyRoute: '/weeklies/digimon',
         highlights: ['Busca em API', 'Biblioteca inicial'],
       ),
     ),
@@ -172,6 +175,7 @@ final GoRouter appRouter = GoRouter(
         accent: Color(0xFFB45309),
         heroIcon: Icons.auto_fix_high_outlined,
         libraryRoute: '/magic/library',
+        weeklyRoute: '/weeklies/magic',
         highlights: ['Busca em API', 'Biblioteca inicial'],
       ),
     ),
@@ -189,6 +193,7 @@ final GoRouter appRouter = GoRouter(
         accent: Color(0xFFD62828),
         heroIcon: Icons.catching_pokemon,
         libraryRoute: '/pokemon/library',
+        weeklyRoute: '/weeklies/pokemon',
         highlights: ['Busca em API', 'Biblioteca inicial'],
       ),
     ),
@@ -206,6 +211,7 @@ final GoRouter appRouter = GoRouter(
         accent: Color(0xFF2563EB),
         heroIcon: Icons.bolt_outlined,
         libraryRoute: '/riftbound/library',
+        weeklyRoute: '/weeklies/riftbound',
         highlights: ['Busca em API', 'Biblioteca inicial'],
       ),
     ),
@@ -223,6 +229,7 @@ final GoRouter appRouter = GoRouter(
         accent: Color(0xFF4A4E9B),
         heroIcon: Icons.auto_awesome_outlined,
         libraryRoute: '/yugioh/library',
+        weeklyRoute: '/weeklies/yugioh',
         highlights: ['Busca em API', 'Biblioteca inicial'],
       ),
     ),
@@ -274,6 +281,12 @@ final GoRouter appRouter = GoRouter(
       path: '/collection',
       builder: (context, state) => const CollectionScreen(),
     ),
+    GoRoute(
+      path: '/weeklies/:gameSlug',
+      builder: (context, state) => WeeklyDashboardScreen(
+        gameSlug: state.pathParameters['gameSlug'] ?? 'one-piece',
+      ),
+    ),
     GoRoute(path: '/sales', builder: (context, state) => const SalesScreen()),
     GoRoute(
       path: '/code-import',
@@ -299,6 +312,10 @@ final GoRouter appRouter = GoRouter(
           state.uri.queryParameters['destination'],
         ),
       ),
+    ),
+    GoRoute(
+      path: '/card-scan-test',
+      builder: (context, state) => const CardScanTestScreen(),
     ),
   ],
 );

@@ -24,6 +24,10 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Usamos a camera para testar o reconhecimento local de cartas.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Usamos a galeria para testar o reconhecimento de cartas por imagem.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

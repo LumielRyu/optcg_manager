@@ -19,7 +19,7 @@ class OpApiService {
       'https://www.optcgapi.com/api/allSTCards/?format=json';
   static const String _promosUrl =
       'https://www.optcgapi.com/api/allPromos/?format=json';
-  static const String _cachedCardsKey = 'all_cards';
+  static const String _cachedCardsKey = 'all_cards_v2';
   static const String _cachedAtKey = 'all_cards_cached_at';
   static const Duration _cacheMaxAge = Duration(hours: 12);
 
@@ -346,6 +346,11 @@ class OpApiService {
         score += 180;
       }
 
+      if (entry.normalizedSubTypes.isNotEmpty &&
+          normalizedRaw.contains(entry.normalizedSubTypes)) {
+        score += 180;
+      }
+
       if (entry.normalizedSetName.isNotEmpty &&
           normalizedRaw.contains(entry.normalizedSetName)) {
         score += 120;
@@ -627,6 +632,7 @@ class _IndexedOpCard {
   final OpCard card;
   final String normalizedName;
   final String normalizedType;
+  final String normalizedSubTypes;
   final String normalizedSetName;
   final Set<String> textKeywords;
   final List<String> nameWords;
@@ -636,6 +642,7 @@ class _IndexedOpCard {
     required this.card,
     required this.normalizedName,
     required this.normalizedType,
+    required this.normalizedSubTypes,
     required this.normalizedSetName,
     required this.textKeywords,
     required this.nameWords,
@@ -645,6 +652,7 @@ class _IndexedOpCard {
   factory _IndexedOpCard.fromCard(OpCard card) {
     final normalizedName = _normalize(card.name);
     final normalizedType = _normalize(card.type);
+    final normalizedSubTypes = _normalize(card.subTypes);
     final normalizedSetName = _normalize(card.setName);
     final normalizedText = _normalize(card.text);
 
@@ -652,6 +660,7 @@ class _IndexedOpCard {
       card: card,
       normalizedName: normalizedName,
       normalizedType: normalizedType,
+      normalizedSubTypes: normalizedSubTypes,
       normalizedSetName: normalizedSetName,
       textKeywords: normalizedText
           .split(' ')

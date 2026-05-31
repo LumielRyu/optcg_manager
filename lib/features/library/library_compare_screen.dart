@@ -8,10 +8,7 @@ import '../../core/widgets/home_navigation_button.dart';
 class LibraryCompareScreen extends ConsumerWidget {
   final List<String> cardCodes;
 
-  const LibraryCompareScreen({
-    super.key,
-    required this.cardCodes,
-  });
+  const LibraryCompareScreen({super.key, required this.cardCodes});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -47,7 +44,10 @@ class LibraryCompareScreen extends ConsumerWidget {
               .where((code) => code.isNotEmpty)
               .toSet();
           final selectedCards = allCards
-              .where((card) => normalizedCodes.contains(api.normalizeCode(card.code)))
+              .where(
+                (card) =>
+                    normalizedCodes.contains(api.normalizeCode(card.code)),
+              )
               .toList(growable: false);
 
           if (selectedCards.length < 2) {
@@ -68,12 +68,12 @@ class LibraryCompareScreen extends ConsumerWidget {
               Text(
                 'Comparacao lado a lado',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
-                'Compare imagem, código, tipo, cor, raridade, atributo e texto das cartas selecionadas.',
+                'Compare imagem, código, categoria, tipo da carta, cor, raridade, atributo e texto das cartas selecionadas.',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 16),
@@ -83,10 +83,7 @@ class LibraryCompareScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     for (final card in selectedCards)
-                      SizedBox(
-                        width: 320,
-                        child: _ComparisonCard(card: card),
-                      ),
+                      SizedBox(width: 320, child: _ComparisonCard(card: card)),
                   ],
                 ),
               ),
@@ -118,7 +115,9 @@ class _ComparisonCard extends StatelessWidget {
               aspectRatio: 0.72,
               child: Container(
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.35,
+                  ),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 padding: const EdgeInsets.all(10),
@@ -150,7 +149,8 @@ class _ComparisonCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
-            _CompareRow(label: 'Tipo', value: card.type),
+            _CompareRow(label: 'Categoria', value: card.type),
+            _CompareRow(label: 'Tipo da carta', value: card.subTypes),
             _CompareRow(label: 'Cor', value: card.color),
             _CompareRow(label: 'Raridade', value: card.rarity),
             _CompareRow(label: 'Atributo', value: card.attribute),
@@ -178,10 +178,7 @@ class _CompareRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _CompareRow({
-    required this.label,
-    required this.value,
-  });
+  const _CompareRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -194,14 +191,12 @@ class _CompareRow extends StatelessWidget {
             width: 76,
             child: Text(
               '$label:',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
           ),
-          Expanded(
-            child: Text(value.trim().isEmpty ? '-' : value.trim()),
-          ),
+          Expanded(child: Text(value.trim().isEmpty ? '-' : value.trim())),
         ],
       ),
     );

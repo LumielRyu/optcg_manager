@@ -4,16 +4,14 @@ import 'package:go_router/go_router.dart';
 class PrimaryBottomNavigation extends StatelessWidget {
   final String currentRoute;
 
-  const PrimaryBottomNavigation({
-    super.key,
-    required this.currentRoute,
-  });
+  const PrimaryBottomNavigation({super.key, required this.currentRoute});
 
   static const _routes = <String>[
     '/home/one-piece',
     '/collection',
     '/sales',
     '/library',
+    '/card-scan-test',
   ];
 
   bool _isMobile(BuildContext context) {
@@ -21,8 +19,9 @@ class PrimaryBottomNavigation extends StatelessWidget {
   }
 
   int _selectedIndex() {
-    final normalized =
-        _routes.contains(currentRoute) ? currentRoute : '/home/one-piece';
+    final normalized = _routes.contains(currentRoute)
+        ? currentRoute
+        : '/home/one-piece';
     return _routes.indexOf(normalized);
   }
 
@@ -59,6 +58,11 @@ class PrimaryBottomNavigation extends StatelessWidget {
           icon: Icon(Icons.auto_stories_outlined),
           selectedIcon: Icon(Icons.auto_stories),
           label: 'Biblioteca',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.center_focus_strong_outlined),
+          selectedIcon: Icon(Icons.center_focus_strong),
+          label: 'Teste IA',
         ),
       ],
     );

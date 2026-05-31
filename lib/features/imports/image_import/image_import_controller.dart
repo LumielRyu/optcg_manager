@@ -46,7 +46,8 @@ class ImageImportCandidate {
 
   bool get canImport {
     if (found) return true;
-    return (name?.trim().isNotEmpty ?? false) && (color?.trim().isNotEmpty ?? false);
+    return (name?.trim().isNotEmpty ?? false) &&
+        (color?.trim().isNotEmpty ?? false);
   }
 
   ImageImportCandidate copyWith({
@@ -73,9 +74,15 @@ class ImageImportCandidate {
           ? this.matchedBy
           : matchedBy as String?,
       name: identical(name, _copySentinel) ? this.name : name as String?,
-      imageUrl: identical(imageUrl, _copySentinel) ? this.imageUrl : imageUrl as String?,
-      setName: identical(setName, _copySentinel) ? this.setName : setName as String?,
-      rarity: identical(rarity, _copySentinel) ? this.rarity : rarity as String?,
+      imageUrl: identical(imageUrl, _copySentinel)
+          ? this.imageUrl
+          : imageUrl as String?,
+      setName: identical(setName, _copySentinel)
+          ? this.setName
+          : setName as String?,
+      rarity: identical(rarity, _copySentinel)
+          ? this.rarity
+          : rarity as String?,
       color: identical(color, _copySentinel) ? this.color : color as String?,
       type: identical(type, _copySentinel) ? this.type : type as String?,
       text: identical(text, _copySentinel) ? this.text : text as String?,
@@ -225,6 +232,15 @@ class ImageImportController extends StateNotifier<ImageImportState> {
   }
 
   Future<String?> analyzeImagePath(String path) async {
+    return analyzeImageFile(path: path);
+  }
+
+  Future<String?> analyzeImageFile({
+    required String path,
+    Uint8List? sourceBytes,
+    bool preferVisual = false,
+    bool skipOcrFallback = false,
+  }) async {
     state = state.copyWith(
       isBusy: true,
       error: null,
@@ -237,8 +253,53 @@ class ImageImportController extends StateNotifier<ImageImportState> {
     );
 
     try {
-      final rawText = await (_ocrService ??= CardOcrService())
-          .readTextFromFile(path);
+      if (preferVisual && sourceBytes != null) {
+        final visualMatch = await _resolveVisualCandidates(
+          candidateNames: const [],
+          rawText: '',
+          extractedLines: const [],
+          sourceBytes: sourceBytes,
+          allowLowConfidence: skipOcrFallback,
+        );
+
+        if (visualMatch != null && visualMatch.isHighConfidence) {
+          state = state.copyWith(
+            isBusy: false,
+            candidates: [
+              _candidateFromCard(
+                visualMatch.card,
+                matchedBy: visualMatch.matchedBy,
+              ),
+            ],
+            detectedInput: '1x${visualMatch.card.code}',
+            rawOcrText: null,
+            extractedLines: const [],
+            candidateNames: const [],
+            debugMessage:
+                'Carta identificada pela base visual antes do OCR. Score: ${visualMatch.debug}.',
+          );
+          return state.detectedInput;
+        }
+
+        if (skipOcrFallback) {
+          state = state.copyWith(
+            isBusy: false,
+            candidates: const [],
+            detectedInput: null,
+            rawOcrText: null,
+            extractedLines: const [],
+            candidateNames: const [],
+            debugMessage: visualMatch == null
+                ? 'Visual rapido executado, mas nenhuma carta ficou confiavel. Aproxime ou centralize a carta.'
+                : 'Visual rapido sem confianca suficiente. Melhor palpite: ${visualMatch.card.code} (${visualMatch.card.name}) - ${visualMatch.debug}.',
+          );
+          return null;
+        }
+      }
+
+      final rawText = await (_ocrService ??= CardOcrService()).readTextFromFile(
+        path,
+      );
       final extractedLines = OcrCodeExtractor.extractPrioritizedDeckLines(
         rawText,
       );
@@ -249,10 +310,42 @@ class ImageImportController extends StateNotifier<ImageImportState> {
       debugPrint('[ImageImport][ocr] names=$candidateNames');
 
       if (extractedLines.isEmpty) {
+        final visualMatch = await _resolveVisualCandidates(
+          candidateNames: candidateNames,
+          rawText: rawText,
+          extractedLines: extractedLines,
+          sourceBytes: sourceBytes,
+        );
+        if (visualMatch != null) {
+          debugPrint(
+            '[ImageImport][visual-primary] ${visualMatch.card.code} mode=${visualMatch.matchedBy} confidence=${visualMatch.isHighConfidence} detail=${visualMatch.debug}',
+          );
+        }
+
+        if (visualMatch != null) {
+          state = state.copyWith(
+            isBusy: false,
+            candidates: [
+              _candidateFromCard(
+                visualMatch.card,
+                matchedBy: visualMatch.matchedBy,
+              ),
+            ],
+            detectedInput: '1x${visualMatch.card.code}',
+            rawOcrText: rawText,
+            extractedLines: const [],
+            candidateNames: candidateNames,
+            debugMessage:
+                'OCR executado. O codigo nao foi confiavel, entao a carta foi identificada pela imagem inteira${visualMatch.matchedBy == 'visual+name' ? ' com apoio do texto' : ''}.',
+          );
+          return state.detectedInput;
+        }
+
         final fallbackByName = await _resolveNameCandidates(
           candidateNames: candidateNames,
           rawText: rawText,
           extractedLines: extractedLines,
+          sourceBytes: sourceBytes,
         );
         if (fallbackByName.isNotEmpty) {
           state = state.copyWith(
@@ -287,12 +380,85 @@ class ImageImportController extends StateNotifier<ImageImportState> {
       final normalizedInput = extractedLines.join('\n');
       final parsed = _parseLines(normalizedInput);
       final results = await _resolveCandidates(parsed);
+      final foundCodes = results
+          .where((item) => item.found)
+          .map((item) => item.code)
+          .toSet();
+
+      if (foundCodes.length == 1 && !results.any((item) => !item.found)) {
+        state = state.copyWith(
+          isBusy: false,
+          candidates: results,
+          detectedInput: normalizedInput,
+          rawOcrText: rawText,
+          extractedLines: extractedLines,
+          candidateNames: candidateNames,
+          debugMessage:
+              'OCR executado com sucesso. Carta encontrada por codigo sem precisar de matching visual.',
+        );
+        return normalizedInput;
+      }
+
+      final visualMatch = await _resolveVisualCandidates(
+        candidateNames: candidateNames,
+        rawText: rawText,
+        extractedLines: extractedLines,
+        sourceBytes: sourceBytes,
+      );
+      if (visualMatch != null) {
+        debugPrint(
+          '[ImageImport][visual-primary] ${visualMatch.card.code} mode=${visualMatch.matchedBy} confidence=${visualMatch.isHighConfidence} detail=${visualMatch.debug}',
+        );
+      }
+
+      if (visualMatch != null &&
+          visualMatch.isHighConfidence &&
+          (!foundCodes.contains(visualMatch.card.code) ||
+              foundCodes.length != 1 ||
+              results.any((item) => !item.found))) {
+        state = state.copyWith(
+          isBusy: false,
+          candidates: [
+            _candidateFromCard(
+              visualMatch.card,
+              matchedBy: visualMatch.matchedBy,
+            ),
+          ],
+          detectedInput: '1x${visualMatch.card.code}',
+          rawOcrText: rawText,
+          extractedLines: extractedLines,
+          candidateNames: candidateNames,
+          debugMessage:
+              'OCR executado, mas a imagem inteira da carta indicou ${visualMatch.card.code} com mais confianca. Os codigos extraidos foram substituidos pelo reconhecimento visual.',
+        );
+        return state.detectedInput;
+      }
 
       if (results.where((item) => item.found).isEmpty) {
+        if (visualMatch != null) {
+          state = state.copyWith(
+            isBusy: false,
+            candidates: [
+              _candidateFromCard(
+                visualMatch.card,
+                matchedBy: visualMatch.matchedBy,
+              ),
+            ],
+            detectedInput: '1x${visualMatch.card.code}',
+            rawOcrText: rawText,
+            extractedLines: extractedLines,
+            candidateNames: candidateNames,
+            debugMessage:
+                'OCR executado. Os codigos extraidos nao bateram na API, entao a carta foi identificada pela imagem inteira.',
+          );
+          return state.detectedInput;
+        }
+
         final fallbackByName = await _resolveNameCandidates(
           candidateNames: candidateNames,
           rawText: rawText,
           extractedLines: extractedLines,
+          sourceBytes: sourceBytes,
         );
 
         if (fallbackByName.isNotEmpty) {
@@ -335,7 +501,11 @@ class ImageImportController extends StateNotifier<ImageImportState> {
     }
   }
 
-  Future<String?> analyzeImageBytes(Uint8List bytes) async {
+  Future<String?> analyzeImageBytes(
+    Uint8List bytes, {
+    bool preferVisual = false,
+    bool skipOcrFallback = false,
+  }) async {
     state = state.copyWith(
       isBusy: true,
       error: null,
@@ -347,9 +517,52 @@ class ImageImportController extends StateNotifier<ImageImportState> {
     );
 
     try {
-      final rawText = await (_ocrService ??= CardOcrService()).readTextFromBytes(
-        bytes,
-      );
+      if (preferVisual) {
+        final visualMatch = await _resolveVisualCandidates(
+          candidateNames: const [],
+          rawText: '',
+          extractedLines: const [],
+          sourceBytes: bytes,
+          allowLowConfidence: skipOcrFallback,
+        );
+
+        if (visualMatch != null && visualMatch.isHighConfidence) {
+          state = state.copyWith(
+            isBusy: false,
+            candidates: [
+              _candidateFromCard(
+                visualMatch.card,
+                matchedBy: visualMatch.matchedBy,
+              ),
+            ],
+            detectedInput: '1x${visualMatch.card.code}',
+            rawOcrText: null,
+            extractedLines: const [],
+            candidateNames: const [],
+            debugMessage:
+                'Carta identificada pela base visual antes do OCR. Score: ${visualMatch.debug}.',
+          );
+          return state.detectedInput;
+        }
+
+        if (skipOcrFallback) {
+          state = state.copyWith(
+            isBusy: false,
+            candidates: const [],
+            detectedInput: null,
+            rawOcrText: null,
+            extractedLines: const [],
+            candidateNames: const [],
+            debugMessage: visualMatch == null
+                ? 'Visual rapido executado, mas nenhuma carta ficou confiavel. Aproxime ou centralize a carta.'
+                : 'Visual rapido sem confianca suficiente. Melhor palpite: ${visualMatch.card.code} (${visualMatch.card.name}) - ${visualMatch.debug}.',
+          );
+          return null;
+        }
+      }
+
+      final rawText = await (_ocrService ??= CardOcrService())
+          .readTextFromBytes(bytes);
       final extractedLines = OcrCodeExtractor.extractPrioritizedDeckLines(
         rawText,
       );
@@ -530,11 +743,7 @@ class ImageImportController extends StateNotifier<ImageImportState> {
     state = state.copyWith(candidates: list);
   }
 
-  void updateManualCandidate(
-    int index, {
-    String? name,
-    String? color,
-  }) {
+  void updateManualCandidate(int index, {String? name, String? color}) {
     final list = [...state.candidates];
     if (index < 0 || index >= list.length) return;
 
@@ -674,9 +883,10 @@ class ImageImportController extends StateNotifier<ImageImportState> {
     for (final line in lines) {
       final compact = line.replaceAll(' ', '');
 
-      final match =
-          RegExp(r'^(\d+)x([A-Za-z0-9\-]+)$', caseSensitive: false)
-              .firstMatch(compact);
+      final match = RegExp(
+        r'^(\d+)x([A-Za-z0-9\-]+)$',
+        caseSensitive: false,
+      ).firstMatch(compact);
 
       if (match == null) continue;
 
@@ -775,6 +985,7 @@ class ImageImportController extends StateNotifier<ImageImportState> {
     required String rawText,
     required List<String> extractedLines,
     Uint8List? sourceBytes,
+    bool allowLowConfidence = false,
   }) async {
     if (sourceBytes == null) {
       return null;
@@ -832,6 +1043,15 @@ class ImageImportController extends StateNotifier<ImageImportState> {
           card: best.card,
           matchedBy: 'visual',
           isHighConfidence: true,
+          debug: 'db=${best.distance} second=$secondDistance',
+        );
+      }
+
+      if (allowLowConfidence && best.distance <= 170) {
+        return _ResolvedVisualMatch(
+          card: best.card,
+          matchedBy: 'visual',
+          isHighConfidence: false,
           debug: 'db=${best.distance} second=$secondDistance',
         );
       }
@@ -943,10 +1163,7 @@ class _ParsedLine {
   final int quantity;
   final String code;
 
-  _ParsedLine({
-    required this.quantity,
-    required this.code,
-  });
+  _ParsedLine({required this.quantity, required this.code});
 }
 
 class _ResolvedVisualMatch {

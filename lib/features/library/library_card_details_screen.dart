@@ -9,6 +9,7 @@ import '../../core/widgets/home_navigation_button.dart';
 import '../../data/models/op_card.dart';
 import '../../data/services/liga_one_piece_service.dart';
 import '../../data/services/op_api_service.dart';
+import '../../data/services/translation_service.dart';
 
 class LibraryCardDetailsScreen extends ConsumerWidget {
   final String cardCode;
@@ -72,7 +73,13 @@ class LibraryCardDetailsScreen extends ConsumerWidget {
             );
           }
 
-          return _LibraryCardDetailsContent(card: card);
+          return Center(
+            child: LibraryCardDetailsPanel(
+              card: card,
+              maxWidth: 560,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            ),
+          );
         },
       ),
     );
@@ -153,302 +160,474 @@ class LibraryCardDetailsScreen extends ConsumerWidget {
   }
 }
 
-class _LibraryCardDetailsContent extends ConsumerStatefulWidget {
+class LibraryCardDetailsDialog extends StatelessWidget {
   final OpCard card;
 
-  const _LibraryCardDetailsContent({required this.card});
+  const LibraryCardDetailsDialog({super.key, required this.card});
 
   @override
-  ConsumerState<_LibraryCardDetailsContent> createState() =>
-      _LibraryCardDetailsContentState();
+  Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+
+    return Dialog(
+      insetPadding: const EdgeInsets.all(16),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: size.width * 0.96,
+          maxHeight: size.height * 0.92,
+        ),
+        child: Column(
+          children: [
+            Expanded(
+              child: LibraryCardDetailsPanel(
+                card: card,
+                maxWidth: size.width * 0.96,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close),
+                label: const Text('Fechar'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-class _LibraryCardDetailsContentState
-    extends ConsumerState<_LibraryCardDetailsContent> {
-  List<String> _variantBadges(OpCard card) {
-    final source = '${card.name} ${card.setName} ${card.image}'.toLowerCase();
-    final badges = <String>[];
+class LibraryCardDetailsPanel extends ConsumerStatefulWidget {
+  final OpCard card;
+  final double? maxWidth;
+  final EdgeInsetsGeometry padding;
 
-    if (source.contains('manga')) badges.add('Manga');
-    if (source.contains('alternate') || source.contains('alt art')) {
-      badges.add('Alternate Art');
+  const LibraryCardDetailsPanel({
+    super.key,
+    required this.card,
+    this.maxWidth,
+    this.padding = const EdgeInsets.fromLTRB(16, 16, 16, 8),
+  });
+
+  @override
+  ConsumerState<LibraryCardDetailsPanel> createState() =>
+      _LibraryCardDetailsPanelState();
+}
+
+class _LibraryCardDetailsPanelState
+    extends ConsumerState<LibraryCardDetailsPanel> {
+  final TranslationService _translationService = TranslationService();
+  bool _isTranslating = false;
+  String? _translatedText;
+  bool _showTranslated = false;
+
+  Future<void> _translateText() async {
+    if (widget.card.text.trim().isEmpty) return;
+
+    setState(() {
+      _isTranslating = true;
+    });
+
+    try {
+      final translated = await _translationService.translateToPortuguese(
+        widget.card.text,
+      );
+
+      setState(() {
+        _translatedText = translated;
+        _showTranslated = true;
+      });
+    } catch (_) {
+      setState(() {
+        _translatedText = 'Nao foi possivel traduzir o texto da carta.';
+        _showTranslated = true;
+      });
+    } finally {
+      setState(() {
+        _isTranslating = false;
+      });
     }
-    if (source.contains('sp')) badges.add('SP');
-    if (source.contains('parallel')) badges.add('Parallel');
-
-    return badges.toSet().toList(growable: false);
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final card = widget.card;
-    final badges = _variantBadges(card);
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
-            ),
-          ),
-          child: Column(
-            children: [
-              SizedBox(
-                height: 420,
-                child: _LibraryZoomableCardImage(
-                  imageUrl: card.image,
-                  cardCode: card.code,
-                  title: card.name,
-                ),
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: widget.maxWidth ?? double.infinity),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 760;
+
+          if (!wide) {
+            return SingleChildScrollView(
+              padding: widget.padding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _DetailsHeader(card: card),
+                  const SizedBox(height: 16),
+                  Center(child: _CardImagePreview(card: card, height: 420)),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Toque na imagem para ampliar',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  const SizedBox(height: 16),
+                  _DetailsInfo(
+                    card: card,
+                    isTranslating: _isTranslating,
+                    showTranslated: _showTranslated,
+                    translatedText: _translatedText,
+                    onTranslate: _translateText,
+                  ),
+                ],
               ),
-              if (badges.isNotEmpty) ...[
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  alignment: WrapAlignment.center,
-                  children: badges.map((badge) {
-                    return Chip(
-                      label: Text(badge),
-                      visualDensity: VisualDensity.compact,
-                    );
-                  }).toList(),
+            );
+          }
+
+          final imagePaneWidth = constraints.maxWidth * 0.48;
+          final imageHeight = constraints.maxHeight.isFinite
+              ? constraints.maxHeight - 32
+              : 720.0;
+
+          return Padding(
+            padding: widget.padding,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  width: imagePaneWidth,
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: Center(
+                          child: _CardImagePreview(
+                            card: card,
+                            height: imageHeight,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Toque na imagem para ampliar',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 24),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _DetailsHeader(card: card),
+                        const SizedBox(height: 18),
+                        _DetailsInfo(
+                          card: card,
+                          isTranslating: _isTranslating,
+                          showTranslated: _showTranslated,
+                          translatedText: _translatedText,
+                          onTranslate: _translateText,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _DetailsHeader extends StatelessWidget {
+  final OpCard card;
+
+  const _DetailsHeader({required this.card});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
         Text(
           card.name,
-          style: theme.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w800,
-          ),
+          textAlign: TextAlign.center,
+          style: Theme.of(
+            context,
+          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 6),
         Text(
           card.code,
-          style: theme.textTheme.titleMedium?.copyWith(
-            color: theme.colorScheme.primary,
-            fontWeight: FontWeight.w700,
-          ),
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium,
         ),
-        const SizedBox(height: 16),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            _LibraryInfoChip(label: 'Tipo', value: card.type),
-            _LibraryInfoChip(label: 'Cor', value: card.color),
-            _LibraryInfoChip(label: 'Raridade', value: card.rarity),
-            _LibraryInfoChip(label: 'Atributo', value: card.attribute),
-            _LibraryInfoChip(label: 'Edicao', value: card.setName),
-          ],
-        ),
-        if (card.text.trim().isNotEmpty) ...[
-          const SizedBox(height: 20),
-          Text(
-            'Texto da carta',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerLowest,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
-              ),
-            ),
-            child: Text(card.text),
-          ),
-        ],
       ],
     );
   }
 }
 
-class _LibraryInfoChip extends StatelessWidget {
-  final String label;
-  final String value;
+class _CardImagePreview extends StatelessWidget {
+  final OpCard card;
+  final double height;
 
-  const _LibraryInfoChip({
-    required this.label,
-    required this.value,
-  });
+  const _CardImagePreview({required this.card, required this.height});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final safeValue = value.trim().isEmpty ? '-' : value.trim();
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+    return InkWell(
+      onTap: () => _openImagePreview(context),
+      borderRadius: BorderRadius.circular(18),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: height),
+        child: AspectRatio(
+          aspectRatio: 63 / 88,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: _LibraryCardImage(
+                    imageUrl: card.image,
+                    cardCode: card.code,
+                  ),
+                ),
+              ),
+              Positioned(
+                right: 12,
+                top: 12,
+                child: Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Icon(
+                    Icons.zoom_in,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 2),
-          Text(
-            safeValue,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LibraryZoomableCardImage extends StatelessWidget {
-  final String imageUrl;
-  final String cardCode;
-  final String title;
-
-  const _LibraryZoomableCardImage({
-    required this.imageUrl,
-    required this.cardCode,
-    required this.title,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap:
-            imageUrl.trim().isEmpty
-                ? null
-                : () {
-                  showDialog<void>(
-                    context: context,
-                    barrierColor: Colors.black.withValues(alpha: 0.92),
-                    builder:
-                        (_) => _LibraryCardImageFullscreenDialog(
-                          imageUrl: imageUrl,
-                          title: title,
-                          cardCode: cardCode,
-                        ),
-                  );
-                },
-        child: Image.network(
-          imageUrl,
-          fit: BoxFit.contain,
-          webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-          errorBuilder: (_, _, _) {
-            return const Center(
-              child: Icon(Icons.broken_image_outlined),
-            );
-          },
         ),
       ),
     );
   }
+
+  void _openImagePreview(BuildContext context) {
+    if (card.image.trim().isEmpty) return;
+
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.92),
+      builder: (_) {
+        return Dialog.fullscreen(
+          backgroundColor: Colors.black,
+          child: Stack(
+            children: [
+              Center(
+                child: InteractiveViewer(
+                  minScale: 0.8,
+                  maxScale: 5,
+                  child: Image.network(
+                    card.image,
+                    fit: BoxFit.contain,
+                    webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+                    errorBuilder: (_, _, _) {
+                      return const Center(
+                        child: Icon(
+                          Icons.broken_image_outlined,
+                          color: Colors.white70,
+                          size: 60,
+                        ),
+                      );
+                    },
+                    loadingBuilder: (context, child, progress) {
+                      if (progress == null) return child;
+                      return const Center(child: CircularProgressIndicator());
+                    },
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 20,
+                right: 20,
+                child: SafeArea(
+                  child: IconButton.filled(
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.black54,
+                    ),
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 20,
+                bottom: 20,
+                right: 20,
+                child: SafeArea(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Text(
+                      '${card.name} - ${card.code}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
 
-class _LibraryCardImageFullscreenDialog extends StatelessWidget {
-  final String imageUrl;
-  final String title;
-  final String cardCode;
+class _DetailsInfo extends StatelessWidget {
+  final OpCard card;
+  final bool isTranslating;
+  final bool showTranslated;
+  final String? translatedText;
+  final VoidCallback onTranslate;
 
-  const _LibraryCardImageFullscreenDialog({
-    required this.imageUrl,
-    required this.title,
-    required this.cardCode,
+  const _DetailsInfo({
+    required this.card,
+    required this.isTranslating,
+    required this.showTranslated,
+    required this.translatedText,
+    required this.onTranslate,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Dialog.fullscreen(
-      backgroundColor: Colors.black,
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: InteractiveViewer(
-              minScale: 0.8,
-              maxScale: 5,
-              panEnabled: true,
-              child: Center(
-                child: Image.network(
-                  imageUrl,
-                  fit: BoxFit.contain,
-                  webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-                  errorBuilder: (_, _, _) {
-                    return const Center(
-                      child: Icon(
-                        Icons.broken_image_outlined,
-                        color: Colors.white70,
-                        size: 56,
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _infoRow('Set', card.setName),
+        _infoRow('Raridade', card.rarity),
+        _infoRow('Cor', card.color),
+        _infoRow('Categoria', card.type),
+        _infoRow('Tipo', card.subTypes),
+        _infoRow('Atributo', card.attribute),
+        const SizedBox(height: 16),
+        const Text(
+          'Texto da carta',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 8),
+        Text(card.text.trim().isEmpty ? 'Sem texto.' : card.text),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          onPressed: isTranslating ? null : onTranslate,
+          icon: isTranslating
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.translate),
+          label: Text(
+            isTranslating
+                ? 'Traduzindo...'
+                : (showTranslated ? 'Traduzir novamente' : 'Traduzir texto'),
           ),
-          Positioned(
-            top: 16,
-            left: 16,
-            right: 16,
-            child: SafeArea(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          cardCode,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  IconButton.filledTonal(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-            ),
+        ),
+        if (showTranslated) ...[
+          const SizedBox(height: 16),
+          const Text(
+            'Texto traduzido',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            (translatedText == null || translatedText!.trim().isEmpty)
+                ? 'Sem traducao disponivel.'
+                : translatedText!,
           ),
         ],
+      ],
+    );
+  }
+
+  Widget _infoRow(String label, String value) {
+    final safeValue = value.trim().isEmpty ? '-' : value;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 95,
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+          const Text(': '),
+          Expanded(child: Text(safeValue)),
+        ],
       ),
+    );
+  }
+}
+
+class _LibraryCardImage extends StatelessWidget {
+  final String imageUrl;
+  final String cardCode;
+
+  const _LibraryCardImage({required this.imageUrl, required this.cardCode});
+
+  @override
+  Widget build(BuildContext context) {
+    final directUrl = imageUrl.trim();
+    if (directUrl.isEmpty) return const _LibraryImagePlaceholder();
+
+    return Image.network(
+      directUrl,
+      key: ValueKey('library-details-image-$cardCode-$directUrl'),
+      fit: BoxFit.contain,
+      gaplessPlayback: false,
+      webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+      filterQuality: FilterQuality.low,
+      errorBuilder: (_, _, _) => const _LibraryImagePlaceholder(),
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+        return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      },
+    );
+  }
+}
+
+class _LibraryImagePlaceholder extends StatelessWidget {
+  const _LibraryImagePlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.grey.shade200,
+      child: const Center(child: Icon(Icons.image_not_supported_outlined)),
     );
   }
 }
@@ -501,10 +680,9 @@ class _LibraryMarketplaceInfoCard extends StatelessWidget {
     required String formattedPrice,
   }) {
     final store = snapshot.lowestStore?.name ?? 'Loja publica';
-    final note =
-        snapshot.usedVerifiedFallback
-            ? snapshot.note
-            : 'Base publica da pagina da carta.';
+    final note = snapshot.usedVerifiedFallback
+        ? snapshot.note
+        : 'Base publica da pagina da carta.';
 
     return _LibraryMarketplaceInfoCard._(
       title: 'Menor valor publico na LigaOnePiece',
@@ -645,10 +823,7 @@ class _ManualLigaCacheDialog extends ConsumerStatefulWidget {
   final OpCard card;
   final String sourceUrl;
 
-  const _ManualLigaCacheDialog({
-    required this.card,
-    required this.sourceUrl,
-  });
+  const _ManualLigaCacheDialog({required this.card, required this.sourceUrl});
 
   @override
   ConsumerState<_ManualLigaCacheDialog> createState() =>
@@ -774,14 +949,13 @@ class _ManualLigaCacheDialogState
         ),
         FilledButton(
           onPressed: _saving ? null : _save,
-          child:
-              _saving
-                  ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                  : const Text('Salvar'),
+          child: _saving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Salvar'),
         ),
       ],
     );
@@ -805,25 +979,23 @@ class _ManualLigaCacheDialogState
         averagePrice: _parseDouble(_averagePriceController.text),
         maximumPrice: _parseDouble(_maximumPriceController.text),
         listingCount: _parseInt(_listingCountController.text) ?? 0,
-        lowestListing:
-            _parseDouble(_lowestPriceController.text) == null
-                ? null
-                : LigaOnePieceListing(
-                  id: 0,
-                  quantity: _parseInt(_quantityController.text) ?? 1,
-                  price: _parseDouble(_lowestPriceController.text) ?? 0,
-                  storeId: 0,
-                  state: _storeStateController.text.trim(),
-                ),
-        lowestStore:
-            _storeNameController.text.trim().isEmpty
-                ? null
-                : LigaOnePieceStore(
-                  name: _storeNameController.text.trim(),
-                  city: _storeCityController.text.trim(),
-                  state: _storeStateController.text.trim(),
-                  phone: _storePhoneController.text.trim(),
-                ),
+        lowestListing: _parseDouble(_lowestPriceController.text) == null
+            ? null
+            : LigaOnePieceListing(
+                id: 0,
+                quantity: _parseInt(_quantityController.text) ?? 1,
+                price: _parseDouble(_lowestPriceController.text) ?? 0,
+                storeId: 0,
+                state: _storeStateController.text.trim(),
+              ),
+        lowestStore: _storeNameController.text.trim().isEmpty
+            ? null
+            : LigaOnePieceStore(
+                name: _storeNameController.text.trim(),
+                city: _storeCityController.text.trim(),
+                state: _storeStateController.text.trim(),
+                phone: _storePhoneController.text.trim(),
+              ),
       );
 
       if (!mounted) return;

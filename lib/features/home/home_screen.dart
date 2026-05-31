@@ -48,7 +48,7 @@ class HomeScreen extends ConsumerWidget {
           final contentWidth = width < 1200 ? width : 1200.0;
           final availableWidth = contentWidth - (horizontalPadding * 2);
           final cardsPerRow = width >= 1280
-              ? 4
+              ? 5
               : width >= 720
               ? 2
               : 1;
@@ -103,6 +103,17 @@ class HomeScreen extends ConsumerWidget {
                         SizedBox(
                           width: cardWidth,
                           child: const _HomeFeatureCard(
+                            icon: Icons.emoji_events_outlined,
+                            title: 'Semanais',
+                            subtitle:
+                                'Consulte historico de partidas, pontuacao mensal e ranking dos encontros semanais.',
+                            buttonLabel: 'Abrir semanais',
+                            route: '/weeklies/one-piece',
+                          ),
+                        ),
+                        SizedBox(
+                          width: cardWidth,
+                          child: const _HomeFeatureCard(
                             icon: Icons.auto_stories_outlined,
                             title: 'Biblioteca One Piece',
                             subtitle:
@@ -142,6 +153,17 @@ class HomeScreen extends ConsumerWidget {
                                 'Veja todas as cartas públicas à venda dentro da plataforma e fale direto no WhatsApp com o vendedor.',
                             buttonLabel: 'Abrir marketplace',
                             route: '/marketplace',
+                          ),
+                        ),
+                        SizedBox(
+                          width: cardWidth,
+                          child: const _HomeFeatureCard(
+                            icon: Icons.center_focus_strong_outlined,
+                            title: 'Teste IA de cartas',
+                            subtitle:
+                                'Teste reconhecimento por camera com OCR local, busca por codigo e comparacao visual.',
+                            buttonLabel: 'Abrir teste',
+                            route: '/card-scan-test',
                           ),
                         ),
                       ],

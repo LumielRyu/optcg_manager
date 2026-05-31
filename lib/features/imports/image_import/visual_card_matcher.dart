@@ -12,10 +12,7 @@ class VisualCardMatchResult {
   final OpCard card;
   final int distance;
 
-  const VisualCardMatchResult({
-    required this.card,
-    required this.distance,
-  });
+  const VisualCardMatchResult({required this.card, required this.distance});
 }
 
 class _VisualFingerprint {
@@ -105,38 +102,41 @@ class VisualCardMatcher {
     final fingerprints = await _loadFingerprintDatabase();
     if (fingerprints.isEmpty || cards.isEmpty) return const [];
 
-    final source = _computeSourceFingerprint(sourceBytes);
-    if (source == null) return const [];
+    final sourceVariants = _computeSourceFingerprints(sourceBytes);
+    if (sourceVariants.isEmpty) return const [];
 
-    final cardsByCode = <String, OpCard>{for (final card in cards) card.code: card};
+    final cardsByCode = <String, OpCard>{
+      for (final card in cards) card.code: card,
+    };
     final results = <VisualCardMatchResult>[];
 
     for (final fingerprint in fingerprints) {
       final card = cardsByCode[fingerprint.code];
       if (card == null) continue;
 
-      final fullDistance = _hammingDistanceFromHex(
-        source.fullHash,
-        fingerprint.fullHash,
-      );
-      final artDistance = _hammingDistanceFromHex(
-        source.artHash,
-        fingerprint.artHash,
-      );
-      final footerDistance = _hammingDistanceFromHex(
-        source.footerHash,
-        fingerprint.footerHash,
-      );
-      final rgbDistance = _rgbDistance(source.avgRgb, fingerprint.avgRgb);
+      var score = 999999;
+      for (final source in sourceVariants) {
+        final fullDistance = _hammingDistanceFromHex(
+          source.fullHash,
+          fingerprint.fullHash,
+        );
+        final artDistance = _hammingDistanceFromHex(
+          source.artHash,
+          fingerprint.artHash,
+        );
+        final footerDistance = _hammingDistanceFromHex(
+          source.footerHash,
+          fingerprint.footerHash,
+        );
+        final rgbDistance = _rgbDistance(source.avgRgb, fingerprint.avgRgb);
 
-      final score = fullDistance * 2 + artDistance * 3 + footerDistance + rgbDistance;
+        score = min(
+          score,
+          fullDistance * 2 + artDistance * 3 + footerDistance + rgbDistance,
+        );
+      }
 
-      results.add(
-        VisualCardMatchResult(
-          card: card,
-          distance: score,
-        ),
-      );
+      results.add(VisualCardMatchResult(card: card, distance: score));
     }
 
     results.sort((a, b) => a.distance.compareTo(b.distance));
@@ -147,7 +147,9 @@ class VisualCardMatcher {
     if (_databaseCache != null) return _databaseCache!;
 
     try {
-      final raw = await rootBundle.loadString('assets/visual_card_fingerprints.json');
+      final raw = await rootBundle.loadString(
+        'assets/visual_card_fingerprints.json',
+      );
       final decoded = jsonDecode(raw);
       if (decoded is! List) {
         _databaseCache = const [];
@@ -156,7 +158,10 @@ class VisualCardMatcher {
 
       _databaseCache = decoded
           .whereType<Map>()
-          .map((item) => _VisualFingerprint.fromJson(Map<String, dynamic>.from(item)))
+          .map(
+            (item) =>
+                _VisualFingerprint.fromJson(Map<String, dynamic>.from(item)),
+          )
           .where((item) => item.code.isNotEmpty)
           .toList();
       return _databaseCache!;
@@ -174,20 +179,31 @@ class VisualCardMatcher {
     return _differenceHash(cropped);
   }
 
-  _SourceFingerprint? _computeSourceFingerprint(Uint8List bytes) {
+  List<_SourceFingerprint> _computeSourceFingerprints(Uint8List bytes) {
     final decoded = img.decodeImage(bytes);
-    if (decoded == null) return null;
+    if (decoded == null) return const [];
 
-    final full = _extractLikelyCardRegion(decoded);
-    final art = cropBox(full, 0.08, 0.08, 0.92, 0.78);
-    final footer = cropBox(full, 0.05, 0.74, 0.95, 0.98);
+    final oriented = img.bakeOrientation(decoded);
+    final variants = _candidateCardRegions(oriented);
+    final fingerprints = <_SourceFingerprint>[];
 
-    return _SourceFingerprint(
-      fullHash: _differenceHash(full).toRadixString(16).padLeft(16, '0'),
-      artHash: _differenceHash(art).toRadixString(16).padLeft(16, '0'),
-      footerHash: _differenceHash(footer).toRadixString(16).padLeft(16, '0'),
-      avgRgb: _averageRgb(full),
-    );
+    for (final full in variants) {
+      final art = cropBox(full, 0.08, 0.08, 0.92, 0.78);
+      final footer = cropBox(full, 0.05, 0.74, 0.95, 0.98);
+
+      fingerprints.add(
+        _SourceFingerprint(
+          fullHash: _differenceHash(full).toRadixString(16).padLeft(16, '0'),
+          artHash: _differenceHash(art).toRadixString(16).padLeft(16, '0'),
+          footerHash: _differenceHash(
+            footer,
+          ).toRadixString(16).padLeft(16, '0'),
+          avgRgb: _averageRgb(full),
+        ),
+      );
+    }
+
+    return fingerprints;
   }
 
   Future<BigInt?> _getTargetHash(String imageUrl) async {
@@ -245,9 +261,27 @@ class VisualCardMatcher {
     return img.copyCrop(source, x: x, y: y, width: width, height: height);
   }
 
+  List<img.Image> _candidateCardRegions(img.Image source) {
+    return [
+      _extractLikelyCardRegion(source),
+      _fallbackCentralCrop(source),
+      _centralCrop(source, widthRatio: 0.82, heightRatio: 0.94),
+      _centralCrop(source, widthRatio: 0.68, heightRatio: 0.88),
+      source,
+    ];
+  }
+
   img.Image _fallbackCentralCrop(img.Image source) {
-    final cropWidth = max(1, (source.width * 0.74).round());
-    final cropHeight = max(1, (source.height * 0.9).round());
+    return _centralCrop(source, widthRatio: 0.74, heightRatio: 0.9);
+  }
+
+  img.Image _centralCrop(
+    img.Image source, {
+    required double widthRatio,
+    required double heightRatio,
+  }) {
+    final cropWidth = max(1, (source.width * widthRatio).round());
+    final cropHeight = max(1, (source.height * heightRatio).round());
     final offsetX = max(0, ((source.width - cropWidth) / 2).round());
     final offsetY = max(0, ((source.height - cropHeight) / 2).round());
 
@@ -449,11 +483,15 @@ class VisualCardMatcher {
 
   int _hammingDistanceFromHex(String a, String b) {
     if (a.isEmpty || b.isEmpty) return 64;
-    return _hammingDistance(BigInt.parse(a, radix: 16), BigInt.parse(b, radix: 16));
+    return _hammingDistance(
+      BigInt.parse(a, radix: 16),
+      BigInt.parse(b, radix: 16),
+    );
   }
 
   int _rgbDistance(List<int> a, List<int> b) {
     if (a.length < 3 || b.length < 3) return 255;
-    return ((a[0] - b[0]).abs() + (a[1] - b[1]).abs() + (a[2] - b[2]).abs()) ~/ 12;
+    return ((a[0] - b[0]).abs() + (a[1] - b[1]).abs() + (a[2] - b[2]).abs()) ~/
+        12;
   }
 }

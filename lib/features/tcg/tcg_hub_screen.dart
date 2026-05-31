@@ -10,6 +10,7 @@ class TcgHubScreen extends StatelessWidget {
   final Color accent;
   final IconData heroIcon;
   final String libraryRoute;
+  final String weeklyRoute;
   final List<String> highlights;
 
   const TcgHubScreen({
@@ -20,6 +21,7 @@ class TcgHubScreen extends StatelessWidget {
     required this.accent,
     required this.heroIcon,
     required this.libraryRoute,
+    required this.weeklyRoute,
     required this.highlights,
   });
 
@@ -28,10 +30,7 @@ class TcgHubScreen extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        leading: const HomeNavigationButton(),
-        title: Text(title),
-      ),
+      appBar: AppBar(leading: const HomeNavigationButton(), title: Text(title)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Center(
@@ -52,9 +51,7 @@ class TcgHubScreen extends StatelessWidget {
                       end: Alignment.bottomRight,
                     ),
                     borderRadius: BorderRadius.circular(28),
-                    border: Border.all(
-                      color: accent.withValues(alpha: 0.16),
-                    ),
+                    border: Border.all(color: accent.withValues(alpha: 0.16)),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -81,19 +78,13 @@ class TcgHubScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            Text(
-                              subtitle,
-                              style: theme.textTheme.bodyLarge,
-                            ),
+                            Text(subtitle, style: theme.textTheme.bodyLarge),
                             const SizedBox(height: 12),
                             Wrap(
                               spacing: 8,
                               runSpacing: 8,
                               children: [
-                                _HubTag(
-                                  label: sourceLabel,
-                                  color: accent,
-                                ),
+                                _HubTag(label: sourceLabel, color: accent),
                                 for (final item in highlights)
                                   _HubTag(label: item, color: accent),
                               ],
@@ -126,6 +117,18 @@ class TcgHubScreen extends StatelessWidget {
                             accent: accent,
                             buttonLabel: 'Abrir biblioteca',
                             onTap: () => context.go(libraryRoute),
+                          ),
+                        ),
+                        SizedBox(
+                          width: cardWidth,
+                          child: _HubFeatureCard(
+                            title: 'Semanais',
+                            description:
+                                'Acompanhe seu historico, pontuacao mensal e ranking dos encontros semanais.',
+                            icon: Icons.emoji_events_outlined,
+                            accent: accent,
+                            buttonLabel: 'Abrir semanais',
+                            onTap: () => context.go(weeklyRoute),
                           ),
                         ),
                         SizedBox(
@@ -238,18 +241,15 @@ class _HubFeatureCard extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               title,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 10),
             Text(description),
             const SizedBox(height: 18),
             if (onTap == null)
-              OutlinedButton(
-                onPressed: null,
-                child: Text(buttonLabel),
-              )
+              OutlinedButton(onPressed: null, child: Text(buttonLabel))
             else
               FilledButton.icon(
                 onPressed: onTap,

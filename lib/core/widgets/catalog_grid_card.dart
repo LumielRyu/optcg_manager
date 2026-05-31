@@ -9,6 +9,7 @@ class CatalogGridCard extends StatelessWidget {
   final List<Widget> trailingActions;
   final Widget? footer;
   final int maxMetadataItems;
+  final double textScale;
 
   const CatalogGridCard({
     super.key,
@@ -20,11 +21,13 @@ class CatalogGridCard extends StatelessWidget {
     this.trailingActions = const [],
     this.footer,
     this.maxMetadataItems = 4,
+    this.textScale = 1,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final safeTextScale = textScale.clamp(0.9, 1.35);
 
     final visibleMetadata = metadata
         .where((line) => line.trim().isNotEmpty)
@@ -34,9 +37,7 @@ class CatalogGridCard extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       elevation: 1.5,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
@@ -55,6 +56,7 @@ class CatalogGridCard extends StatelessWidget {
                       style: theme.textTheme.labelMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.w800,
+                        fontSize: 12 * safeTextScale,
                       ),
                     ),
                   ),
@@ -65,8 +67,9 @@ class CatalogGridCard extends StatelessWidget {
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest
-                        .withValues(alpha: 0.35),
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.35,
+                    ),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   padding: const EdgeInsets.all(8),
@@ -80,7 +83,7 @@ class CatalogGridCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w800,
-                  fontSize: 12.5,
+                  fontSize: 12.5 * safeTextScale,
                 ),
               ),
               for (final line in visibleMetadata) ...[
@@ -89,13 +92,12 @@ class CatalogGridCard extends StatelessWidget {
                   line,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(fontSize: 11.5),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontSize: 11.5 * safeTextScale,
+                  ),
                 ),
               ],
-              if (footer != null) ...[
-                const SizedBox(height: 6),
-                footer!,
-              ],
+              if (footer != null) ...[const SizedBox(height: 6), footer!],
             ],
           ),
         ),
