@@ -1426,7 +1426,7 @@ class _LeaderAutocompleteState extends State<_LeaderAutocomplete> {
       displayStringForOption: (leader) => leader.label,
       optionsBuilder: (textEditingValue) {
         final query = textEditingValue.text.trim().toLowerCase();
-        if (query.isEmpty) return widget.leaders.take(12);
+        if (query.isEmpty) return widget.leaders;
         return widget.leaders.where(
           (leader) =>
               leader.name.toLowerCase().contains(query) ||

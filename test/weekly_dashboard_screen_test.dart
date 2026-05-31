@@ -34,4 +34,19 @@ void main() {
       'Enel (OP05-098)',
     );
   });
+
+  test('leader product waves sort newer releases before older releases', () {
+    expect(
+      weeklyLeaderReleaseOrder('OP15-001'),
+      greaterThan(weeklyLeaderReleaseOrder('OP05-098')),
+    );
+    expect(
+      weeklyLeaderReleaseOrder('ST29-001'),
+      greaterThan(weeklyLeaderReleaseOrder('ST01-001')),
+    );
+    expect(
+      weeklyLeaderReleaseOrder('EB04-001'),
+      greaterThan(weeklyLeaderReleaseOrder('EB01-001')),
+    );
+  });
 }

@@ -140,6 +140,35 @@ String normalizeWeeklyLeaderName(String rawName) {
       .trim();
 }
 
+int weeklyLeaderReleaseOrder(String code) {
+  final match = RegExp(r'^([A-Z]+)(\d+)-').firstMatch(code.toUpperCase());
+  if (match == null) return 0;
+  final series = match.group(1)!;
+  final number = int.tryParse(match.group(2)!) ?? 0;
+
+  return switch (series) {
+    'OP' => number * 100,
+    'EB' => switch (number) {
+      1 => 650,
+      2 => 950,
+      3 => 1450,
+      4 => 1550,
+      _ => number * 100,
+    },
+    'PRB' => switch (number) {
+      1 => 850,
+      _ => number * 100,
+    },
+    'ST' => switch (number) {
+      >= 29 => 1525 + number,
+      >= 21 => 1000 + number,
+      >= 15 => 800 + number,
+      _ => number * 100,
+    },
+    _ => number,
+  };
+}
+
 class WeeklyPlayerProfile {
   final String id;
   final String name;

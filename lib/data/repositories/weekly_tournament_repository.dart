@@ -123,8 +123,12 @@ class WeeklyTournamentRepository {
       }
       final leaders = leadersByCode.values.toList();
       leaders.sort((a, b) {
-        final byName = a.name.compareTo(b.name);
-        return byName != 0 ? byName : a.code.compareTo(b.code);
+        final byRelease = weeklyLeaderReleaseOrder(
+          b.code,
+        ).compareTo(weeklyLeaderReleaseOrder(a.code));
+        if (byRelease != 0) return byRelease;
+        final byCode = b.code.compareTo(a.code);
+        return byCode != 0 ? byCode : a.name.compareTo(b.name);
       });
       return leaders;
     } catch (_) {
