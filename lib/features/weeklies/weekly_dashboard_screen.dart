@@ -84,7 +84,13 @@ class _WeeklyDashboardScreenState extends ConsumerState<WeeklyDashboardScreen> {
               return _ErrorState(error: snapshot.error, onRetry: _refresh);
             }
 
-            final data = snapshot.data!;
+            final data = snapshot.data;
+            if (data == null) {
+              return _ErrorState(
+                error: 'O servidor nao retornou os dados dos semanais.',
+                onRetry: _refresh,
+              );
+            }
             final playerPanel = _PlayerPanel(
               data: data,
               currentUserId: _repository.currentUserId,
@@ -291,7 +297,7 @@ class _MonthSelector extends StatelessWidget {
             ),
             Expanded(
               child: Text(
-                DateFormat('MMMM yyyy', 'pt_BR').format(month),
+                weeklyMonthLabel(month),
                 textAlign: TextAlign.center,
                 style: Theme.of(
                   context,
@@ -1021,4 +1027,22 @@ String _gameTitle(String slug) {
 
 String _hubRoute(String slug) {
   return slug == 'one-piece' ? '/home/one-piece' : '/$slug';
+}
+
+String weeklyMonthLabel(DateTime month) {
+  const months = [
+    'janeiro',
+    'fevereiro',
+    'marco',
+    'abril',
+    'maio',
+    'junho',
+    'julho',
+    'agosto',
+    'setembro',
+    'outubro',
+    'novembro',
+    'dezembro',
+  ];
+  return '${months[month.month - 1]} ${month.year}';
 }
