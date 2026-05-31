@@ -19,6 +19,7 @@ class WeeklyDashboardScreen extends ConsumerStatefulWidget {
 class _WeeklyDashboardScreenState extends ConsumerState<WeeklyDashboardScreen> {
   late DateTime _month;
   late Future<WeeklyDashboardData> _future;
+  bool _showAdminPanel = false;
 
   WeeklyTournamentRepository get _repository =>
       ref.read(weeklyTournamentRepositoryProvider);
@@ -55,66 +56,73 @@ class _WeeklyDashboardScreenState extends ConsumerState<WeeklyDashboardScreen> {
     final isAdmin = _repository.isAdmin;
     final title = _gameTitle(widget.gameSlug);
 
-    return DefaultTabController(
-      length: isAdmin ? 2 : 1,
-      child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            tooltip: 'Voltar',
-            onPressed: () => context.go(_hubRoute(widget.gameSlug)),
-            icon: const Icon(Icons.arrow_back),
-          ),
-          title: Text('Semanais - $title'),
-          bottom: isAdmin
-              ? const TabBar(
-                  tabs: [
-                    Tab(text: 'Painel do jogador'),
-                    Tab(text: 'Painel admin'),
-                  ],
-                )
-              : null,
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          tooltip: 'Voltar',
+          onPressed: () => context.go(_hubRoute(widget.gameSlug)),
+          icon: const Icon(Icons.arrow_back),
         ),
-        body: FutureBuilder<WeeklyDashboardData>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return _ErrorState(error: snapshot.error, onRetry: _refresh);
-            }
-
-            final data = snapshot.data;
-            if (data == null) {
-              return _ErrorState(
-                error: 'O servidor nao retornou os dados dos semanais.',
-                onRetry: _refresh,
-              );
-            }
-            final playerPanel = _PlayerPanel(
-              data: data,
-              currentUserId: _repository.currentUserId,
-              month: _month,
-              onPreviousMonth: () => _changeMonth(-1),
-              onNextMonth: () => _changeMonth(1),
-              onRefresh: _refresh,
-            );
-            if (!isAdmin) return playerPanel;
-
-            return TabBarView(
-              children: [
-                playerPanel,
-                _AdminPanel(
-                  data: data,
-                  gameSlug: widget.gameSlug,
-                  month: _month,
-                  repository: _repository,
-                  onChanged: _refresh,
+        title: Text('Semanais - $title'),
+        actions: [
+          if (isAdmin)
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: FilledButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _showAdminPanel = !_showAdminPanel;
+                  });
+                },
+                icon: Icon(
+                  _showAdminPanel
+                      ? Icons.leaderboard_outlined
+                      : Icons.admin_panel_settings_outlined,
                 ),
-              ],
+                label: Text(
+                  _showAdminPanel ? 'Voltar ao ranking' : 'Gerenciar semanais',
+                ),
+              ),
+            ),
+        ],
+      ),
+      body: FutureBuilder<WeeklyDashboardData>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return _ErrorState(error: snapshot.error, onRetry: _refresh);
+          }
+
+          final data = snapshot.data;
+          if (data == null) {
+            return _ErrorState(
+              error: 'O servidor nao retornou os dados dos semanais.',
+              onRetry: _refresh,
             );
-          },
-        ),
+          }
+
+          if (isAdmin && _showAdminPanel) {
+            return _AdminPanel(
+              data: data,
+              gameSlug: widget.gameSlug,
+              month: _month,
+              repository: _repository,
+              onChanged: _refresh,
+            );
+          }
+
+          return _PlayerPanel(
+            data: data,
+            currentUserId: _repository.currentUserId,
+            month: _month,
+            onPreviousMonth: () => _changeMonth(-1),
+            onNextMonth: () => _changeMonth(1),
+            onRefresh: _refresh,
+          );
+        },
       ),
     );
   }
