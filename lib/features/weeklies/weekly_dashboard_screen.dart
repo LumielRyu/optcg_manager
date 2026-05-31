@@ -1004,11 +1004,11 @@ class _EnrollPlayerDialogState extends State<_EnrollPlayerDialog> {
             ),
             const SizedBox(height: 12),
             if (widget.leaders.isNotEmpty)
-              DropdownButtonFormField<String>(
-                initialValue: _leaderCode,
-                decoration: const InputDecoration(labelText: 'Lider utilizado'),
-                items: _leaderItems(widget.leaders),
-                onChanged: (value) => setState(() => _leaderCode = value),
+              _LeaderAutocomplete(
+                leaders: widget.leaders,
+                onSelected: (leader) {
+                  setState(() => _leaderCode = leader?.code);
+                },
               )
             else
               TextField(
@@ -1122,11 +1122,11 @@ class _JoinWeeklyDialogState extends State<_JoinWeeklyDialog> {
             ),
             const SizedBox(height: 12),
             if (widget.leaders.isNotEmpty)
-              DropdownButtonFormField<String>(
-                initialValue: _leaderCode,
-                decoration: const InputDecoration(labelText: 'Lider utilizado'),
-                items: _leaderItems(widget.leaders),
-                onChanged: (value) => setState(() => _leaderCode = value),
+              _LeaderAutocomplete(
+                leaders: widget.leaders,
+                onSelected: (leader) {
+                  setState(() => _leaderCode = leader?.code);
+                },
               )
             else
               TextField(
@@ -1407,6 +1407,84 @@ class _ReportResultDialog extends StatelessWidget {
   }
 }
 
+class _LeaderAutocomplete extends StatefulWidget {
+  final List<WeeklyLeaderOption> leaders;
+  final ValueChanged<WeeklyLeaderOption?> onSelected;
+
+  const _LeaderAutocomplete({required this.leaders, required this.onSelected});
+
+  @override
+  State<_LeaderAutocomplete> createState() => _LeaderAutocompleteState();
+}
+
+class _LeaderAutocompleteState extends State<_LeaderAutocomplete> {
+  String? _selectedLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Autocomplete<WeeklyLeaderOption>(
+      displayStringForOption: (leader) => leader.label,
+      optionsBuilder: (textEditingValue) {
+        final query = textEditingValue.text.trim().toLowerCase();
+        if (query.isEmpty) return widget.leaders.take(12);
+        return widget.leaders.where(
+          (leader) =>
+              leader.name.toLowerCase().contains(query) ||
+              leader.code.toLowerCase().contains(query),
+        );
+      },
+      onSelected: (leader) {
+        _selectedLabel = leader.label;
+        widget.onSelected(leader);
+      },
+      fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+        return TextField(
+          controller: controller,
+          focusNode: focusNode,
+          onSubmitted: (_) => onSubmitted(),
+          onChanged: (value) {
+            if (_selectedLabel != null && value != _selectedLabel) {
+              _selectedLabel = null;
+              widget.onSelected(null);
+            }
+          },
+          decoration: const InputDecoration(
+            labelText: 'Pesquisar lider',
+            hintText: 'Digite o nome ou codigo. Ex.: Enel',
+            prefixIcon: Icon(Icons.search),
+          ),
+        );
+      },
+      optionsViewBuilder: (context, selectOption, options) {
+        final items = options.toList(growable: false);
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 8,
+            borderRadius: BorderRadius.circular(12),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 280, maxWidth: 460),
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final leader = items[index];
+                  return ListTile(
+                    title: Text(leader.name),
+                    subtitle: Text(leader.code),
+                    onTap: () => selectOption(leader),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _EmptyCard extends StatelessWidget {
   final String message;
 
@@ -1469,13 +1547,6 @@ const _resultItems = [
   DropdownMenuItem(value: 'draw', child: Text('Empate')),
   DropdownMenuItem(value: 'player_two', child: Text('Vitoria do jogador 2')),
 ];
-
-List<DropdownMenuItem<String>> _leaderItems(List<WeeklyLeaderOption> leaders) {
-  return [
-    for (final leader in leaders)
-      DropdownMenuItem(value: leader.code, child: Text(leader.label)),
-  ];
-}
 
 WeeklyLeaderOption? _findLeader(
   List<WeeklyLeaderOption> leaders,

@@ -132,6 +132,14 @@ class WeeklyLeaderOption {
   String get label => code.isEmpty ? name : '$name ($code)';
 }
 
+String normalizeWeeklyLeaderName(String rawName) {
+  return rawName
+      .replaceAll(RegExp(r'\([^)]*\)'), '')
+      .replaceAll(RegExp(r'\s+-\s+[A-Z]{2,}\d{2}-\d{3}\b'), '')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+}
+
 class WeeklyPlayerProfile {
   final String id;
   final String name;

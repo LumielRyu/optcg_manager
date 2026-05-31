@@ -25,4 +25,13 @@ void main() {
     expect(match.isCompleted, isTrue);
     expect(match.playerTwoId, isNull);
   });
+
+  test('leader names ignore visual variants while preserving card code', () {
+    expect(normalizeWeeklyLeaderName('Enel (Alternate Art)'), 'Enel');
+    expect(normalizeWeeklyLeaderName('Belo Betty (002) (SPR)'), 'Belo Betty');
+    expect(
+      const WeeklyLeaderOption(code: 'OP05-098', name: 'Enel').label,
+      'Enel (OP05-098)',
+    );
+  });
 }

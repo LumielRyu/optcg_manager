@@ -109,10 +109,19 @@ class WeeklyTournamentRepository {
     if (gameSlug != 'one-piece') return const [];
     try {
       final cards = await _opApiService.loadAllCards();
-      final leaders = cards
-          .where((card) => card.type.toLowerCase() == 'leader')
-          .map((card) => WeeklyLeaderOption(code: card.code, name: card.name))
-          .toList();
+      final leadersByCode = <String, WeeklyLeaderOption>{};
+      for (final card in cards.where(
+        (card) => card.type.toLowerCase() == 'leader',
+      )) {
+        final code = card.code.trim().toUpperCase();
+        final name = normalizeWeeklyLeaderName(card.name);
+        if (code.isEmpty || name.isEmpty) continue;
+        leadersByCode.putIfAbsent(
+          code,
+          () => WeeklyLeaderOption(code: code, name: name),
+        );
+      }
+      final leaders = leadersByCode.values.toList();
       leaders.sort((a, b) {
         final byName = a.name.compareTo(b.name);
         return byName != 0 ? byName : a.code.compareTo(b.code);
