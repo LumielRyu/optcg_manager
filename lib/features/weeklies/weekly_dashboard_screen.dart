@@ -116,7 +116,9 @@ class _WeeklyDashboardScreenState extends ConsumerState<WeeklyDashboardScreen> {
 
           return _PlayerPanel(
             data: data,
+            gameSlug: widget.gameSlug,
             currentUserId: _repository.currentUserId,
+            repository: _repository,
             month: _month,
             onPreviousMonth: () => _changeMonth(-1),
             onNextMonth: () => _changeMonth(1),
@@ -130,7 +132,9 @@ class _WeeklyDashboardScreenState extends ConsumerState<WeeklyDashboardScreen> {
 
 class _PlayerPanel extends StatelessWidget {
   final WeeklyDashboardData data;
+  final String gameSlug;
   final String currentUserId;
+  final WeeklyTournamentRepository repository;
   final DateTime month;
   final VoidCallback onPreviousMonth;
   final VoidCallback onNextMonth;
@@ -138,7 +142,9 @@ class _PlayerPanel extends StatelessWidget {
 
   const _PlayerPanel({
     required this.data,
+    required this.gameSlug,
     required this.currentUserId,
+    required this.repository,
     required this.month,
     required this.onPreviousMonth,
     required this.onNextMonth,
@@ -154,6 +160,15 @@ class _PlayerPanel extends StatelessWidget {
         .where((participant) => participant.userId == currentUserId)
         .toList(growable: false);
     final eventsById = {for (final event in data.events) event.id: event};
+    final joinedEventIds = myParticipants
+        .map((participant) => participant.eventId)
+        .toSet();
+    final openEvents = data.events
+        .where(
+          (event) =>
+              event.status == 'open' && !joinedEventIds.contains(event.id),
+        )
+        .toList(growable: false);
 
     return RefreshIndicator(
       onRefresh: onRefresh,
@@ -167,6 +182,43 @@ class _PlayerPanel extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           _SummaryCard(entry: myRanking),
+          if (openEvents.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            Text(
+              'Inscricoes abertas',
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 12),
+            for (final event in openEvents)
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.how_to_reg_outlined),
+                  title: Text(event.title),
+                  subtitle: Text(
+                    '${DateFormat('dd/MM/yyyy').format(event.eventDate)}'
+                    '  |  Inscricoes abertas',
+                  ),
+                  trailing: FilledButton(
+                    onPressed: () async {
+                      final joined = await showDialog<bool>(
+                        context: context,
+                        builder: (_) => _JoinWeeklyDialog(
+                          event: event,
+                          gameSlug: gameSlug,
+                          gameProfile: data.currentGameProfile,
+                          leaders: data.leaders,
+                          repository: repository,
+                        ),
+                      );
+                      if (joined == true) await onRefresh();
+                    },
+                    child: const Text('Participar'),
+                  ),
+                ),
+              ),
+          ],
           const SizedBox(height: 24),
           Text(
             'Meus semanais',
@@ -186,6 +238,9 @@ class _PlayerPanel extends StatelessWidget {
                 event: eventsById[participant.eventId]!,
                 matches: data.matches,
                 participants: data.participants,
+                currentUserId: currentUserId,
+                repository: repository,
+                onChanged: onRefresh,
               ),
           const SizedBox(height: 24),
           Text(
@@ -272,6 +327,7 @@ class _AdminPanel extends StatelessWidget {
                   .where((item) => item.eventId == event.id)
                   .toList(growable: false),
               profiles: data.profiles,
+              leaders: data.leaders,
               repository: repository,
               onChanged: onChanged,
             ),
@@ -406,12 +462,18 @@ class _PlayerEventCard extends StatelessWidget {
   final WeeklyEvent event;
   final List<WeeklyMatch> matches;
   final List<WeeklyParticipant> participants;
+  final String currentUserId;
+  final WeeklyTournamentRepository repository;
+  final Future<void> Function() onChanged;
 
   const _PlayerEventCard({
     required this.participant,
     required this.event,
     required this.matches,
     required this.participants,
+    required this.currentUserId,
+    required this.repository,
+    required this.onChanged,
   });
 
   @override
@@ -420,14 +482,13 @@ class _PlayerEventCard extends StatelessWidget {
         .where(
           (match) =>
               match.eventId == event.id &&
-              match.isCompleted &&
               (match.playerOneId == participant.id ||
                   match.playerTwoId == participant.id),
         )
         .toList(growable: false);
     var wins = 0;
     var draws = 0;
-    for (final match in eventMatches) {
+    for (final match in eventMatches.where((item) => item.isCompleted)) {
       if (match.result == 'draw') {
         draws++;
       } else if ((match.result == 'player_one' &&
@@ -439,12 +500,12 @@ class _PlayerEventCard extends StatelessWidget {
     }
 
     return Card(
-      child: ListTile(
+      child: ExpansionTile(
         leading: const Icon(Icons.event_available_outlined),
         title: Text(event.title),
         subtitle: Text(
           '${DateFormat('dd/MM/yyyy').format(event.eventDate)}'
-          '  |  Deck: ${participant.deckName}',
+          '  |  Lider/deck: ${participant.leaderName}',
         ),
         trailing: Text(
           '${(wins * 3) + draws} pts',
@@ -452,6 +513,116 @@ class _PlayerEventCard extends StatelessWidget {
             context,
           ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
         ),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        children: [
+          if (eventMatches.isEmpty)
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Nenhuma partida cadastrada para voce.'),
+            )
+          else
+            for (final match in eventMatches)
+              _PlayerMatchTile(
+                match: match,
+                participant: participant,
+                participants: participants,
+                currentUserId: currentUserId,
+                repository: repository,
+                onChanged: onChanged,
+              ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlayerMatchTile extends StatelessWidget {
+  final WeeklyMatch match;
+  final WeeklyParticipant participant;
+  final List<WeeklyParticipant> participants;
+  final String currentUserId;
+  final WeeklyTournamentRepository repository;
+  final Future<void> Function() onChanged;
+
+  const _PlayerMatchTile({
+    required this.match,
+    required this.participant,
+    required this.participants,
+    required this.currentUserId,
+    required this.repository,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final opponentId = match.playerOneId == participant.id
+        ? match.playerTwoId
+        : match.playerOneId;
+    final opponent = participants
+        .where((item) => item.id == opponentId)
+        .firstOrNull;
+    final canReport =
+        !match.isBye &&
+        (match.resultStatus == 'scheduled' || match.resultStatus == 'disputed');
+    final canReview =
+        !match.isBye &&
+        match.resultStatus == 'pending_confirmation' &&
+        match.reportedBy != currentUserId;
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(match.isBye ? Icons.star_outline : Icons.sports_esports),
+      title: Text(
+        match.isBye
+            ? 'Rodada ${match.roundNumber}: Bye'
+            : 'Rodada ${match.roundNumber}: ${opponent?.playerName ?? '?'}',
+      ),
+      subtitle: Text(_matchStatusLabel(match)),
+      trailing: Wrap(
+        spacing: 6,
+        children: [
+          if (canReport)
+            TextButton(
+              onPressed: () async {
+                final result = await showDialog<String>(
+                  context: context,
+                  builder: (_) => _ReportResultDialog(
+                    match: match,
+                    participantId: participant.id,
+                  ),
+                );
+                if (result == null) return;
+                await repository.reportMatchResult(
+                  matchId: match.id,
+                  result: result,
+                );
+                await onChanged();
+              },
+              child: const Text('Informar resultado'),
+            ),
+          if (canReview) ...[
+            TextButton(
+              onPressed: () async {
+                await repository.reviewMatchResult(
+                  matchId: match.id,
+                  confirm: false,
+                );
+                await onChanged();
+              },
+              child: const Text('Contestar'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                await repository.reviewMatchResult(
+                  matchId: match.id,
+                  confirm: true,
+                );
+                await onChanged();
+              },
+              child: const Text('Confirmar'),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -505,6 +676,7 @@ class _AdminEventCard extends StatelessWidget {
   final List<WeeklyParticipant> participants;
   final List<WeeklyMatch> matches;
   final List<WeeklyPlayerProfile> profiles;
+  final List<WeeklyLeaderOption> leaders;
   final WeeklyTournamentRepository repository;
   final Future<void> Function() onChanged;
 
@@ -513,6 +685,7 @@ class _AdminEventCard extends StatelessWidget {
     required this.participants,
     required this.matches,
     required this.profiles,
+    required this.leaders,
     required this.repository,
     required this.onChanged,
   });
@@ -578,6 +751,7 @@ class _AdminEventCard extends StatelessWidget {
                     builder: (_) => _EnrollPlayerDialog(
                       event: event,
                       profiles: profiles,
+                      leaders: leaders,
                       repository: repository,
                     ),
                   );
@@ -630,6 +804,23 @@ class _AdminEventCard extends StatelessWidget {
                 icon: const Icon(Icons.add),
                 label: const Text('Cadastrar partida'),
               ),
+              TextButton.icon(
+                onPressed: participants.isEmpty
+                    ? null
+                    : () async {
+                        final changed = await showDialog<bool>(
+                          context: context,
+                          builder: (_) => _CreateByeDialog(
+                            event: event,
+                            participants: participants,
+                            repository: repository,
+                          ),
+                        );
+                        if (changed == true) await onChanged();
+                      },
+                icon: const Icon(Icons.star_outline),
+                label: const Text('Adicionar bye'),
+              ),
             ],
           ),
           if (matches.isEmpty)
@@ -647,22 +838,28 @@ class _AdminEventCard extends StatelessWidget {
                   '${match.tableNumber == null ? '' : ' - Mesa ${match.tableNumber}'}',
                 ),
                 subtitle: Text(
-                  '${participantsById[match.playerOneId]?.playerName ?? '?'}'
-                  ' x '
-                  '${participantsById[match.playerTwoId]?.playerName ?? '?'}',
+                  match.isBye
+                      ? '${participantsById[match.playerOneId]?.playerName ?? '?'}'
+                            ' recebeu bye: vitoria automatica'
+                      : '${participantsById[match.playerOneId]?.playerName ?? '?'}'
+                            ' x '
+                            '${participantsById[match.playerTwoId]?.playerName ?? '?'}'
+                            ' | ${_matchStatusLabel(match)}',
                 ),
-                trailing: DropdownButton<String>(
-                  value: match.result,
-                  onChanged: (value) async {
-                    if (value == null) return;
-                    await repository.updateMatchResult(
-                      matchId: match.id,
-                      result: value,
-                    );
-                    await onChanged();
-                  },
-                  items: _resultItems,
-                ),
+                trailing: match.isBye
+                    ? const Text('3 pts')
+                    : DropdownButton<String>(
+                        value: match.result,
+                        onChanged: (value) async {
+                          if (value == null) return;
+                          await repository.updateMatchResultAsAdmin(
+                            matchId: match.id,
+                            result: value,
+                          );
+                          await onChanged();
+                        },
+                        items: _resultItems,
+                      ),
               ),
         ],
       ),
@@ -755,11 +952,13 @@ class _EnrollPlayerDialog extends StatefulWidget {
   final WeeklyEvent event;
   final List<WeeklyPlayerProfile> profiles;
   final WeeklyTournamentRepository repository;
+  final List<WeeklyLeaderOption> leaders;
 
   const _EnrollPlayerDialog({
     required this.event,
     required this.profiles,
     required this.repository,
+    required this.leaders,
   });
 
   @override
@@ -769,6 +968,7 @@ class _EnrollPlayerDialog extends StatefulWidget {
 class _EnrollPlayerDialogState extends State<_EnrollPlayerDialog> {
   final _deckController = TextEditingController();
   String? _profileId;
+  String? _leaderCode;
   bool _busy = false;
 
   @override
@@ -803,10 +1003,20 @@ class _EnrollPlayerDialogState extends State<_EnrollPlayerDialog> {
               onChanged: (value) => setState(() => _profileId = value),
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _deckController,
-              decoration: const InputDecoration(labelText: 'Deck usado'),
-            ),
+            if (widget.leaders.isNotEmpty)
+              DropdownButtonFormField<String>(
+                initialValue: _leaderCode,
+                decoration: const InputDecoration(labelText: 'Lider utilizado'),
+                items: _leaderItems(widget.leaders),
+                onChanged: (value) => setState(() => _leaderCode = value),
+              )
+            else
+              TextField(
+                controller: _deckController,
+                decoration: const InputDecoration(
+                  labelText: 'Deck / lider utilizado',
+                ),
+              ),
           ],
         ),
       ),
@@ -820,7 +1030,8 @@ class _EnrollPlayerDialogState extends State<_EnrollPlayerDialog> {
               ? null
               : () async {
                   final id = _profileId;
-                  final deck = _deckController.text.trim();
+                  final leader = _findLeader(widget.leaders, _leaderCode);
+                  final deck = leader?.label ?? _deckController.text.trim();
                   if (id == null || deck.isEmpty) return;
                   setState(() => _busy = true);
                   final profile = widget.profiles.firstWhere(
@@ -830,10 +1041,129 @@ class _EnrollPlayerDialogState extends State<_EnrollPlayerDialog> {
                     eventId: widget.event.id,
                     profile: profile,
                     deckName: deck,
+                    leaderCode: leader?.code ?? '',
+                    leaderName: leader?.name ?? deck,
                   );
                   if (context.mounted) Navigator.pop(context, true);
                 },
           child: const Text('Salvar'),
+        ),
+      ],
+    );
+  }
+}
+
+class _JoinWeeklyDialog extends StatefulWidget {
+  final WeeklyEvent event;
+  final String gameSlug;
+  final WeeklyGameProfile? gameProfile;
+  final List<WeeklyLeaderOption> leaders;
+  final WeeklyTournamentRepository repository;
+
+  const _JoinWeeklyDialog({
+    required this.event,
+    required this.gameSlug,
+    required this.gameProfile,
+    required this.leaders,
+    required this.repository,
+  });
+
+  @override
+  State<_JoinWeeklyDialog> createState() => _JoinWeeklyDialogState();
+}
+
+class _JoinWeeklyDialogState extends State<_JoinWeeklyDialog> {
+  late final TextEditingController _nicknameController;
+  late final TextEditingController _bandaiController;
+  final _deckController = TextEditingController();
+  String? _leaderCode;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nicknameController = TextEditingController(
+      text: widget.gameProfile?.nickname ?? '',
+    );
+    _bandaiController = TextEditingController(
+      text: widget.gameProfile?.bandaiCode ?? '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _nicknameController.dispose();
+    _bandaiController.dispose();
+    _deckController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Participar de ${widget.event.title}'),
+      content: SizedBox(
+        width: 480,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _nicknameController,
+              decoration: const InputDecoration(
+                labelText: 'Seu nick neste card game',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _bandaiController,
+              decoration: const InputDecoration(
+                labelText: 'Codigo Bandai (opcional)',
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (widget.leaders.isNotEmpty)
+              DropdownButtonFormField<String>(
+                initialValue: _leaderCode,
+                decoration: const InputDecoration(labelText: 'Lider utilizado'),
+                items: _leaderItems(widget.leaders),
+                onChanged: (value) => setState(() => _leaderCode = value),
+              )
+            else
+              TextField(
+                controller: _deckController,
+                decoration: const InputDecoration(
+                  labelText: 'Deck / lider utilizado',
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _busy ? null : () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: _busy
+              ? null
+              : () async {
+                  final nickname = _nicknameController.text.trim();
+                  final leader = _findLeader(widget.leaders, _leaderCode);
+                  final deck = leader?.label ?? _deckController.text.trim();
+                  if (nickname.isEmpty || deck.isEmpty) return;
+                  setState(() => _busy = true);
+                  await widget.repository.joinOpenEvent(
+                    eventId: widget.event.id,
+                    gameSlug: widget.gameSlug,
+                    nickname: nickname,
+                    bandaiCode: _bandaiController.text,
+                    deckName: deck,
+                    leaderCode: leader?.code ?? '',
+                    leaderName: leader?.name ?? deck,
+                  );
+                  if (context.mounted) Navigator.pop(context, true);
+                },
+          child: const Text('Confirmar participacao'),
         ),
       ],
     );
@@ -958,6 +1288,125 @@ class _CreateMatchDialogState extends State<_CreateMatchDialog> {
   }
 }
 
+class _CreateByeDialog extends StatefulWidget {
+  final WeeklyEvent event;
+  final List<WeeklyParticipant> participants;
+  final WeeklyTournamentRepository repository;
+
+  const _CreateByeDialog({
+    required this.event,
+    required this.participants,
+    required this.repository,
+  });
+
+  @override
+  State<_CreateByeDialog> createState() => _CreateByeDialogState();
+}
+
+class _CreateByeDialogState extends State<_CreateByeDialog> {
+  final _roundController = TextEditingController(text: '1');
+  String? _playerId;
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _roundController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Adicionar bye'),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _roundController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Rodada'),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _playerId,
+              decoration: const InputDecoration(labelText: 'Jogador'),
+              items: _participantItems(widget.participants),
+              onChanged: (value) => setState(() => _playerId = value),
+            ),
+            const SizedBox(height: 10),
+            const Text('O jogador recebera uma vitoria automatica e 3 pontos.'),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _busy ? null : () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: _busy
+              ? null
+              : () async {
+                  final round = int.tryParse(_roundController.text);
+                  if (round == null || round <= 0 || _playerId == null) return;
+                  setState(() => _busy = true);
+                  await widget.repository.createBye(
+                    eventId: widget.event.id,
+                    roundNumber: round,
+                    playerId: _playerId!,
+                  );
+                  if (context.mounted) Navigator.pop(context, true);
+                },
+          child: const Text('Adicionar bye'),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReportResultDialog extends StatelessWidget {
+  final WeeklyMatch match;
+  final String participantId;
+
+  const _ReportResultDialog({required this.match, required this.participantId});
+
+  @override
+  Widget build(BuildContext context) {
+    final winResult = match.playerOneId == participantId
+        ? 'player_one'
+        : 'player_two';
+    final lossResult = match.playerOneId == participantId
+        ? 'player_two'
+        : 'player_one';
+    return AlertDialog(
+      title: const Text('Informar resultado'),
+      content: const Text(
+        'O adversario precisara confirmar o resultado antes da pontuacao.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, 'draw'),
+          child: const Text('Empate'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, lossResult),
+          child: const Text('Derrota'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, winResult),
+          child: const Text('Vitoria'),
+        ),
+      ],
+    );
+  }
+}
+
 class _EmptyCard extends StatelessWidget {
   final String message;
 
@@ -1020,6 +1469,36 @@ const _resultItems = [
   DropdownMenuItem(value: 'draw', child: Text('Empate')),
   DropdownMenuItem(value: 'player_two', child: Text('Vitoria do jogador 2')),
 ];
+
+List<DropdownMenuItem<String>> _leaderItems(List<WeeklyLeaderOption> leaders) {
+  return [
+    for (final leader in leaders)
+      DropdownMenuItem(value: leader.code, child: Text(leader.label)),
+  ];
+}
+
+WeeklyLeaderOption? _findLeader(
+  List<WeeklyLeaderOption> leaders,
+  String? code,
+) {
+  return leaders.where((leader) => leader.code == code).firstOrNull;
+}
+
+String _matchStatusLabel(WeeklyMatch match) {
+  if (match.isBye) return 'Vitoria automatica por bye';
+  return switch (match.resultStatus) {
+    'scheduled' => 'Aguardando resultado',
+    'pending_confirmation' => 'Aguardando confirmacao do adversario',
+    'disputed' => 'Resultado contestado',
+    'confirmed' => switch (match.result) {
+      'player_one' => 'Vitoria do jogador 1 confirmada',
+      'player_two' => 'Vitoria do jogador 2 confirmada',
+      'draw' => 'Empate confirmado',
+      _ => 'Resultado confirmado',
+    },
+    _ => match.resultStatus,
+  };
+}
 
 String _gameTitle(String slug) {
   return switch (slug) {

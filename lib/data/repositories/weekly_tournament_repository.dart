@@ -2,16 +2,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/weekly_tournament.dart';
+import '../services/op_api_service.dart';
 import '../services/supabase_client_provider.dart';
 
 final weeklyTournamentRepositoryProvider = Provider<WeeklyTournamentRepository>(
-  (ref) => WeeklyTournamentRepository(ref.watch(supabaseClientProvider)),
+  (ref) => WeeklyTournamentRepository(
+    ref.watch(supabaseClientProvider),
+    ref.watch(opApiServiceProvider),
+  ),
 );
 
 class WeeklyTournamentRepository {
   final SupabaseClient _client;
+  final OpApiService _opApiService;
 
-  WeeklyTournamentRepository(this._client);
+  WeeklyTournamentRepository(this._client, this._opApiService);
 
   String get currentUserId => _client.auth.currentUser?.id ?? '';
 
@@ -37,6 +42,11 @@ class WeeklyTournamentRepository {
         .map((row) => WeeklyEvent.fromJson(row))
         .toList(growable: false);
     final eventIds = events.map((event) => event.id).toList(growable: false);
+    final supportingData = await Future.wait<dynamic>([
+      _loadProfilesIfAdmin(),
+      _loadCurrentGameProfile(gameSlug),
+      _loadLeaderOptions(gameSlug),
+    ]);
 
     if (eventIds.isEmpty) {
       return WeeklyDashboardData(
@@ -44,7 +54,9 @@ class WeeklyTournamentRepository {
         participants: const [],
         matches: const [],
         ranking: const [],
-        profiles: await _loadProfilesIfAdmin(),
+        profiles: supportingData[0] as List<WeeklyPlayerProfile>,
+        currentGameProfile: supportingData[1] as WeeklyGameProfile?,
+        leaders: supportingData[2] as List<WeeklyLeaderOption>,
       );
     }
 
@@ -59,7 +71,6 @@ class WeeklyTournamentRepository {
           .inFilter('weekly_event_id', eventIds)
           .order('round_number')
           .order('table_number'),
-      _loadProfilesIfAdmin(),
     ]);
     final participants = (results[0] as List)
         .map((row) => WeeklyParticipant.fromJson(row))
@@ -73,8 +84,43 @@ class WeeklyTournamentRepository {
       participants: participants,
       matches: matches,
       ranking: _buildRanking(participants, matches),
-      profiles: results[2] as List<WeeklyPlayerProfile>,
+      profiles: supportingData[0] as List<WeeklyPlayerProfile>,
+      currentGameProfile: supportingData[1] as WeeklyGameProfile?,
+      leaders: supportingData[2] as List<WeeklyLeaderOption>,
     );
+  }
+
+  Future<WeeklyGameProfile?> _loadCurrentGameProfile(String gameSlug) async {
+    try {
+      final row = await _client
+          .from('weekly_game_profiles')
+          .select()
+          .eq('user_id', currentUserId)
+          .eq('game_slug', gameSlug)
+          .maybeSingle();
+      return row == null ? null : WeeklyGameProfile.fromJson(row);
+    } on PostgrestException catch (error) {
+      if (error.code == 'PGRST205') return null;
+      rethrow;
+    }
+  }
+
+  Future<List<WeeklyLeaderOption>> _loadLeaderOptions(String gameSlug) async {
+    if (gameSlug != 'one-piece') return const [];
+    try {
+      final cards = await _opApiService.loadAllCards();
+      final leaders = cards
+          .where((card) => card.type.toLowerCase() == 'leader')
+          .map((card) => WeeklyLeaderOption(code: card.code, name: card.name))
+          .toList();
+      leaders.sort((a, b) {
+        final byName = a.name.compareTo(b.name);
+        return byName != 0 ? byName : a.code.compareTo(b.code);
+      });
+      return leaders;
+    } catch (_) {
+      return const [];
+    }
   }
 
   Future<List<WeeklyPlayerProfile>> _loadProfilesIfAdmin() async {
@@ -115,12 +161,42 @@ class WeeklyTournamentRepository {
     required String eventId,
     required WeeklyPlayerProfile profile,
     required String deckName,
+    String leaderCode = '',
+    String leaderName = '',
   }) async {
     await _client.from('weekly_participants').upsert({
       'weekly_event_id': eventId,
       'user_id': profile.id,
       'player_name': profile.name.trim().isEmpty ? profile.email : profile.name,
       'deck_name': deckName.trim(),
+      'leader_code': leaderCode.trim(),
+      'leader_name': leaderName.trim().isEmpty ? deckName.trim() : leaderName,
+    }, onConflict: 'weekly_event_id,user_id');
+  }
+
+  Future<void> joinOpenEvent({
+    required String eventId,
+    required String gameSlug,
+    required String nickname,
+    required String bandaiCode,
+    required String deckName,
+    String leaderCode = '',
+    String leaderName = '',
+  }) async {
+    await _client.from('weekly_game_profiles').upsert({
+      'user_id': currentUserId,
+      'game_slug': gameSlug,
+      'nickname': nickname.trim(),
+      'bandai_code': bandaiCode.trim().isEmpty ? null : bandaiCode.trim(),
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    });
+    await _client.from('weekly_participants').upsert({
+      'weekly_event_id': eventId,
+      'user_id': currentUserId,
+      'player_name': nickname.trim(),
+      'deck_name': deckName.trim(),
+      'leader_code': leaderCode.trim(),
+      'leader_name': leaderName.trim().isEmpty ? deckName.trim() : leaderName,
     }, onConflict: 'weekly_event_id,user_id');
   }
 
@@ -138,12 +214,33 @@ class WeeklyTournamentRepository {
       'table_number': tableNumber,
       'player_one_id': playerOneId,
       'player_two_id': playerTwoId,
+      'match_type': 'regular',
       'result': result,
+      'result_status': result == 'scheduled' ? 'scheduled' : 'confirmed',
       'created_by': currentUserId,
+      if (result != 'scheduled') 'confirmed_by': currentUserId,
     });
   }
 
-  Future<void> updateMatchResult({
+  Future<void> createBye({
+    required String eventId,
+    required int roundNumber,
+    required String playerId,
+  }) async {
+    await _client.from('weekly_matches').insert({
+      'weekly_event_id': eventId,
+      'round_number': roundNumber,
+      'player_one_id': playerId,
+      'player_two_id': null,
+      'match_type': 'bye',
+      'result': 'bye',
+      'result_status': 'confirmed',
+      'created_by': currentUserId,
+      'confirmed_by': currentUserId,
+    });
+  }
+
+  Future<void> updateMatchResultAsAdmin({
     required String matchId,
     required String result,
   }) async {
@@ -151,6 +248,37 @@ class WeeklyTournamentRepository {
         .from('weekly_matches')
         .update({
           'result': result,
+          'result_status': result == 'scheduled' ? 'scheduled' : 'confirmed',
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', matchId);
+  }
+
+  Future<void> reportMatchResult({
+    required String matchId,
+    required String result,
+  }) async {
+    await _client
+        .from('weekly_matches')
+        .update({
+          'result': result,
+          'result_status': 'pending_confirmation',
+          'reported_by': currentUserId,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', matchId);
+  }
+
+  Future<void> reviewMatchResult({
+    required String matchId,
+    required bool confirm,
+  }) async {
+    await _client
+        .from('weekly_matches')
+        .update({
+          'result_status': confirm ? 'confirmed' : 'disputed',
+          if (confirm) 'confirmed_by': currentUserId,
+          if (!confirm) 'disputed_by': currentUserId,
           'updated_at': DateTime.now().toUtc().toIso8601String(),
         })
         .eq('id', matchId);
@@ -177,8 +305,13 @@ class WeeklyTournamentRepository {
     for (final match in matches.where((item) => item.isCompleted)) {
       final one = participantsById[match.playerOneId];
       final two = participantsById[match.playerTwoId];
-      if (one == null || two == null) continue;
+      if (one == null) continue;
       final oneStats = stats[one.userId]!;
+      if (match.isBye) {
+        oneStats.wins++;
+        continue;
+      }
+      if (two == null) continue;
       final twoStats = stats[two.userId]!;
       if (match.result == 'draw') {
         oneStats.draws++;

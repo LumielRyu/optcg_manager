@@ -30,6 +30,8 @@ class WeeklyParticipant {
   final String userId;
   final String playerName;
   final String deckName;
+  final String leaderCode;
+  final String leaderName;
 
   const WeeklyParticipant({
     required this.id,
@@ -37,6 +39,8 @@ class WeeklyParticipant {
     required this.userId,
     required this.playerName,
     required this.deckName,
+    required this.leaderCode,
+    required this.leaderName,
   });
 
   factory WeeklyParticipant.fromJson(Map<String, dynamic> json) {
@@ -46,6 +50,8 @@ class WeeklyParticipant {
       userId: json['user_id'].toString(),
       playerName: json['player_name'].toString(),
       deckName: json['deck_name'].toString(),
+      leaderCode: (json['leader_code'] ?? '').toString(),
+      leaderName: (json['leader_name'] ?? json['deck_name'] ?? '').toString(),
     );
   }
 }
@@ -56,8 +62,11 @@ class WeeklyMatch {
   final int roundNumber;
   final int? tableNumber;
   final String playerOneId;
-  final String playerTwoId;
+  final String? playerTwoId;
   final String result;
+  final String matchType;
+  final String resultStatus;
+  final String? reportedBy;
 
   const WeeklyMatch({
     required this.id,
@@ -67,9 +76,13 @@ class WeeklyMatch {
     required this.playerOneId,
     required this.playerTwoId,
     required this.result,
+    required this.matchType,
+    required this.resultStatus,
+    required this.reportedBy,
   });
 
-  bool get isCompleted => result != 'scheduled';
+  bool get isCompleted => resultStatus == 'confirmed';
+  bool get isBye => matchType == 'bye';
 
   factory WeeklyMatch.fromJson(Map<String, dynamic> json) {
     return WeeklyMatch(
@@ -78,10 +91,45 @@ class WeeklyMatch {
       roundNumber: json['round_number'] as int,
       tableNumber: json['table_number'] as int?,
       playerOneId: json['player_one_id'].toString(),
-      playerTwoId: json['player_two_id'].toString(),
+      playerTwoId: json['player_two_id']?.toString(),
       result: json['result'].toString(),
+      matchType: (json['match_type'] ?? 'regular').toString(),
+      resultStatus: (json['result_status'] ?? 'confirmed').toString(),
+      reportedBy: json['reported_by']?.toString(),
     );
   }
+}
+
+class WeeklyGameProfile {
+  final String userId;
+  final String gameSlug;
+  final String nickname;
+  final String bandaiCode;
+
+  const WeeklyGameProfile({
+    required this.userId,
+    required this.gameSlug,
+    required this.nickname,
+    required this.bandaiCode,
+  });
+
+  factory WeeklyGameProfile.fromJson(Map<String, dynamic> json) {
+    return WeeklyGameProfile(
+      userId: json['user_id'].toString(),
+      gameSlug: json['game_slug'].toString(),
+      nickname: json['nickname'].toString(),
+      bandaiCode: (json['bandai_code'] ?? '').toString(),
+    );
+  }
+}
+
+class WeeklyLeaderOption {
+  final String code;
+  final String name;
+
+  const WeeklyLeaderOption({required this.code, required this.name});
+
+  String get label => code.isEmpty ? name : '$name ($code)';
 }
 
 class WeeklyPlayerProfile {
@@ -132,6 +180,8 @@ class WeeklyDashboardData {
   final List<WeeklyMatch> matches;
   final List<MonthlyRankingEntry> ranking;
   final List<WeeklyPlayerProfile> profiles;
+  final WeeklyGameProfile? currentGameProfile;
+  final List<WeeklyLeaderOption> leaders;
 
   const WeeklyDashboardData({
     required this.events,
@@ -139,5 +189,7 @@ class WeeklyDashboardData {
     required this.matches,
     required this.ranking,
     required this.profiles,
+    required this.currentGameProfile,
+    required this.leaders,
   });
 }
