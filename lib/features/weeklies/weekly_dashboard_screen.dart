@@ -182,6 +182,8 @@ class _PlayerPanel extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           _SummaryCard(entry: myRanking),
+          const SizedBox(height: 16),
+          _PlayerDashboard(entry: myRanking),
           if (openEvents.isNotEmpty) ...[
             const SizedBox(height: 24),
             Text(
@@ -457,6 +459,93 @@ class _Stat extends StatelessWidget {
   }
 }
 
+class _PlayerDashboard extends StatelessWidget {
+  final MonthlyRankingEntry? entry;
+
+  const _PlayerDashboard({required this.entry});
+
+  @override
+  Widget build(BuildContext context) {
+    final item = entry;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Seu dashboard',
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              item == null
+                  ? 'Suas estatisticas aparecerao depois da primeira inscricao.'
+                  : '${item.playerDisplayName} | Nick: ${item.playerNickname}',
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Decks mais jogados',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 8),
+            if (item == null || item.deckUsage.isEmpty)
+              const Text('Nenhum deck registrado neste mes.')
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final deck in item.deckUsage)
+                    Chip(label: Text('${deck.deckName}: ${deck.games}')),
+                ],
+              ),
+            const SizedBox(height: 18),
+            Text(
+              'Desempenho contra decks adversarios',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 8),
+            if (item == null || item.opponentDeckStats.isEmpty)
+              const Text('Nenhuma partida confirmada contra adversarios.')
+            else
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  columns: const [
+                    DataColumn(label: Text('Deck adversario')),
+                    DataColumn(label: Text('Partidas')),
+                    DataColumn(label: Text('Vitorias')),
+                    DataColumn(label: Text('Empates')),
+                    DataColumn(label: Text('Derrotas')),
+                  ],
+                  rows: [
+                    for (final deck in item.opponentDeckStats)
+                      DataRow(
+                        cells: [
+                          DataCell(Text(deck.deckName)),
+                          DataCell(Text('${deck.games}')),
+                          DataCell(Text('${deck.wins}')),
+                          DataCell(Text('${deck.draws}')),
+                          DataCell(Text('${deck.losses}')),
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _PlayerEventCard extends StatelessWidget {
   final WeeklyParticipant participant;
   final WeeklyEvent event;
@@ -642,7 +731,8 @@ class _RankingTable extends StatelessWidget {
         child: DataTable(
           columns: const [
             DataColumn(label: Text('#')),
-            DataColumn(label: Text('Jogador')),
+            DataColumn(label: Text('Nome')),
+            DataColumn(label: Text('Nick')),
             DataColumn(label: Text('Partidas')),
             DataColumn(label: Text('Wins')),
             DataColumn(label: Text('Empates')),
@@ -655,7 +745,8 @@ class _RankingTable extends StatelessWidget {
               DataRow(
                 cells: [
                   DataCell(Text('${index + 1}')),
-                  DataCell(Text(entries[index].playerName)),
+                  DataCell(Text(entries[index].playerDisplayName)),
+                  DataCell(Text(entries[index].playerNickname)),
                   DataCell(Text('${entries[index].games}')),
                   DataCell(Text('${entries[index].wins}')),
                   DataCell(Text('${entries[index].draws}')),

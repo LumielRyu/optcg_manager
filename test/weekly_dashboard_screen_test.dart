@@ -49,4 +49,20 @@ void main() {
       greaterThan(weeklyLeaderReleaseOrder('EB01-001')),
     );
   });
+
+  test('weekly participant keeps registered name separate from nickname', () {
+    final participant = WeeklyParticipant.fromJson({
+      'id': 'participant-1',
+      'weekly_event_id': 'event-1',
+      'user_id': 'user-1',
+      'player_name': 'Lumiel',
+      'player_display_name': 'Otavio Augusto',
+      'deck_name': 'Enel (OP05-098)',
+      'leader_code': 'OP05-098',
+      'leader_name': 'Enel',
+    });
+
+    expect(participant.playerDisplayName, 'Otavio Augusto');
+    expect(participant.playerName, 'Lumiel');
+  });
 }

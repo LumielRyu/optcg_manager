@@ -310,7 +310,10 @@ class WeeklyTournamentRepository {
       stats
           .putIfAbsent(
             participant.userId,
-            () => _RankingAccumulator(participant.playerName),
+            () => _RankingAccumulator(
+              playerDisplayName: participant.playerDisplayName,
+              playerNickname: participant.playerName,
+            ),
           )
           .addDeck(participant.deckName);
     }
@@ -329,12 +332,18 @@ class WeeklyTournamentRepository {
       if (match.result == 'draw') {
         oneStats.draws++;
         twoStats.draws++;
+        oneStats.addOpponentDeck(two.deckName, _MatchOutcome.draw);
+        twoStats.addOpponentDeck(one.deckName, _MatchOutcome.draw);
       } else if (match.result == 'player_one') {
         oneStats.wins++;
         twoStats.losses++;
+        oneStats.addOpponentDeck(two.deckName, _MatchOutcome.win);
+        twoStats.addOpponentDeck(one.deckName, _MatchOutcome.loss);
       } else if (match.result == 'player_two') {
         twoStats.wins++;
         oneStats.losses++;
+        twoStats.addOpponentDeck(one.deckName, _MatchOutcome.win);
+        oneStats.addOpponentDeck(two.deckName, _MatchOutcome.loss);
       }
     }
 
@@ -346,7 +355,7 @@ class WeeklyTournamentRepository {
       if (byPoints != 0) return byPoints;
       final byWins = b.wins.compareTo(a.wins);
       if (byWins != 0) return byWins;
-      return a.playerName.compareTo(b.playerName);
+      return a.playerDisplayName.compareTo(b.playerDisplayName);
     });
     return ranking;
   }
@@ -359,16 +368,27 @@ class WeeklyTournamentRepository {
 }
 
 class _RankingAccumulator {
-  final String playerName;
+  final String playerDisplayName;
+  final String playerNickname;
   final Map<String, int> _deckUses = {};
+  final Map<String, _OpponentDeckAccumulator> _opponentDecks = {};
   int wins = 0;
   int draws = 0;
   int losses = 0;
 
-  _RankingAccumulator(this.playerName);
+  _RankingAccumulator({
+    required this.playerDisplayName,
+    required this.playerNickname,
+  });
 
   void addDeck(String deckName) {
     _deckUses.update(deckName, (count) => count + 1, ifAbsent: () => 1);
+  }
+
+  void addOpponentDeck(String deckName, _MatchOutcome outcome) {
+    _opponentDecks
+        .putIfAbsent(deckName, _OpponentDeckAccumulator.new)
+        .add(outcome);
   }
 
   MonthlyRankingEntry toEntry(String userId) {
@@ -379,12 +399,58 @@ class _RankingAccumulator {
       });
     return MonthlyRankingEntry(
       userId: userId,
-      playerName: playerName,
+      playerDisplayName: playerDisplayName,
+      playerNickname: playerNickname,
       games: wins + draws + losses,
       wins: wins,
       draws: draws,
       losses: losses,
-      topDecks: decks.take(3).map((entry) => entry.key).toList(growable: false),
+      deckUsage: decks
+          .map(
+            (entry) => WeeklyDeckUsage(deckName: entry.key, games: entry.value),
+          )
+          .toList(growable: false),
+      opponentDeckStats: _buildOpponentDeckStats(),
+    );
+  }
+
+  List<WeeklyOpponentDeckStats> _buildOpponentDeckStats() {
+    final entries = _opponentDecks.entries
+        .map((entry) => entry.value.toStats(entry.key))
+        .toList();
+    entries.sort((a, b) {
+      final byGames = b.games.compareTo(a.games);
+      return byGames != 0 ? byGames : a.deckName.compareTo(b.deckName);
+    });
+    return entries;
+  }
+}
+
+enum _MatchOutcome { win, draw, loss }
+
+class _OpponentDeckAccumulator {
+  int wins = 0;
+  int draws = 0;
+  int losses = 0;
+
+  void add(_MatchOutcome outcome) {
+    switch (outcome) {
+      case _MatchOutcome.win:
+        wins++;
+      case _MatchOutcome.draw:
+        draws++;
+      case _MatchOutcome.loss:
+        losses++;
+    }
+  }
+
+  WeeklyOpponentDeckStats toStats(String deckName) {
+    return WeeklyOpponentDeckStats(
+      deckName: deckName,
+      games: wins + draws + losses,
+      wins: wins,
+      draws: draws,
+      losses: losses,
     );
   }
 }

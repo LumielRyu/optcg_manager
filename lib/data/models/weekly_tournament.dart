@@ -29,6 +29,7 @@ class WeeklyParticipant {
   final String eventId;
   final String userId;
   final String playerName;
+  final String playerDisplayName;
   final String deckName;
   final String leaderCode;
   final String leaderName;
@@ -38,6 +39,7 @@ class WeeklyParticipant {
     required this.eventId,
     required this.userId,
     required this.playerName,
+    required this.playerDisplayName,
     required this.deckName,
     required this.leaderCode,
     required this.leaderName,
@@ -49,6 +51,8 @@ class WeeklyParticipant {
       eventId: json['weekly_event_id'].toString(),
       userId: json['user_id'].toString(),
       playerName: json['player_name'].toString(),
+      playerDisplayName: (json['player_display_name'] ?? json['player_name'])
+          .toString(),
       deckName: json['deck_name'].toString(),
       leaderCode: (json['leader_code'] ?? '').toString(),
       leaderName: (json['leader_name'] ?? json['deck_name'] ?? '').toString(),
@@ -191,24 +195,55 @@ class WeeklyPlayerProfile {
 
 class MonthlyRankingEntry {
   final String userId;
-  final String playerName;
+  final String playerDisplayName;
+  final String playerNickname;
   final int games;
   final int wins;
   final int draws;
   final int losses;
-  final List<String> topDecks;
+  final List<WeeklyDeckUsage> deckUsage;
+  final List<WeeklyOpponentDeckStats> opponentDeckStats;
 
   const MonthlyRankingEntry({
     required this.userId,
-    required this.playerName,
+    required this.playerDisplayName,
+    required this.playerNickname,
     required this.games,
     required this.wins,
     required this.draws,
     required this.losses,
-    required this.topDecks,
+    required this.deckUsage,
+    required this.opponentDeckStats,
   });
 
   int get points => (wins * 3) + draws;
+  List<String> get topDecks => deckUsage
+      .take(3)
+      .map((item) => '${item.deckName} (${item.games})')
+      .toList(growable: false);
+}
+
+class WeeklyDeckUsage {
+  final String deckName;
+  final int games;
+
+  const WeeklyDeckUsage({required this.deckName, required this.games});
+}
+
+class WeeklyOpponentDeckStats {
+  final String deckName;
+  final int games;
+  final int wins;
+  final int draws;
+  final int losses;
+
+  const WeeklyOpponentDeckStats({
+    required this.deckName,
+    required this.games,
+    required this.wins,
+    required this.draws,
+    required this.losses,
+  });
 }
 
 class WeeklyDashboardData {
