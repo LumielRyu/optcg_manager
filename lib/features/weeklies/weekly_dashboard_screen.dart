@@ -175,89 +175,92 @@ class _PlayerPanel extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          _MonthSelector(
-            month: month,
-            onPrevious: onPreviousMonth,
-            onNext: onNextMonth,
-          ),
-          const SizedBox(height: 20),
-          _SummaryCard(entry: myRanking),
-          const SizedBox(height: 16),
-          _PlayerDashboard(entry: myRanking),
-          if (openEvents.isNotEmpty) ...[
-            const SizedBox(height: 24),
-            Text(
-              'Inscricoes abertas',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1320),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _WeeklyHero(
+                    month: month,
+                    entry: myRanking,
+                    openEvents: openEvents.length,
+                    participationCount: myParticipants.length,
+                    onPreviousMonth: onPreviousMonth,
+                    onNextMonth: onNextMonth,
+                  ),
+                  if (openEvents.isNotEmpty) ...[
+                    const SizedBox(height: 28),
+                    const _SectionHeading(
+                      icon: Icons.how_to_reg_outlined,
+                      title: 'Inscricoes abertas',
+                      subtitle:
+                          'Escolha seu lider e confirme sua participacao nos proximos encontros.',
+                    ),
+                    const SizedBox(height: 12),
+                    for (final event in openEvents)
+                      _OpenEnrollmentCard(
+                        event: event,
+                        onJoin: () async {
+                          final joined = await showDialog<bool>(
+                            context: context,
+                            builder: (_) => _JoinWeeklyDialog(
+                              event: event,
+                              gameSlug: gameSlug,
+                              gameProfile: data.currentGameProfile,
+                              leaders: data.leaders,
+                              repository: repository,
+                            ),
+                          );
+                          if (joined == true) await onRefresh();
+                        },
+                      ),
+                  ],
+                  const SizedBox(height: 28),
+                  _PlayerDashboard(entry: myRanking),
+                  const SizedBox(height: 28),
+                  const _SectionHeading(
+                    icon: Icons.event_note_outlined,
+                    title: 'Meus semanais',
+                    subtitle:
+                        'Abra um encontro para acompanhar suas rodadas e confirmar resultados.',
+                  ),
+                  const SizedBox(height: 12),
+                  if (myParticipants.isEmpty)
+                    const _EmptyCard(
+                      message:
+                          'Voce ainda nao participou de semanais neste mes.',
+                    )
+                  else
+                    for (final participant in myParticipants)
+                      _PlayerEventCard(
+                        participant: participant,
+                        event: eventsById[participant.eventId]!,
+                        matches: data.matches,
+                        participants: data.participants,
+                        currentUserId: currentUserId,
+                        repository: repository,
+                        onChanged: onRefresh,
+                      ),
+                  const SizedBox(height: 28),
+                  const _SectionHeading(
+                    icon: Icons.emoji_events_outlined,
+                    title: 'Ranking mensal',
+                    subtitle:
+                        'Classificacao por pontos, com desempate pelo numero de vitorias.',
+                  ),
+                  const SizedBox(height: 12),
+                  if (data.ranking.isEmpty)
+                    const _EmptyCard(
+                      message:
+                          'O ranking deste mes sera exibido apos as inscricoes.',
+                    )
+                  else
+                    _RankingTable(entries: data.ranking),
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
-            for (final event in openEvents)
-              Card(
-                child: ListTile(
-                  leading: const Icon(Icons.how_to_reg_outlined),
-                  title: Text(event.title),
-                  subtitle: Text(
-                    '${DateFormat('dd/MM/yyyy').format(event.eventDate)}'
-                    '  |  Inscricoes abertas',
-                  ),
-                  trailing: FilledButton(
-                    onPressed: () async {
-                      final joined = await showDialog<bool>(
-                        context: context,
-                        builder: (_) => _JoinWeeklyDialog(
-                          event: event,
-                          gameSlug: gameSlug,
-                          gameProfile: data.currentGameProfile,
-                          leaders: data.leaders,
-                          repository: repository,
-                        ),
-                      );
-                      if (joined == true) await onRefresh();
-                    },
-                    child: const Text('Participar'),
-                  ),
-                ),
-              ),
-          ],
-          const SizedBox(height: 24),
-          Text(
-            'Meus semanais',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
           ),
-          const SizedBox(height: 12),
-          if (myParticipants.isEmpty)
-            const _EmptyCard(
-              message: 'Voce ainda nao participou de semanais neste mes.',
-            )
-          else
-            for (final participant in myParticipants)
-              _PlayerEventCard(
-                participant: participant,
-                event: eventsById[participant.eventId]!,
-                matches: data.matches,
-                participants: data.participants,
-                currentUserId: currentUserId,
-                repository: repository,
-                onChanged: onRefresh,
-              ),
-          const SizedBox(height: 24),
-          Text(
-            'Ranking mensal',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 12),
-          if (data.ranking.isEmpty)
-            const _EmptyCard(
-              message: 'O ranking deste mes sera exibido apos as inscricoes.',
-            )
-          else
-            _RankingTable(entries: data.ranking),
         ],
       ),
     );
@@ -281,59 +284,448 @@ class _AdminPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final openEvents = data.events
+        .where((event) => event.status == 'open')
+        .length;
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Gerenciar semanais',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
-              ),
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1320),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _AdminOverview(
+                  month: month,
+                  eventCount: data.events.length,
+                  openEventCount: openEvents,
+                  playerCount: data.participants.length,
+                  matchCount: data.matches.length,
+                  onCreate: () async {
+                    final created = await showDialog<bool>(
+                      context: context,
+                      builder: (_) => _CreateEventDialog(
+                        gameSlug: gameSlug,
+                        repository: repository,
+                      ),
+                    );
+                    if (created == true) await onChanged();
+                  },
+                ),
+                const SizedBox(height: 24),
+                const _SectionHeading(
+                  icon: Icons.tune_outlined,
+                  title: 'Gerenciar encontros',
+                  subtitle:
+                      'Abra um semanal para controlar participantes, mesas, byes e resultados.',
+                ),
+                const SizedBox(height: 12),
+                if (data.events.isEmpty)
+                  const _EmptyCard(
+                    message: 'Nenhum semanal cadastrado neste mes.',
+                  )
+                else
+                  for (final event in data.events)
+                    _AdminEventCard(
+                      event: event,
+                      participants: data.participants
+                          .where((item) => item.eventId == event.id)
+                          .toList(growable: false),
+                      matches: data.matches
+                          .where((item) => item.eventId == event.id)
+                          .toList(growable: false),
+                      profiles: data.profiles,
+                      leaders: data.leaders,
+                      repository: repository,
+                      onChanged: onChanged,
+                    ),
+              ],
             ),
-            FilledButton.icon(
-              onPressed: () async {
-                final created = await showDialog<bool>(
-                  context: context,
-                  builder: (_) => _CreateEventDialog(
-                    gameSlug: gameSlug,
-                    repository: repository,
-                  ),
-                );
-                if (created == true) await onChanged();
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Iniciar semanal'),
-            ),
-          ],
+          ),
         ),
-        const SizedBox(height: 6),
-        Text(
-          'Cadastre participantes, deck usado no dia e resultados das mesas.',
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-        const SizedBox(height: 16),
-        if (data.events.isEmpty)
-          const _EmptyCard(message: 'Nenhum semanal cadastrado neste mes.')
-        else
-          for (final event in data.events)
-            _AdminEventCard(
-              event: event,
-              participants: data.participants
-                  .where((item) => item.eventId == event.id)
-                  .toList(growable: false),
-              matches: data.matches
-                  .where((item) => item.eventId == event.id)
-                  .toList(growable: false),
-              profiles: data.profiles,
-              leaders: data.leaders,
-              repository: repository,
-              onChanged: onChanged,
-            ),
       ],
+    );
+  }
+}
+
+class _AdminOverview extends StatelessWidget {
+  final DateTime month;
+  final int eventCount;
+  final int openEventCount;
+  final int playerCount;
+  final int matchCount;
+  final Future<void> Function() onCreate;
+
+  const _AdminOverview({
+    required this.month,
+    required this.eventCount,
+    required this.openEventCount,
+    required this.playerCount,
+    required this.matchCount,
+    required this.onCreate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            theme.colorScheme.secondaryContainer,
+            theme.colorScheme.surface,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.55),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 14,
+            runSpacing: 14,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.secondary.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(17),
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  Icons.admin_panel_settings_outlined,
+                  color: theme.colorScheme.secondary,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 14),
+              ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 220, maxWidth: 760),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Painel administrativo',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Visao operacional de ${weeklyMonthLabel(month)}',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              ),
+              FilledButton.icon(
+                onPressed: onCreate,
+                icon: const Icon(Icons.add),
+                label: const Text('Iniciar semanal'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _AdminMetric(
+                icon: Icons.calendar_month_outlined,
+                label: 'Eventos',
+                value: '$eventCount',
+              ),
+              _AdminMetric(
+                icon: Icons.play_circle_outline,
+                label: 'Abertos',
+                value: '$openEventCount',
+              ),
+              _AdminMetric(
+                icon: Icons.groups_outlined,
+                label: 'Inscricoes',
+                value: '$playerCount',
+              ),
+              _AdminMetric(
+                icon: Icons.sports_esports_outlined,
+                label: 'Partidas',
+                value: '$matchCount',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AdminMetric extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _AdminMetric({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      constraints: const BoxConstraints(minWidth: 138),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: theme.colorScheme.secondary),
+          const SizedBox(width: 9),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              Text(label, style: theme.textTheme.bodySmall),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeeklyHero extends StatelessWidget {
+  final DateTime month;
+  final MonthlyRankingEntry? entry;
+  final int openEvents;
+  final int participationCount;
+  final VoidCallback onPreviousMonth;
+  final VoidCallback onNextMonth;
+
+  const _WeeklyHero({
+    required this.month,
+    required this.entry,
+    required this.openEvents,
+    required this.participationCount,
+    required this.onPreviousMonth,
+    required this.onNextMonth,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            theme.colorScheme.primaryContainer,
+            theme.colorScheme.surface,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.55),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  Icons.emoji_events_outlined,
+                  color: theme.colorScheme.primary,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Circuito mensal',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Acompanhe inscricoes, rodadas, desempenho e classificacao.',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _MonthSelector(
+            month: month,
+            onPrevious: onPreviousMonth,
+            onNext: onNextMonth,
+          ),
+          const SizedBox(height: 16),
+          _SummaryCard(entry: entry),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _InfoBadge(
+                icon: Icons.event_available_outlined,
+                label: '$participationCount participacoes no mes',
+              ),
+              _InfoBadge(
+                icon: Icons.how_to_reg_outlined,
+                label: '$openEvents inscricoes abertas',
+              ),
+              if (entry != null)
+                _InfoBadge(
+                  icon: Icons.person_outline,
+                  label: 'Nick: ${entry!.playerNickname}',
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionHeading extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _SectionHeading({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: theme.colorScheme.primary),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(subtitle, style: theme.textTheme.bodyMedium),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _OpenEnrollmentCard extends StatelessWidget {
+  final WeeklyEvent event;
+  final Future<void> Function() onJoin;
+
+  const _OpenEnrollmentCard({required this.event, required this.onJoin});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(color: theme.colorScheme.tertiary, width: 5),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.tertiaryContainer,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  Icons.event_available_outlined,
+                  color: theme.colorScheme.onTertiaryContainer,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      event.title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(DateFormat('dd/MM/yyyy').format(event.eventDate)),
+                    const SizedBox(height: 6),
+                    const _StatusChip(
+                      label: 'Aceitando participantes',
+                      icon: Icons.circle,
+                      color: Colors.green,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              FilledButton.icon(
+                onPressed: onJoin,
+                icon: const Icon(Icons.login),
+                label: const Text('Participar'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -351,7 +743,11 @@ class _MonthSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.74),
+        borderRadius: BorderRadius.circular(18),
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         child: Row(
@@ -391,21 +787,16 @@ class _SummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final item = entry;
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Theme.of(context).colorScheme.primaryContainer,
-            Theme.of(context).colorScheme.surface,
-          ],
-        ),
-        borderRadius: BorderRadius.circular(24),
+        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.74),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Seu desempenho no mes',
+            'Seu desempenho',
             style: Theme.of(
               context,
             ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
@@ -415,11 +806,31 @@ class _SummaryCard extends StatelessWidget {
             spacing: 10,
             runSpacing: 10,
             children: [
-              _Stat(label: 'Pontos', value: '${item?.points ?? 0}'),
-              _Stat(label: 'Partidas', value: '${item?.games ?? 0}'),
-              _Stat(label: 'Vitorias', value: '${item?.wins ?? 0}'),
-              _Stat(label: 'Empates', value: '${item?.draws ?? 0}'),
-              _Stat(label: 'Derrotas', value: '${item?.losses ?? 0}'),
+              _Stat(
+                label: 'Pontos',
+                value: '${item?.points ?? 0}',
+                icon: Icons.stars_outlined,
+              ),
+              _Stat(
+                label: 'Partidas',
+                value: '${item?.games ?? 0}',
+                icon: Icons.sports_esports_outlined,
+              ),
+              _Stat(
+                label: 'Vitorias',
+                value: '${item?.wins ?? 0}',
+                icon: Icons.emoji_events_outlined,
+              ),
+              _Stat(
+                label: 'Empates',
+                value: '${item?.draws ?? 0}',
+                icon: Icons.handshake_outlined,
+              ),
+              _Stat(
+                label: 'Derrotas',
+                value: '${item?.losses ?? 0}',
+                icon: Icons.close,
+              ),
             ],
           ),
         ],
@@ -431,13 +842,14 @@ class _SummaryCard extends StatelessWidget {
 class _Stat extends StatelessWidget {
   final String label;
   final String value;
+  final IconData icon;
 
-  const _Stat({required this.label, required this.value});
+  const _Stat({required this.label, required this.value, required this.icon});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 112,
+      constraints: const BoxConstraints(minWidth: 124),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.82),
@@ -446,13 +858,91 @@ class _Stat extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            value,
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 7),
+              Text(
+                value,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+              ),
+            ],
           ),
           Text(label),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoBadge extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _InfoBadge({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface.withValues(alpha: 0.68),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.55),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: theme.colorScheme.primary),
+          const SizedBox(width: 6),
+          Text(label, style: theme.textTheme.labelMedium),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+
+  const _StatusChip({
+    required this.label,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 10, color: color),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
         ],
       ),
     );
@@ -467,44 +957,64 @@ class _PlayerDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final item = entry;
+    final theme = Theme.of(context);
     return Card(
+      clipBehavior: Clip.antiAlias,
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Seu dashboard',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+            const _SectionHeading(
+              icon: Icons.insights_outlined,
+              title: 'Seu dashboard',
+              subtitle:
+                  'Uma leitura rapida dos seus decks e confrontos confirmados neste mes.',
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 14),
             Text(
               item == null
                   ? 'Suas estatisticas aparecerao depois da primeira inscricao.'
                   : '${item.playerDisplayName} | Nick: ${item.playerNickname}',
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Decks mais jogados',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 8),
-            if (item == null || item.deckUsage.isEmpty)
-              const Text('Nenhum deck registrado neste mes.')
-            else
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
+            const SizedBox(height: 18),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primaryContainer.withValues(
+                  alpha: 0.46,
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  for (final deck in item.deckUsage)
-                    Chip(label: Text('${deck.deckName}: ${deck.games}')),
+                  Text(
+                    'Decks mais jogados',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  if (item == null || item.deckUsage.isEmpty)
+                    const Text('Nenhum deck registrado neste mes.')
+                  else
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final deck in item.deckUsage)
+                          Chip(
+                            avatar: const Icon(Icons.style_outlined, size: 17),
+                            label: Text('${deck.deckName}  |  ${deck.games}x'),
+                          ),
+                      ],
+                    ),
                 ],
               ),
-            const SizedBox(height: 18),
+            ),
+            const SizedBox(height: 20),
             Text(
               'Desempenho contra decks adversarios',
               style: Theme.of(
@@ -515,8 +1025,7 @@ class _PlayerDashboard extends StatelessWidget {
             if (item == null || item.opponentDeckStats.isEmpty)
               const Text('Nenhuma partida confirmada contra adversarios.')
             else
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
+              _TableShell(
                 child: DataTable(
                   columns: const [
                     DataColumn(label: Text('Deck adversario')),
@@ -589,12 +1098,38 @@ class _PlayerEventCard extends StatelessWidget {
     }
 
     return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      clipBehavior: Clip.antiAlias,
       child: ExpansionTile(
-        leading: const Icon(Icons.event_available_outlined),
-        title: Text(event.title),
-        subtitle: Text(
-          '${DateFormat('dd/MM/yyyy').format(event.eventDate)}'
-          '  |  Lider/deck: ${participant.leaderName}',
+        leading: Container(
+          width: 42,
+          height: 42,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: Theme.of(
+              context,
+            ).colorScheme.primary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: Icon(
+            Icons.event_available_outlined,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+        title: Text(
+          event.title,
+          style: const TextStyle(fontWeight: FontWeight.w900),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 5),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 5,
+            children: [
+              Text(DateFormat('dd/MM/yyyy').format(event.eventDate)),
+              Text('Lider/deck: ${participant.leaderName}'),
+            ],
+          ),
         ),
         trailing: Text(
           '${(wins * 3) + draws} pts',
@@ -724,39 +1259,98 @@ class _RankingTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return _TableShell(
+      child: DataTable(
+        headingRowColor: WidgetStatePropertyAll(
+          Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
+        ),
+        columns: const [
+          DataColumn(label: Text('#')),
+          DataColumn(label: Text('Nome')),
+          DataColumn(label: Text('Nick')),
+          DataColumn(label: Text('Partidas')),
+          DataColumn(label: Text('Wins')),
+          DataColumn(label: Text('Empates')),
+          DataColumn(label: Text('Loses')),
+          DataColumn(label: Text('Top decks')),
+          DataColumn(label: Text('Pontos')),
+        ],
+        rows: [
+          for (var index = 0; index < entries.length; index++)
+            DataRow(
+              cells: [
+                DataCell(_RankingPosition(position: index + 1)),
+                DataCell(
+                  Text(
+                    entries[index].playerDisplayName,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                DataCell(Text(entries[index].playerNickname)),
+                DataCell(Text('${entries[index].games}')),
+                DataCell(Text('${entries[index].wins}')),
+                DataCell(Text('${entries[index].draws}')),
+                DataCell(Text('${entries[index].losses}')),
+                DataCell(Text(entries[index].topDecks.join(', '))),
+                DataCell(
+                  Text(
+                    '${entries[index].points}',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TableShell extends StatelessWidget {
+  final Widget child;
+
+  const _TableShell({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
     return Card(
       clipBehavior: Clip.antiAlias,
+      elevation: 0,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns: const [
-            DataColumn(label: Text('#')),
-            DataColumn(label: Text('Nome')),
-            DataColumn(label: Text('Nick')),
-            DataColumn(label: Text('Partidas')),
-            DataColumn(label: Text('Wins')),
-            DataColumn(label: Text('Empates')),
-            DataColumn(label: Text('Loses')),
-            DataColumn(label: Text('Top decks')),
-            DataColumn(label: Text('Pontos')),
-          ],
-          rows: [
-            for (var index = 0; index < entries.length; index++)
-              DataRow(
-                cells: [
-                  DataCell(Text('${index + 1}')),
-                  DataCell(Text(entries[index].playerDisplayName)),
-                  DataCell(Text(entries[index].playerNickname)),
-                  DataCell(Text('${entries[index].games}')),
-                  DataCell(Text('${entries[index].wins}')),
-                  DataCell(Text('${entries[index].draws}')),
-                  DataCell(Text('${entries[index].losses}')),
-                  DataCell(Text(entries[index].topDecks.join(', '))),
-                  DataCell(Text('${entries[index].points}')),
-                ],
-              ),
-          ],
-        ),
+        child: child,
+      ),
+    );
+  }
+}
+
+class _RankingPosition extends StatelessWidget {
+  final int position;
+
+  const _RankingPosition({required this.position});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (position) {
+      1 => const Color(0xFFD4A017),
+      2 => const Color(0xFF8A8F98),
+      3 => const Color(0xFFB87333),
+      _ => Theme.of(context).colorScheme.outline,
+    };
+    return Container(
+      width: 30,
+      height: 30,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        shape: BoxShape.circle,
+      ),
+      child: Text(
+        '$position',
+        style: TextStyle(color: color, fontWeight: FontWeight.w900),
       ),
     );
   }
@@ -783,21 +1377,54 @@ class _AdminEventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final participantsById = {
       for (final participant in participants) participant.id: participant,
     };
+    final isOpen = event.status == 'open';
     return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      clipBehavior: Clip.antiAlias,
       child: ExpansionTile(
-        leading: Icon(
-          event.status == 'open'
-              ? Icons.play_circle_outline
-              : Icons.check_circle_outline,
+        initiallyExpanded: isOpen,
+        leading: Container(
+          width: 42,
+          height: 42,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color:
+                (isOpen ? theme.colorScheme.primary : theme.colorScheme.outline)
+                    .withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: Icon(
+            isOpen ? Icons.play_arrow_rounded : Icons.check_rounded,
+            color: isOpen
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline,
+          ),
         ),
-        title: Text(event.title),
-        subtitle: Text(
-          '${DateFormat('dd/MM/yyyy').format(event.eventDate)}'
-          '  |  ${participants.length} jogadores'
-          '  |  ${matches.length} partidas',
+        title: Text(
+          event.title,
+          style: const TextStyle(fontWeight: FontWeight.w900),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _StatusChip(
+                label: isOpen ? 'Inscricoes abertas' : 'Encerrado',
+                icon: isOpen ? Icons.circle : Icons.check_circle,
+                color: isOpen ? Colors.green : theme.colorScheme.outline,
+              ),
+              Text(DateFormat('dd/MM/yyyy').format(event.eventDate)),
+              Text('${participants.length} jogadores'),
+              Text('${matches.length} partidas'),
+            ],
+          ),
         ),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         children: [
@@ -805,9 +1432,7 @@ class _AdminEventCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  event.status == 'open'
-                      ? 'Semanal aberto'
-                      : 'Semanal encerrado',
+                  isOpen ? 'Semanal aberto' : 'Semanal encerrado',
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
@@ -815,12 +1440,12 @@ class _AdminEventCard extends StatelessWidget {
                 onPressed: () async {
                   await repository.setEventStatus(
                     eventId: event.id,
-                    status: event.status == 'open' ? 'finished' : 'open',
+                    status: isOpen ? 'finished' : 'open',
                   );
                   await onChanged();
                 },
                 icon: const Icon(Icons.sync),
-                label: Text(event.status == 'open' ? 'Encerrar' : 'Reabrir'),
+                label: Text(isOpen ? 'Encerrar' : 'Reabrir'),
               ),
             ],
           ),
@@ -864,8 +1489,14 @@ class _AdminEventCard extends StatelessWidget {
                 dense: true,
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.person_outline),
-                title: Text(participant.playerName),
-                subtitle: Text('Deck: ${participant.deckName}'),
+                title: Text(
+                  participant.playerDisplayName,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                subtitle: Text(
+                  'Nick: ${participant.playerName}'
+                  '  |  Lider/deck: ${participant.deckName}',
+                ),
               ),
           const Divider(),
           Row(
