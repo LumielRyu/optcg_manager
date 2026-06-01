@@ -29,13 +29,34 @@ class _WeeklyDashboardScreenState extends ConsumerState<WeeklyDashboardScreen> {
     super.initState();
     final now = DateTime.now();
     _month = DateTime(now.year, now.month);
-    _reload();
+    _future = _loadInitialDashboard();
   }
 
   void _reload() {
     _future = _repository.loadDashboard(
       gameSlug: widget.gameSlug,
       month: _month,
+    );
+  }
+
+  Future<WeeklyDashboardData> _loadInitialDashboard() async {
+    final currentMonthData = await _repository.loadDashboard(
+      gameSlug: widget.gameSlug,
+      month: _month,
+    );
+    if (currentMonthData.events.isNotEmpty) return currentMonthData;
+
+    final latestMonth = await _repository.loadLatestEventMonth(
+      gameSlug: widget.gameSlug,
+    );
+    if (!mounted || latestMonth == null || latestMonth == _month) {
+      return currentMonthData;
+    }
+
+    _month = latestMonth;
+    return _repository.loadDashboard(
+      gameSlug: widget.gameSlug,
+      month: latestMonth,
     );
   }
 

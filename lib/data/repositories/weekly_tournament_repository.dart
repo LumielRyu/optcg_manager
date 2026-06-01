@@ -25,6 +25,18 @@ class WeeklyTournamentRepository {
     return value == true || value?.toString() == 'true';
   }
 
+  Future<DateTime?> loadLatestEventMonth({required String gameSlug}) async {
+    final row = await _client
+        .from('weekly_events')
+        .select('event_date')
+        .eq('game_slug', gameSlug)
+        .order('event_date', ascending: false)
+        .limit(1)
+        .maybeSingle();
+    final date = DateTime.tryParse(row?['event_date']?.toString() ?? '');
+    return date == null ? null : DateTime(date.year, date.month);
+  }
+
   Future<WeeklyDashboardData> loadDashboard({
     required String gameSlug,
     required DateTime month,
