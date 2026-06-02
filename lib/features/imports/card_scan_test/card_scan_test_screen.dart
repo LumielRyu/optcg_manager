@@ -4,6 +4,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:go_router/go_router.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
@@ -20,6 +21,8 @@ class CardScanTestScreen extends ConsumerStatefulWidget {
 }
 
 class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
+  static const _sampleImagePath = 'assets/test_samples/boa_hancock_p115.jpeg';
+
   final ImagePicker _picker = ImagePicker();
   final List<_ScanHistoryItem> _history = [];
 
@@ -161,6 +164,23 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
     }
   }
 
+  Future<void> _analyzeBundledSample() async {
+    final data = await rootBundle.load(_sampleImagePath);
+    final bytes = data.buffer.asUint8List();
+    final analysisBytes = _cropToGuide(bytes) ?? bytes;
+    if (!mounted) return;
+
+    setState(() {
+      _imageBytes = bytes;
+      _imagePath = null;
+    });
+
+    await ref
+        .read(imageImportControllerProvider.notifier)
+        .analyzeImageBytes(analysisBytes, preferVisual: true);
+    _rememberCurrentResult();
+  }
+
   Uint8List? _cropToGuide(Uint8List bytes) {
     final decoded = img.decodeImage(bytes);
     if (decoded == null) return null;
@@ -289,7 +309,7 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Teste IA de cartas'),
+        title: const Text('Reconhecimento por imagem'),
         actions: const [HomeNavigationButton()],
       ),
       body: ListView(
@@ -300,6 +320,13 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                _StatusPanel(
+                  icon: Icons.image_search_outlined,
+                  title: 'Laboratorio de reconhecimento',
+                  text:
+                      'Use uma foto da carta inteira para comparar a imagem com o catalogo visual armazenado no Supabase. Teste com a amostra pronta ou envie uma imagem da galeria.',
+                ),
+                const SizedBox(height: 12),
                 Container(
                   height: MediaQuery.of(context).size.width < 640 ? 360 : 500,
                   decoration: BoxDecoration(
@@ -352,6 +379,11 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
                           : () => _pickAndAnalyze(ImageSource.gallery),
                       icon: const Icon(Icons.photo_library_outlined),
                       label: const Text('Testar imagem'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: isBusy ? null : _analyzeBundledSample,
+                      icon: const Icon(Icons.science_outlined),
+                      label: const Text('Testar foto de exemplo'),
                     ),
                     OutlinedButton.icon(
                       onPressed:

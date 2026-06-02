@@ -37,3 +37,4 @@ flutter:
     - .env
     - assets/visual_card_fingerprints.json
     - assets/liga_one_piece_price_cache.json
+    - assets/test_samples/boa_hancock_p115.jpeg

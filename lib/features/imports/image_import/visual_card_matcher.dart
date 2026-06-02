@@ -133,6 +133,20 @@ class VisualCardMatcher {
     int limit = 3,
   }) async {
     final fingerprints = await _loadFingerprintDatabase();
+    return rankAgainstCatalog(
+      sourceBytes: sourceBytes,
+      cards: cards,
+      fingerprints: fingerprints,
+      limit: limit,
+    );
+  }
+
+  List<VisualCardMatchResult> rankAgainstCatalog({
+    required Uint8List sourceBytes,
+    required List<OpCard> cards,
+    required List<VisualCardCatalogEntry> fingerprints,
+    int limit = 3,
+  }) {
     if (fingerprints.isEmpty || cards.isEmpty) return const [];
 
     final sourceVariants = _computeSourceFingerprints(sourceBytes);
@@ -298,12 +312,30 @@ class VisualCardMatcher {
 
   List<img.Image> _candidateCardRegions(img.Image source) {
     return [
-      _extractLikelyCardRegion(source),
       _fallbackCentralCrop(source),
       _centralCrop(source, widthRatio: 0.82, heightRatio: 0.94),
       _centralCrop(source, widthRatio: 0.68, heightRatio: 0.88),
+      ..._centeredCardAspectCrops(source),
       source,
     ];
+  }
+
+  List<img.Image> _centeredCardAspectCrops(img.Image source) {
+    const cardAspectRatio = 0.715;
+    const widthRatios = [0.42, 0.48, 0.54, 0.60, 0.66, 0.72, 0.78];
+
+    return widthRatios
+        .map((widthRatio) {
+          final heightRatio =
+              (widthRatio * source.width / source.height / cardAspectRatio)
+                  .clamp(0.1, 1.0);
+          return _centralCrop(
+            source,
+            widthRatio: widthRatio,
+            heightRatio: heightRatio,
+          );
+        })
+        .toList(growable: false);
   }
 
   img.Image _fallbackCentralCrop(img.Image source) {
@@ -433,16 +465,15 @@ class VisualCardMatcher {
   BigInt _differenceHash(img.Image image) {
     final grayscale = img.grayscale(_cropAndResizeForHash(image));
     var hash = BigInt.zero;
-    var bitIndex = 0;
 
     for (var y = 0; y < grayscale.height; y++) {
       for (var x = 0; x < grayscale.width - 1; x++) {
         final left = grayscale.getPixel(x, y).r.toInt();
         final right = grayscale.getPixel(x + 1, y).r.toInt();
+        hash <<= 1;
         if (left > right) {
-          hash |= (BigInt.one << bitIndex);
+          hash |= BigInt.one;
         }
-        bitIndex++;
       }
     }
 

@@ -62,7 +62,7 @@ class PrimaryBottomNavigation extends StatelessWidget {
         NavigationDestination(
           icon: Icon(Icons.center_focus_strong_outlined),
           selectedIcon: Icon(Icons.center_focus_strong),
-          label: 'Teste IA',
+          label: 'Scanner',
         ),
       ],
     );

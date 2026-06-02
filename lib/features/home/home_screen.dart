@@ -172,10 +172,10 @@ class HomeScreen extends ConsumerWidget {
                           width: cardWidth,
                           child: const _HomeFeatureCard(
                             icon: Icons.center_focus_strong_outlined,
-                            title: 'Teste IA de cartas',
+                            title: 'Reconhecimento por imagem',
                             subtitle:
-                                'Teste reconhecimento por camera com OCR local, busca por codigo e comparacao visual.',
-                            buttonLabel: 'Abrir teste',
+                                'Identifique cartas por foto usando camera, galeria ou uma imagem de exemplo.',
+                            buttonLabel: 'Testar reconhecimento',
                             route: '/card-scan-test',
                           ),
                         ),

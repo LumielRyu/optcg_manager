@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:optcg_manager/data/models/op_card.dart';
 import 'package:optcg_manager/features/imports/image_import/visual_card_matcher.dart';
@@ -37,5 +40,32 @@ void main() {
     expect(card.image, 'https://example.com/parallel.jpg');
     expect(card.subTypes, 'Supernovas');
     expect(card.text, 'fallback text');
+  });
+
+  test('recognizes the bundled Boa Hancock reference photo', () async {
+    final catalog =
+        (jsonDecode(
+                  File(
+                    'assets/visual_card_fingerprints.json',
+                  ).readAsStringSync(),
+                )
+                as List)
+            .cast<Map<String, dynamic>>();
+    final fingerprints = catalog.map(VisualCardCatalogEntry.fromJson).toList();
+    final cards = fingerprints
+        .map((entry) => entry.toCard())
+        .toList(growable: false);
+    final bytes = File(
+      'assets/test_samples/boa_hancock_p115.jpeg',
+    ).readAsBytesSync();
+
+    final results = VisualCardMatcher().rankAgainstCatalog(
+      sourceBytes: bytes,
+      cards: cards,
+      fingerprints: fingerprints,
+    );
+
+    expect(results, isNotEmpty);
+    expect(results.first.card.code, 'P-115');
   });
 }
