@@ -85,9 +85,7 @@ class OptcgManagerApp extends ConsumerWidget {
       theme: _buildTheme(lightScheme),
       darkTheme: _buildTheme(darkScheme),
       builder: (context, child) {
-        return _PreferenceBootstrapper(
-          child: child ?? const SizedBox.shrink(),
-        );
+        return _PreferenceBootstrapper(child: child ?? const SizedBox.shrink());
       },
     );
   }
@@ -100,6 +98,19 @@ class OptcgManagerApp extends ConsumerWidget {
     );
 
     return base.copyWith(
+      textTheme: base.textTheme.copyWith(
+        headlineLarge: base.textTheme.headlineLarge?.copyWith(
+          fontWeight: FontWeight.w900,
+          letterSpacing: -1,
+        ),
+        headlineMedium: base.textTheme.headlineMedium?.copyWith(
+          fontWeight: FontWeight.w900,
+          letterSpacing: -0.7,
+        ),
+        titleLarge: base.textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.w800,
+        ),
+      ),
       appBarTheme: AppBarTheme(
         backgroundColor: scheme.surface.withValues(alpha: 0.94),
         foregroundColor: scheme.onSurface,
@@ -113,13 +124,14 @@ class OptcgManagerApp extends ConsumerWidget {
         ),
       ),
       cardTheme: CardThemeData(
-        color: scheme.surface.withValues(alpha: 0.94),
-        elevation: 2,
-        shadowColor: scheme.shadow.withValues(alpha: 0.08),
+        color: scheme.surface.withValues(alpha: 0.96),
+        elevation: 1.5,
+        shadowColor: scheme.shadow.withValues(alpha: 0.1),
+        surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(20),
           side: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: 0.5),
+            color: scheme.outlineVariant.withValues(alpha: 0.56),
           ),
         ),
       ),
@@ -147,13 +159,35 @@ class OptcgManagerApp extends ConsumerWidget {
         backgroundColor: scheme.inverseSurface,
         contentTextStyle: TextStyle(color: scheme.onInverseSurface),
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: scheme.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: scheme.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+        ),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: scheme.surface.withValues(alpha: 0.98),
+        elevation: 8,
+        height: 70,
+        indicatorColor: scheme.primaryContainer,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+      ),
+      dividerTheme: DividerThemeData(
+        color: scheme.outlineVariant.withValues(alpha: 0.6),
+        space: 24,
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: scheme.secondaryContainer,
         foregroundColor: scheme.onSecondaryContainer,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(22),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
@@ -173,10 +207,18 @@ class OptcgManagerApp extends ConsumerWidget {
           ),
         ),
       ),
-      chipTheme: base.chipTheme.copyWith(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(999),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: scheme.primary,
+          side: BorderSide(color: scheme.outlineVariant),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 13),
         ),
+      ),
+      chipTheme: base.chipTheme.copyWith(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
         side: BorderSide.none,
       ),
     );

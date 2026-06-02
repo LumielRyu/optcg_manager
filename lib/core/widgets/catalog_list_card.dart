@@ -24,11 +24,8 @@ class CatalogListCard extends StatelessWidget {
 
     return Card(
       clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(10),
@@ -36,11 +33,7 @@ class CatalogListCard extends StatelessWidget {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: SizedBox(
-                  width: 82,
-                  height: 112,
-                  child: image,
-                ),
+                child: SizedBox(width: 82, height: 112, child: image),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -63,20 +56,16 @@ class CatalogListCard extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    for (final line in metadata.where((line) => line.trim().isNotEmpty)) ...[
+                    for (final line in metadata.where(
+                      (line) => line.trim().isNotEmpty,
+                    )) ...[
                       const SizedBox(height: 6),
-                      Text(
-                        line,
-                        style: theme.textTheme.bodySmall,
-                      ),
+                      Text(line, style: theme.textTheme.bodySmall),
                     ],
                   ],
                 ),
               ),
-              if (trailing != null) ...[
-                const SizedBox(width: 12),
-                trailing!,
-              ],
+              if (trailing != null) ...[const SizedBox(width: 12), trailing!],
             ],
           ),
         ),

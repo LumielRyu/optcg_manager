@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/widgets/app_page_shell.dart';
 import '../../core/widgets/home_navigation_button.dart';
 import '../../data/repositories/user_preferences_repository.dart';
 
@@ -61,10 +62,9 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
     });
 
     try {
-      await ref.read(userPreferencesRepositoryProvider).saveProfileDetails(
-        name: name,
-        whatsAppPhone: phone,
-      );
+      await ref
+          .read(userPreferencesRepositoryProvider)
+          .saveProfileDetails(name: name, whatsAppPhone: phone);
       if (!mounted) return;
       context.go('/home');
     } catch (e) {
@@ -88,57 +88,51 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
         title: const Text('Complete seu cadastro'),
         actions: const [HomeNavigationButton()],
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 460),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  'Para continuar, informe seu nome e o telefone de WhatsApp que serao usados automaticamente nos seus anuncios.',
-                  textAlign: TextAlign.center,
+      body: AppPageShell(
+        maxWidth: 500,
+        child: AppAuthPanel(
+          title: 'Complete seu perfil',
+          subtitle:
+              'Essas informacoes identificam voce nos anuncios e facilitam o contato com outros jogadores.',
+          icon: Icons.badge_outlined,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(labelText: 'Nome'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _whatsAppController,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Telefone / WhatsApp',
                 ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Nome',
+              ),
+              const SizedBox(height: 12),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.red),
                   ),
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _whatsAppController,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'Telefone / WhatsApp',
-                  ),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _isBusy ? null : _save,
+                  child: _isBusy
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Salvar e continuar'),
                 ),
-                const SizedBox(height: 12),
-                if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      _error!,
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  ),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: _isBusy ? null : _save,
-                    child: _isBusy
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Salvar e continuar'),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

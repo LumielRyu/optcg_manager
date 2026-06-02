@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/providers/theme_mode_provider.dart';
+import '../../core/widgets/app_page_shell.dart';
 import '../../core/widgets/primary_bottom_navigation.dart';
 import '../../data/repositories/auth_repository.dart';
 
@@ -75,6 +76,11 @@ class HomeScreen extends ConsumerWidget {
                           end: Alignment.bottomRight,
                         ),
                         borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: colorScheme.outlineVariant.withValues(
+                            alpha: 0.5,
+                          ),
+                        ),
                       ),
                       child: Column(
                         children: [
@@ -94,6 +100,13 @@ class HomeScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 24),
+                    const AppSectionHeading(
+                      icon: Icons.grid_view_rounded,
+                      title: 'Escolha seu proximo passo',
+                      subtitle:
+                          'Acesse rapidamente os recursos principais da plataforma.',
+                    ),
+                    const SizedBox(height: 14),
                     Wrap(
                       alignment: WrapAlignment.center,
                       runAlignment: WrapAlignment.center,

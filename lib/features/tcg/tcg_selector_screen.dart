@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/providers/theme_mode_provider.dart';
+import '../../core/widgets/app_page_shell.dart';
 import '../../data/repositories/auth_repository.dart';
 
 class TcgSelectorScreen extends ConsumerWidget {
@@ -11,8 +12,6 @@ class TcgSelectorScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('TCG Manager'),
@@ -57,37 +56,35 @@ class TcgSelectorScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(28),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            colorScheme.primaryContainer,
-                            colorScheme.tertiaryContainer,
-                            colorScheme.surface,
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
+                    const AppHeroPanel(
+                      eyebrow: 'TCG Manager',
+                      title: 'Escolha seu card game',
+                      subtitle:
+                          'Entre no jogo que deseja explorar. Cada hub concentra biblioteca, semanais e os recursos disponiveis.',
+                      icon: Icons.style_outlined,
+                      badges: [
+                        AppBadge(
+                          label: '6 card games',
+                          icon: Icons.dashboard_customize_outlined,
                         ),
-                        borderRadius: BorderRadius.circular(28),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Escolha seu TCG',
-                            style: Theme.of(context).textTheme.headlineMedium
-                                ?.copyWith(fontWeight: FontWeight.w900),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            'Entre no universo que quiser explorar agora. One Piece continua com colecao, vendas e marketplace; os demais TCGs entram com hubs e bibliotecas conectadas a APIs publicas.',
-                            style: Theme.of(context).textTheme.bodyLarge,
-                          ),
-                        ],
-                      ),
+                        AppBadge(
+                          label: 'Bibliotecas conectadas',
+                          icon: Icons.auto_stories_outlined,
+                        ),
+                        AppBadge(
+                          label: 'Semanais e ranking',
+                          icon: Icons.emoji_events_outlined,
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 24),
+                    const AppSectionHeading(
+                      icon: Icons.explore_outlined,
+                      title: 'Card games disponiveis',
+                      subtitle:
+                          'Abra um hub para acessar os recursos daquele jogo.',
+                    ),
+                    const SizedBox(height: 14),
                     Wrap(
                       spacing: 18,
                       runSpacing: 18,
@@ -211,55 +208,58 @@ class _TcgChoiceCard extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(26),
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 62,
-                height: 62,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(18),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 296),
+          child: Padding(
+            padding: const EdgeInsets.all(22),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 62,
+                  height: 62,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(icon, color: accent, size: 30),
                 ),
-                alignment: Alignment.center,
-                child: Icon(icon, color: accent, size: 30),
-              ),
-              const SizedBox(height: 18),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  chipLabel,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: accent,
-                    fontWeight: FontWeight.w800,
+                const SizedBox(height: 18),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    chipLabel,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: accent,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                title,
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w900,
+                const SizedBox(height: 14),
+                Text(
+                  title,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              Text(subtitle, style: theme.textTheme.bodyMedium),
-              const SizedBox(height: 18),
-              FilledButton.icon(
-                onPressed: onTap,
-                icon: const Icon(Icons.arrow_forward),
-                label: const Text('Entrar'),
-              ),
-            ],
+                const SizedBox(height: 10),
+                Text(subtitle, style: theme.textTheme.bodyMedium),
+                const SizedBox(height: 18),
+                FilledButton.icon(
+                  onPressed: onTap,
+                  icon: const Icon(Icons.arrow_forward),
+                  label: const Text('Entrar'),
+                ),
+              ],
+            ),
           ),
         ),
       ),

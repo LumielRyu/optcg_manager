@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/widgets/app_page_shell.dart';
 import '../../core/widgets/home_navigation_button.dart';
 import '../../data/repositories/auth_repository.dart';
 
@@ -83,60 +84,61 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         title: const Text('Entrar'),
         actions: const [HomeNavigationButton()],
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                TextField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(),
+      body: AppPageShell(
+        maxWidth: 460,
+        child: AppAuthPanel(
+          title: 'Bem-vindo de volta',
+          subtitle:
+              'Entre para acessar suas colecoes, semanais e ferramentas de card game.',
+          icon: Icons.login_rounded,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _passwordController,
+                obscureText: true,
+                onSubmitted: (_) => _login(),
+                decoration: const InputDecoration(
+                  labelText: 'Senha',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.red),
                   ),
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  onSubmitted: (_) => _login(),
-                  decoration: const InputDecoration(
-                    labelText: 'Senha',
-                    border: OutlineInputBorder(),
-                  ),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _isBusy ? null : _login,
+                  child: _isBusy
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Entrar'),
                 ),
-                const SizedBox(height: 12),
-                if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      _error!,
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  ),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: _isBusy ? null : _login,
-                    child: _isBusy
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Entrar'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: _isBusy ? null : _goToRegister,
-                  child: const Text('Criar conta'),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: _isBusy ? null : _goToRegister,
+                child: const Text('Criar conta'),
+              ),
+            ],
           ),
         ),
       ),
