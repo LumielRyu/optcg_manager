@@ -11,6 +11,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/widgets/home_navigation_button.dart';
 import '../../../core/widgets/primary_bottom_navigation.dart';
+import 'card_scan_deduplicator.dart';
 import '../image_import/image_import_controller.dart';
 
 class CardScanTestScreen extends ConsumerStatefulWidget {
@@ -25,6 +26,7 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
 
   final ImagePicker _picker = ImagePicker();
   final List<_ScanHistoryItem> _history = [];
+  final CardScanDeduplicator _deduplicator = CardScanDeduplicator();
 
   CameraController? _cameraController;
   Timer? _continuousTimer;
@@ -36,6 +38,7 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
   bool _initializingCamera = false;
   bool _scanInProgress = false;
   bool _continuousScan = false;
+  String? _scanFeedback;
 
   @override
   void initState() {
@@ -224,7 +227,9 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
           preferVisual: true,
           skipOcrFallback: visualOnly,
         );
-    _rememberCurrentResult();
+    _rememberCurrentResult(
+      deduplicateAutomaticScan: visualOnly && _continuousScan,
+    );
   }
 
   Future<void> _analyzeLiveCapture({
@@ -240,7 +245,7 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
             preferVisual: true,
             skipOcrFallback: visualOnly,
           );
-      _rememberCurrentResult();
+      _rememberCurrentResult(deduplicateAutomaticScan: _continuousScan);
       return;
     }
 
@@ -258,7 +263,10 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
 
     setState(() {
       _continuousScan = true;
+      _scanFeedback =
+          'Varredura automatica iniciada. Cada carta sera contada uma unica vez enquanto permanecer no quadro.';
     });
+    _deduplicator.reset();
     _scanFromLiveCamera(visualOnly: true);
     _continuousTimer = Timer.periodic(const Duration(milliseconds: 1800), (_) {
       if (!mounted || !_continuousScan) return;
@@ -266,33 +274,71 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
     });
   }
 
-  void _rememberCurrentResult() {
+  void _rememberCurrentResult({bool deduplicateAutomaticScan = false}) {
     final state = ref.read(imageImportControllerProvider);
     final found = state.candidates.where((item) => item.found).toList();
-    if (found.isEmpty) return;
+    if (found.isEmpty) {
+      if (deduplicateAutomaticScan && _deduplicator.markNoCardDetected()) {
+        setState(() {
+          _scanFeedback =
+              'Leitura liberada. Posicione a proxima carta no quadro.';
+        });
+      }
+      return;
+    }
 
     setState(() {
       for (final candidate in found) {
-        final existingIndex = _history.indexWhere(
-          (item) => item.code == candidate.code,
-        );
-        final item = _ScanHistoryItem(
-          code: candidate.code,
-          name: candidate.name ?? candidate.code,
-          imageUrl: candidate.imageUrl,
-          matchedBy: candidate.matchedBy,
-          scannedAt: DateTime.now(),
-        );
-
-        if (existingIndex >= 0) {
-          _history[existingIndex] = item.copyWith(
-            count: _history[existingIndex].count + 1,
+        if (deduplicateAutomaticScan) {
+          final decision = _deduplicator.registerAutomaticScan(
+            _candidateKey(candidate),
           );
-        } else {
-          _history.insert(0, item);
+          if (!decision.shouldCount) {
+            _scanFeedback =
+                '${candidate.name ?? candidate.code} ja foi registrada. Retire a carta do quadro antes de ler outra copia.';
+            continue;
+          }
         }
+
+        _incrementHistory(candidate);
+        _scanFeedback = deduplicateAutomaticScan
+            ? '${candidate.name ?? candidate.code} registrada. Retire a carta do quadro para liberar a proxima leitura.'
+            : '${candidate.name ?? candidate.code} adicionada ao contador.';
       }
     });
+  }
+
+  void _addAnotherCopy(ImageImportCandidate candidate) {
+    setState(() {
+      _incrementHistory(candidate);
+      _scanFeedback =
+          'Outra copia de ${candidate.name ?? candidate.code} foi adicionada manualmente.';
+    });
+  }
+
+  void _incrementHistory(ImageImportCandidate candidate) {
+    final key = _candidateKey(candidate);
+    final existingIndex = _history.indexWhere((item) => item.key == key);
+    final item = _ScanHistoryItem(
+      key: key,
+      code: candidate.code,
+      name: candidate.name ?? candidate.code,
+      imageUrl: candidate.imageUrl,
+      matchedBy: candidate.matchedBy,
+      scannedAt: DateTime.now(),
+    );
+
+    if (existingIndex >= 0) {
+      _history[existingIndex] = item.copyWith(
+        count: _history[existingIndex].count + 1,
+      );
+    } else {
+      _history.insert(0, item);
+    }
+  }
+
+  String _candidateKey(ImageImportCandidate candidate) {
+    return '${candidate.code}|${candidate.imageUrl ?? ''}';
   }
 
   void _openImportFlow() {
@@ -420,8 +466,16 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
                     text:
                         'A tela testa OCR local, busca por codigo e matching visual somente quando necessario.',
                   ),
+                if (_scanFeedback != null) ...[
+                  const SizedBox(height: 12),
+                  _StatusPanel(
+                    icon: Icons.fact_check_outlined,
+                    title: 'Controle de contagem',
+                    text: _scanFeedback!,
+                  ),
+                ],
                 const SizedBox(height: 12),
-                _ResultPanel(state: state),
+                _ResultPanel(state: state, onAddAnotherCopy: _addAnotherCopy),
                 const SizedBox(height: 12),
                 _HistoryPanel(history: _history),
                 const SizedBox(height: 12),
@@ -559,6 +613,7 @@ class _LiveBadge extends StatelessWidget {
 }
 
 class _ScanHistoryItem {
+  final String key;
   final String code;
   final String name;
   final String? imageUrl;
@@ -567,6 +622,7 @@ class _ScanHistoryItem {
   final int count;
 
   const _ScanHistoryItem({
+    required this.key,
     required this.code,
     required this.name,
     required this.scannedAt,
@@ -577,6 +633,7 @@ class _ScanHistoryItem {
 
   _ScanHistoryItem copyWith({int? count}) {
     return _ScanHistoryItem(
+      key: key,
       code: code,
       name: name,
       imageUrl: imageUrl,
@@ -651,8 +708,9 @@ class _StatusPanel extends StatelessWidget {
 
 class _ResultPanel extends StatelessWidget {
   final ImageImportState state;
+  final ValueChanged<ImageImportCandidate> onAddAnotherCopy;
 
-  const _ResultPanel({required this.state});
+  const _ResultPanel({required this.state, required this.onAddAnotherCopy});
 
   @override
   Widget build(BuildContext context) {
@@ -695,7 +753,11 @@ class _ResultPanel extends StatelessWidget {
               ].join(' - '),
             ),
             trailing: candidate.found
-                ? Icon(Icons.check_circle, color: theme.colorScheme.primary)
+                ? IconButton.filledTonal(
+                    onPressed: () => onAddAnotherCopy(candidate),
+                    tooltip: 'Adicionar outra copia',
+                    icon: const Icon(Icons.add),
+                  )
                 : const Icon(Icons.help_outline),
           );
         }).toList(),
@@ -716,7 +778,8 @@ class _HistoryPanel extends StatelessWidget {
     }
 
     return _Section(
-      title: 'Cartas escaneadas',
+      title:
+          'Cartas escaneadas (${history.fold<int>(0, (sum, item) => sum + item.count)} no total)',
       child: Column(
         children: history.map((item) {
           return ListTile(
@@ -734,7 +797,7 @@ class _HistoryPanel extends StatelessWidget {
             subtitle: Text(
               '${item.code}${item.matchedBy == null ? '' : ' - via ${item.matchedBy}'}',
             ),
-            trailing: item.count > 1 ? Text('${item.count}x') : null,
+            trailing: Text('${item.count}x'),
           );
         }).toList(),
       ),
