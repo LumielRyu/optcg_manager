@@ -18,6 +18,11 @@ def parse_args():
     parser.add_argument("--image-dir", type=pathlib.Path, default=DEFAULT_IMAGE_DIR)
     parser.add_argument("--bucket", default=DEFAULT_BUCKET)
     parser.add_argument("--force", action="store_true")
+    parser.add_argument(
+        "--limit",
+        type=int,
+        help="Upload only the first N images. Useful for validating credentials.",
+    )
     return parser.parse_args()
 
 
@@ -28,6 +33,12 @@ def request(url: str, *, method: str, headers: dict[str, str], data: bytes | Non
     )
 
 
+def format_http_error(error: urllib.error.HTTPError, *, action: str) -> str:
+    body = error.read().decode("utf-8", errors="replace").strip()
+    details = f": {body}" if body else ""
+    return f"Supabase Storage rejected {action} (HTTP {error.code}){details}"
+
+
 def main():
     args = parse_args()
     supabase_url = os.environ.get("SUPABASE_URL", "").rstrip("/")
@@ -36,6 +47,11 @@ def main():
         raise SystemExit(
             "Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY before syncing images."
         )
+    if not service_key.startswith("eyJ"):
+        raise SystemExit(
+            "SUPABASE_SERVICE_ROLE_KEY must be the legacy service_role JWT starting "
+            'with "eyJ". In Supabase, open Settings > API Keys > Legacy API keys.'
+        )
     if not args.image_dir.exists():
         raise SystemExit(
             f"{args.image_dir} does not exist. Run generate_visual_fingerprints.py first."
@@ -43,6 +59,8 @@ def main():
 
     headers = {"Authorization": f"Bearer {service_key}", "apikey": service_key}
     files = [path for path in args.image_dir.rglob("*") if path.is_file()]
+    if args.limit is not None:
+        files = files[: max(0, args.limit)]
     uploaded = 0
     skipped = 0
 
@@ -60,8 +78,12 @@ def main():
                     skipped += 1
                     continue
             except urllib.error.HTTPError as error:
-                if error.code != 404:
-                    raise
+                # The public Storage endpoint currently answers HEAD with HTTP 400
+                # for missing objects. Upload remains the authoritative check.
+                if error.code not in (400, 404):
+                    raise SystemExit(
+                        format_http_error(error, action=f"checking {relative_path}")
+                    ) from error
 
         content_type = mimetypes.guess_type(path.name)[0] or "image/jpeg"
         upload_headers = {
@@ -70,13 +92,18 @@ def main():
             "cache-control": "31536000",
             "x-upsert": "true" if args.force else "false",
         }
-        with request(
-            upload_url,
-            method="POST",
-            headers=upload_headers,
-            data=path.read_bytes(),
-        ):
-            uploaded += 1
+        try:
+            with request(
+                upload_url,
+                method="POST",
+                headers=upload_headers,
+                data=path.read_bytes(),
+            ):
+                uploaded += 1
+        except urllib.error.HTTPError as error:
+            raise SystemExit(
+                format_http_error(error, action=f"uploading {relative_path}")
+            ) from error
 
         if index % 100 == 0 or index == len(files):
             print(f"[{index}/{len(files)}] uploaded={uploaded} skipped={skipped}")
