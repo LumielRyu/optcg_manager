@@ -72,9 +72,17 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
     if (_autoScanTriggered) return;
     _autoScanTriggered = true;
 
+    Uint8List? bytes;
+    if (!kIsWeb) {
+      bytes = await File(path).readAsBytes();
+    }
     final detected = await ref
         .read(imageImportControllerProvider.notifier)
-        .analyzeImagePath(path);
+        .analyzeImageFile(
+          path: path,
+          sourceBytes: bytes,
+          preferVisual: bytes != null,
+        );
 
     if (!mounted || detected == null || detected.trim().isEmpty) return;
     _codesController.text = detected;
@@ -86,7 +94,7 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
 
     final detected = await ref
         .read(imageImportControllerProvider.notifier)
-        .analyzeImageBytes(bytes);
+        .analyzeImageBytes(bytes, preferVisual: true);
 
     if (!mounted || detected == null || detected.trim().isEmpty) return;
     _codesController.text = detected;
@@ -235,16 +243,18 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
                         candidate: item,
                         colorOptions: _manualColorOptions,
                         onRemove: () => notifier.removeCandidate(index),
-                        onNameChanged: (value) => notifier.updateManualCandidate(
-                          index,
-                          name: value,
-                          color: state.candidates[index].color,
-                        ),
-                        onColorChanged: (value) => notifier.updateManualCandidate(
-                          index,
-                          name: state.candidates[index].name,
-                          color: value,
-                        ),
+                        onNameChanged: (value) =>
+                            notifier.updateManualCandidate(
+                              index,
+                              name: value,
+                              color: state.candidates[index].color,
+                            ),
+                        onColorChanged: (value) =>
+                            notifier.updateManualCandidate(
+                              index,
+                              name: state.candidates[index].name,
+                              color: value,
+                            ),
                       ),
                     );
                   }),
@@ -449,7 +459,9 @@ class _InfoBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: useSecondary ? scheme.secondaryContainer : scheme.primaryContainer,
+        color: useSecondary
+            ? scheme.secondaryContainer
+            : scheme.primaryContainer,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -525,8 +537,7 @@ class _OcrDebugPanel extends StatelessWidget {
             ),
             if (state.candidates.any(
               (item) =>
-                  item.matchedBy == 'visual+name' ||
-                  item.matchedBy == 'visual',
+                  item.matchedBy == 'visual+name' || item.matchedBy == 'visual',
             )) ...[
               const SizedBox(height: 4),
               const Text(

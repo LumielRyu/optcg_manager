@@ -1,8 +1,10 @@
+import argparse
+import hashlib
 import io
 import json
-import math
 import pathlib
 import urllib.request
+from urllib.parse import urlparse
 
 from PIL import Image, ImageOps
 
@@ -14,6 +16,7 @@ API_URLS = [
 ]
 
 OUTPUT_PATH = pathlib.Path("assets/visual_card_fingerprints.json")
+DEFAULT_IMAGE_DIR = pathlib.Path(".cache/card_images")
 
 
 def fetch_json(url: str):
@@ -21,9 +24,23 @@ def fetch_json(url: str):
         return json.load(response)
 
 
-def load_image_bytes(url: str) -> bytes:
+def image_path_for(card: dict, image_dir: pathlib.Path) -> pathlib.Path:
+    code = str(card.get("card_set_id", "")).strip().upper()
+    image_url = str(card.get("card_image", "")).strip()
+    suffix = pathlib.Path(urlparse(image_url).path).suffix.lower() or ".jpg"
+    digest = hashlib.sha1(image_url.encode("utf-8")).hexdigest()[:16]
+    return image_dir / "one-piece" / code / f"{digest}{suffix}"
+
+
+def load_image_bytes(url: str, path: pathlib.Path) -> bytes:
+    if path.exists():
+        return path.read_bytes()
+
     with urllib.request.urlopen(url, timeout=60) as response:
-        return response.read()
+        content = response.read()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(content)
+    return content
 
 
 def dhash(image: Image.Image, width: int = 9, height: int = 8) -> str:
@@ -61,13 +78,23 @@ def average_rgb(image: Image.Image):
     return [r, g, b]
 
 
-def build_fingerprint(card: dict):
+def build_fingerprint(
+    card: dict,
+    image_dir: pathlib.Path,
+    public_base_url: str | None,
+):
     image_url = str(card.get("card_image", "")).strip()
     if not image_url:
         return None
 
-    raw_bytes = load_image_bytes(image_url)
+    image_path = image_path_for(card, image_dir)
+    raw_bytes = load_image_bytes(image_url, image_path)
     image = Image.open(io.BytesIO(raw_bytes)).convert("RGB")
+    served_url = (
+        f"{public_base_url.rstrip('/')}/{image_path.relative_to(image_dir).as_posix()}"
+        if public_base_url
+        else image_url
+    )
 
     art_crop = crop_box(image, 0.08, 0.08, 0.92, 0.78)
     footer_crop = crop_box(image, 0.05, 0.74, 0.95, 0.98)
@@ -75,8 +102,9 @@ def build_fingerprint(card: dict):
     return {
         "code": str(card.get("card_set_id", "")).strip().upper(),
         "name": str(card.get("card_name", "")).strip(),
-        "imageUrl": image_url,
+        "imageUrl": served_url,
         "setName": str(card.get("set_name", "")).strip(),
+        "rarity": str(card.get("rarity", "")).strip(),
         "color": str(card.get("card_color", "")).strip(),
         "type": str(card.get("card_type", "")).strip(),
         "fullHash": dhash(image),
@@ -86,7 +114,21 @@ def build_fingerprint(card: dict):
     }
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Build the local visual card catalog and cache source images."
+    )
+    parser.add_argument("--output", type=pathlib.Path, default=OUTPUT_PATH)
+    parser.add_argument("--image-dir", type=pathlib.Path, default=DEFAULT_IMAGE_DIR)
+    parser.add_argument(
+        "--public-base-url",
+        help="Optional CDN prefix used in generated imageUrl fields.",
+    )
+    return parser.parse_args()
+
+
 def main():
+    args = parse_args()
     all_cards = []
     seen = set()
 
@@ -106,7 +148,11 @@ def main():
     for index, card in enumerate(all_cards, start=1):
         code = str(card.get("card_set_id", "")).strip().upper()
         try:
-            fingerprint = build_fingerprint(card)
+            fingerprint = build_fingerprint(
+                card,
+                image_dir=args.image_dir,
+                public_base_url=args.public_base_url,
+            )
             if fingerprint is not None:
                 output.append(fingerprint)
             if index % 50 == 0 or index == total:
@@ -114,12 +160,13 @@ def main():
         except Exception as exc:
             print(f"[skip] {code}: {exc}")
 
-    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT_PATH.write_text(
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(
         json.dumps(output, ensure_ascii=False, separators=(",", ":")),
         encoding="utf-8",
     )
-    print(f"saved {len(output)} fingerprints to {OUTPUT_PATH}")
+    print(f"cached source images under {args.image_dir}")
+    print(f"saved {len(output)} fingerprints to {args.output}")
 
 
 if __name__ == "__main__":

@@ -15,32 +15,65 @@ class VisualCardMatchResult {
   const VisualCardMatchResult({required this.card, required this.distance});
 }
 
-class _VisualFingerprint {
+class VisualCardCatalogEntry {
   final String code;
+  final String name;
+  final String imageUrl;
+  final String setName;
+  final String rarity;
+  final String color;
+  final String type;
   final String fullHash;
   final String artHash;
   final String footerHash;
   final List<int> avgRgb;
 
-  const _VisualFingerprint({
+  const VisualCardCatalogEntry({
     required this.code,
+    required this.name,
+    required this.imageUrl,
+    required this.setName,
+    required this.rarity,
+    required this.color,
+    required this.type,
     required this.fullHash,
     required this.artHash,
     required this.footerHash,
     required this.avgRgb,
   });
 
-  factory _VisualFingerprint.fromJson(Map<String, dynamic> json) {
+  factory VisualCardCatalogEntry.fromJson(Map<String, dynamic> json) {
     final avg = (json['avgRgb'] as List? ?? const [])
         .map((e) => int.tryParse(e.toString()) ?? 0)
         .toList();
 
-    return _VisualFingerprint(
+    return VisualCardCatalogEntry(
       code: (json['code'] ?? '').toString().trim().toUpperCase(),
+      name: (json['name'] ?? '').toString().trim(),
+      imageUrl: (json['imageUrl'] ?? '').toString().trim(),
+      setName: (json['setName'] ?? '').toString().trim(),
+      rarity: (json['rarity'] ?? '').toString().trim(),
+      color: (json['color'] ?? '').toString().trim(),
+      type: (json['type'] ?? '').toString().trim(),
       fullHash: (json['fullHash'] ?? '').toString(),
       artHash: (json['artHash'] ?? '').toString(),
       footerHash: (json['footerHash'] ?? '').toString(),
       avgRgb: avg.length >= 3 ? avg.take(3).toList() : const [0, 0, 0],
+    );
+  }
+
+  OpCard toCard({OpCard? fallback}) {
+    return OpCard(
+      code: code,
+      name: name.isNotEmpty ? name : fallback?.name ?? code,
+      image: imageUrl.isNotEmpty ? imageUrl : fallback?.image ?? '',
+      setName: setName.isNotEmpty ? setName : fallback?.setName ?? '',
+      rarity: rarity.isNotEmpty ? rarity : fallback?.rarity ?? '',
+      color: color.isNotEmpty ? color : fallback?.color ?? '',
+      type: type.isNotEmpty ? type : fallback?.type ?? '',
+      subTypes: fallback?.subTypes ?? '',
+      text: fallback?.text ?? '',
+      attribute: fallback?.attribute ?? '',
     );
   }
 }
@@ -61,7 +94,7 @@ class _SourceFingerprint {
 
 class VisualCardMatcher {
   final Map<String, BigInt> _hashCache = {};
-  List<_VisualFingerprint>? _databaseCache;
+  List<VisualCardCatalogEntry>? _databaseCache;
 
   Future<List<VisualCardMatchResult>> rankCandidates({
     required Uint8List sourceBytes,
@@ -111,8 +144,9 @@ class VisualCardMatcher {
     final results = <VisualCardMatchResult>[];
 
     for (final fingerprint in fingerprints) {
-      final card = cardsByCode[fingerprint.code];
-      if (card == null) continue;
+      final fallback = cardsByCode[fingerprint.code];
+      if (fallback == null) continue;
+      final card = fingerprint.toCard(fallback: fallback);
 
       var score = 999999;
       for (final source in sourceVariants) {
@@ -143,7 +177,7 @@ class VisualCardMatcher {
     return results.take(limit).toList();
   }
 
-  Future<List<_VisualFingerprint>> _loadFingerprintDatabase() async {
+  Future<List<VisualCardCatalogEntry>> _loadFingerprintDatabase() async {
     if (_databaseCache != null) return _databaseCache!;
 
     try {
@@ -159,8 +193,9 @@ class VisualCardMatcher {
       _databaseCache = decoded
           .whereType<Map>()
           .map(
-            (item) =>
-                _VisualFingerprint.fromJson(Map<String, dynamic>.from(item)),
+            (item) => VisualCardCatalogEntry.fromJson(
+              Map<String, dynamic>.from(item),
+            ),
           )
           .where((item) => item.code.isNotEmpty)
           .toList();
