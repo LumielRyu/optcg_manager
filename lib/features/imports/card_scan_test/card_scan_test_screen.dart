@@ -297,8 +297,9 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
             _candidateKey(candidate),
           );
           if (!decision.shouldCount) {
-            _scanFeedback =
-                '${candidate.name ?? candidate.code} ja foi registrada. Retire a carta do quadro antes de ler outra copia.';
+            _scanFeedback = decision.awaitingConfirmation
+                ? 'Confirmando ${candidate.name ?? candidate.code}. Mantenha a carta parada no quadro por mais um instante.'
+                : '${candidate.name ?? candidate.code} ja foi registrada. Retire a carta do quadro antes de ler outra copia.';
             continue;
           }
         }
