@@ -30,6 +30,7 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
 
   CameraController? _cameraController;
   Timer? _continuousTimer;
+  Timer? _recognitionOverlayTimer;
   Uint8List? _imageBytes;
   String? _imagePath;
   String? _cameraError;
@@ -39,6 +40,7 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
   bool _scanInProgress = false;
   bool _continuousScan = false;
   String? _scanFeedback;
+  _RecognitionOverlayData? _recognitionOverlay;
 
   @override
   void initState() {
@@ -49,6 +51,7 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
   @override
   void dispose() {
     _continuousTimer?.cancel();
+    _recognitionOverlayTimer?.cancel();
     _cameraController?.dispose();
     super.dispose();
   }
@@ -300,7 +303,8 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
           }
         }
 
-        _incrementHistory(candidate);
+        final currentCount = _incrementHistory(candidate);
+        _showRecognitionOverlay(candidate, currentCount);
         _scanFeedback = deduplicateAutomaticScan
             ? '${candidate.name ?? candidate.code} registrada. Retire a carta do quadro para liberar a proxima leitura.'
             : '${candidate.name ?? candidate.code} adicionada ao contador.';
@@ -310,13 +314,14 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
 
   void _addAnotherCopy(ImageImportCandidate candidate) {
     setState(() {
-      _incrementHistory(candidate);
+      final currentCount = _incrementHistory(candidate);
+      _showRecognitionOverlay(candidate, currentCount);
       _scanFeedback =
           'Outra copia de ${candidate.name ?? candidate.code} foi adicionada manualmente.';
     });
   }
 
-  void _incrementHistory(ImageImportCandidate candidate) {
+  int _incrementHistory(ImageImportCandidate candidate) {
     final key = _candidateKey(candidate);
     final existingIndex = _history.indexWhere((item) => item.key == key);
     final item = _ScanHistoryItem(
@@ -329,12 +334,32 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
     );
 
     if (existingIndex >= 0) {
-      _history[existingIndex] = item.copyWith(
-        count: _history[existingIndex].count + 1,
-      );
+      final currentCount = _history[existingIndex].count + 1;
+      _history[existingIndex] = item.copyWith(count: currentCount);
+      return currentCount;
     } else {
       _history.insert(0, item);
+      return 1;
     }
+  }
+
+  void _showRecognitionOverlay(
+    ImageImportCandidate candidate,
+    int currentCount,
+  ) {
+    _recognitionOverlayTimer?.cancel();
+    _recognitionOverlay = _RecognitionOverlayData(
+      code: candidate.code,
+      name: candidate.name ?? candidate.code,
+      imageUrl: candidate.imageUrl,
+      count: currentCount,
+    );
+    _recognitionOverlayTimer = Timer(const Duration(seconds: 3), () {
+      if (!mounted) return;
+      setState(() {
+        _recognitionOverlay = null;
+      });
+    });
   }
 
   String _candidateKey(ImageImportCandidate candidate) {
@@ -562,7 +587,7 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
         ),
         if (_continuousScan)
           const Positioned(left: 12, top: 12, child: _LiveBadge()),
-        if (_imageBytes != null)
+        if (_imageBytes != null && _recognitionOverlay == null)
           Positioned(
             right: 12,
             bottom: 12,
@@ -575,7 +600,107 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
               ),
             ),
           ),
+        Positioned(
+          left: 12,
+          right: 12,
+          bottom: 12,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            child: _recognitionOverlay == null
+                ? const SizedBox.shrink()
+                : _RecognitionSuccessOverlay(
+                    key: ValueKey(
+                      '${_recognitionOverlay!.code}-${_recognitionOverlay!.count}',
+                    ),
+                    data: _recognitionOverlay!,
+                  ),
+          ),
+        ),
       ],
+    );
+  }
+}
+
+class _RecognitionOverlayData {
+  final String code;
+  final String name;
+  final String? imageUrl;
+  final int count;
+
+  const _RecognitionOverlayData({
+    required this.code,
+    required this.name,
+    required this.count,
+    this.imageUrl,
+  });
+}
+
+class _RecognitionSuccessOverlay extends StatelessWidget {
+  final _RecognitionOverlayData data;
+
+  const _RecognitionSuccessOverlay({super.key, required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Material(
+        color: const Color(0xFF064E3B).withValues(alpha: 0.96),
+        elevation: 8,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 54,
+                height: 74,
+                child: _CardThumb(imageUrl: data.imageUrl),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(
+                          Icons.check_circle,
+                          color: Color(0xFF6EE7B7),
+                          size: 18,
+                        ),
+                        SizedBox(width: 5),
+                        Text(
+                          'Adicionado com sucesso',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      data.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${data.code}  |  Quantidade atual: ${data.count}x',
+                      style: const TextStyle(color: Color(0xFFD1FAE5)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
