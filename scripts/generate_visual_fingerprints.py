@@ -1,8 +1,10 @@
 import argparse
+import concurrent.futures
 import hashlib
 import io
 import json
 import pathlib
+import time
 import urllib.request
 from urllib.parse import urlparse
 
@@ -36,8 +38,20 @@ def load_image_bytes(url: str, path: pathlib.Path) -> bytes:
     if path.exists():
         return path.read_bytes()
 
-    with urllib.request.urlopen(url, timeout=60) as response:
-        content = response.read()
+    last_error = None
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(url, timeout=25) as response:
+                content = response.read()
+            break
+        except Exception as error:
+            last_error = error
+            if attempt == 2:
+                raise
+            time.sleep(1.5 * (attempt + 1))
+    else:
+        raise last_error or RuntimeError(f"failed to download {url}")
+
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(content)
     return content
@@ -70,7 +84,7 @@ def crop_box(image: Image.Image, left: float, top: float, right: float, bottom: 
 
 def average_rgb(image: Image.Image):
     resized = image.resize((32, 32), Image.Resampling.LANCZOS).convert("RGB")
-    pixels = list(resized.getdata())
+    pixels = list(resized.get_flattened_data())
     total = len(pixels) or 1
     r = sum(pixel[0] for pixel in pixels) // total
     g = sum(pixel[1] for pixel in pixels) // total
@@ -84,12 +98,16 @@ def build_fingerprint(
     public_base_url: str | None,
 ):
     image_url = str(card.get("card_image", "")).strip()
-    if not image_url:
+    if not image_url or image_url.lower() == "none":
         return None
 
     image_path = image_path_for(card, image_dir)
     raw_bytes = load_image_bytes(image_url, image_path)
-    image = Image.open(io.BytesIO(raw_bytes)).convert("RGB")
+    try:
+        image = Image.open(io.BytesIO(raw_bytes)).convert("RGB")
+    except Exception:
+        image_path.unlink(missing_ok=True)
+        raise
     served_url = (
         f"{public_base_url.rstrip('/')}/{image_path.relative_to(image_dir).as_posix()}"
         if public_base_url
@@ -124,6 +142,12 @@ def parse_args():
         "--public-base-url",
         help="Optional CDN prefix used in generated imageUrl fields.",
     )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=6,
+        help="Number of parallel image downloads and fingerprint workers.",
+    )
     return parser.parse_args()
 
 
@@ -136,6 +160,8 @@ def main():
         for card in fetch_json(url):
             code = str(card.get("card_set_id", "")).strip().upper()
             image_url = str(card.get("card_image", "")).strip()
+            if image_url.lower() == "none":
+                image_url = ""
             key = (code, image_url)
             if not code or not image_url or key in seen:
                 continue
@@ -145,20 +171,34 @@ def main():
     output = []
     total = len(all_cards)
 
-    for index, card in enumerate(all_cards, start=1):
+    def process_card(card: dict):
         code = str(card.get("card_set_id", "")).strip().upper()
         try:
-            fingerprint = build_fingerprint(
-                card,
-                image_dir=args.image_dir,
-                public_base_url=args.public_base_url,
+            return (
+                code,
+                build_fingerprint(
+                    card,
+                    image_dir=args.image_dir,
+                    public_base_url=args.public_base_url,
+                ),
+                None,
             )
-            if fingerprint is not None:
+        except Exception as exc:
+            return code, None, exc
+
+    with concurrent.futures.ThreadPoolExecutor(
+        max_workers=max(1, args.workers)
+    ) as executor:
+        for index, (code, fingerprint, error) in enumerate(
+            executor.map(process_card, all_cards),
+            start=1,
+        ):
+            if error is not None:
+                print(f"[skip] {code}: {error}")
+            elif fingerprint is not None:
                 output.append(fingerprint)
             if index % 50 == 0 or index == total:
                 print(f"[{index}/{total}] processed {code}")
-        except Exception as exc:
-            print(f"[skip] {code}: {exc}")
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
