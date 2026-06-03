@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 import '../../data/models/weekly_tournament.dart';
 import '../../data/repositories/weekly_tournament_repository.dart';
 
+const String _weeklyStoreName = 'STOP TCG';
+
 class WeeklyDashboardScreen extends ConsumerStatefulWidget {
   final String gameSlug;
 
@@ -84,7 +86,7 @@ class _WeeklyDashboardScreenState extends ConsumerState<WeeklyDashboardScreen> {
           onPressed: () => context.go(_hubRoute(widget.gameSlug)),
           icon: const Icon(Icons.arrow_back),
         ),
-        title: Text('Semanais - $title'),
+        title: Text('Semanais $_weeklyStoreName - $title'),
         actions: [
           if (isAdmin)
             Padding(
@@ -216,7 +218,7 @@ class _PlayerPanel extends StatelessWidget {
                       icon: Icons.how_to_reg_outlined,
                       title: 'Inscricoes abertas',
                       subtitle:
-                          'Escolha seu lider e confirme sua participacao nos proximos encontros.',
+                          'Entre nos semanais da STOP TCG, escolha seu lider e confirme sua participacao.',
                     ),
                     const SizedBox(height: 12),
                     for (final event in openEvents)
@@ -244,7 +246,7 @@ class _PlayerPanel extends StatelessWidget {
                     icon: Icons.event_note_outlined,
                     title: 'Meus semanais',
                     subtitle:
-                        'Abra um encontro para acompanhar suas rodadas e confirmar resultados.',
+                        'Acompanhe seus encontros da STOP TCG, rodadas e confirmacoes de resultado.',
                   ),
                   const SizedBox(height: 12),
                   if (myParticipants.isEmpty)
@@ -268,7 +270,7 @@ class _PlayerPanel extends StatelessWidget {
                     icon: Icons.emoji_events_outlined,
                     title: 'Ranking mensal',
                     subtitle:
-                        'Classificacao por pontos, com desempate pelo numero de vitorias.',
+                        'Classificacao mensal da STOP TCG por pontos, com desempate pelo numero de vitorias.',
                   ),
                   const SizedBox(height: 12),
                   if (data.ranking.isEmpty)
@@ -339,7 +341,7 @@ class _AdminPanel extends StatelessWidget {
                   icon: Icons.tune_outlined,
                   title: 'Gerenciar encontros',
                   subtitle:
-                      'Abra um semanal para controlar participantes, mesas, byes e resultados.',
+                      'Controle os semanais da STOP TCG: participantes, mesas, byes e resultados.',
                 ),
                 const SizedBox(height: 12),
                 if (data.events.isEmpty)
@@ -435,14 +437,14 @@ class _AdminOverview extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Painel administrativo',
+                      'Painel administrativo STOP TCG',
                       style: theme.textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w900,
                       ),
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      'Visao operacional de ${weeklyMonthLabel(month)}',
+                      'Visao operacional da STOP TCG em ${weeklyMonthLabel(month)}',
                       style: theme.textTheme.bodyMedium,
                     ),
                   ],
@@ -593,14 +595,14 @@ class _WeeklyHero extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Circuito mensal',
+                      'Circuito mensal STOP TCG',
                       style: theme.textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w900,
                       ),
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      'Acompanhe inscricoes, rodadas, desempenho e classificacao.',
+                      'Acompanhe inscricoes, rodadas, desempenho e classificacao dos semanais da loja.',
                       style: theme.textTheme.bodyMedium,
                     ),
                   ],
@@ -1640,11 +1642,18 @@ class _CreateEventDialogState extends State<_CreateEventDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Este semanal sera cadastrado inicialmente para a loja STOP TCG.',
+              ),
+            ),
+            const SizedBox(height: 12),
             TextField(
               controller: _titleController,
               decoration: const InputDecoration(
                 labelText: 'Nome do semanal',
-                hintText: 'Ex.: Semanal 01',
+                hintText: 'Ex.: STOP TCG - Semanal 01',
               ),
             ),
             const SizedBox(height: 12),

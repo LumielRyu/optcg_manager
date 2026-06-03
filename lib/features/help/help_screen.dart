@@ -148,9 +148,10 @@ class HelpScreen extends StatelessWidget {
                   ),
                   _HelpSection(
                     icon: Icons.emoji_events_outlined,
-                    title: 'Semanais',
+                    title: 'Semanais STOP TCG',
                     children: const [
-                      'A pagina de semanais mostra eventos abertos, participacoes, pontuacao e ranking mensal.',
+                      'A pagina de semanais sera usada inicialmente para organizar os encontros da loja STOP TCG.',
+                      'Ela mostra eventos abertos, participacoes, pontuacao e ranking mensal.',
                       'Jogadores podem entrar em semanais abertos e escolher o deck usado.',
                       'Administradores podem gerenciar partidas, rodadas e resultados.',
                     ],

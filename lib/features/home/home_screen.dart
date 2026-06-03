@@ -122,9 +122,9 @@ class HomeScreen extends ConsumerWidget {
                           width: cardWidth,
                           child: const _HomeFeatureCard(
                             icon: Icons.emoji_events_outlined,
-                            title: 'Semanais',
+                            title: 'Semanais STOP TCG',
                             subtitle:
-                                'Consulte historico de partidas, pontuacao mensal e ranking dos encontros semanais.',
+                                'Consulte historico de partidas, pontuacao mensal e ranking dos encontros da loja STOP TCG.',
                             buttonLabel: 'Abrir semanais',
                             route: '/weeklies/one-piece',
                           ),
