@@ -12,6 +12,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/widgets/home_navigation_button.dart';
 import '../../../core/widgets/primary_bottom_navigation.dart';
 import 'card_scan_deduplicator.dart';
+import 'scanner_browser_torch.dart';
 import '../image_import/image_import_controller.dart';
 
 class CardScanTestScreen extends ConsumerStatefulWidget {
@@ -124,8 +125,10 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
     try {
       await controller.setFlashMode(FlashMode.off);
     } catch (_) {
-      flashAvailable = false;
-      controlError = 'Este dispositivo nao permitiu controlar o flash.';
+      flashAvailable = kIsWeb;
+      controlError = kIsWeb
+          ? 'Flash do navegador ainda nao confirmado. Toque no botao para tentar.'
+          : 'Este dispositivo nao permitiu controlar o flash.';
     }
 
     try {
@@ -165,12 +168,22 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
         _cameraControlError = null;
       });
     } catch (e) {
+      final browserTorch = await setBrowserTorch(enabled);
       if (!mounted) return;
-      setState(() {
-        _torchEnabled = false;
-        _flashControlAvailable = false;
-        _cameraControlError = 'Nao foi possivel controlar o flash: $e';
-      });
+      if (browserTorch.supported) {
+        setState(() {
+          _torchEnabled = enabled;
+          _flashControlAvailable = true;
+          _cameraControlError = null;
+        });
+      } else {
+        setState(() {
+          _torchEnabled = false;
+          _flashControlAvailable = kIsWeb;
+          _cameraControlError =
+              browserTorch.message ?? 'Nao foi possivel controlar o flash: $e';
+        });
+      }
     }
   }
 
