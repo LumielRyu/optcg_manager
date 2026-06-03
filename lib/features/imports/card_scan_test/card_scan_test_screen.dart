@@ -24,7 +24,7 @@ class CardScanTestScreen extends ConsumerStatefulWidget {
 
 class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
   static const _sampleImagePath = 'assets/test_samples/boa_hancock_p115.jpeg';
-  static const _analysisMaxSide = 760;
+  static const _analysisMaxSide = 920;
   static const _autoScanSearchDelay = Duration(milliseconds: 950);
   static const _autoScanConfirmDelay = Duration(milliseconds: 520);
   static const _autoScanAfterCountDelay = Duration(milliseconds: 1300);
@@ -84,7 +84,7 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
 
       final controller = CameraController(
         selectedCamera,
-        ResolutionPreset.medium,
+        ResolutionPreset.high,
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.jpeg,
       );
@@ -235,7 +235,7 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
       );
     }
 
-    return Uint8List.fromList(img.encodeJpg(cropped, quality: 84));
+    return Uint8List.fromList(img.encodeJpg(cropped, quality: 88));
   }
 
   Uint8List _prepareAnalysisBytes(Uint8List bytes) {
@@ -293,7 +293,7 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
       _continuousScan = true;
       _nextContinuousDelay = _autoScanSearchDelay;
       _scanFeedback =
-          'Auto scan iniciado em modo economico. A carta sera contada depois de duas leituras iguais.';
+          'Auto scan iniciado em alta resolucao economica. A carta sera contada depois de duas leituras iguais.';
     });
     _deduplicator.reset();
     _scanFromLiveCamera(visualOnly: true);
