@@ -260,6 +260,7 @@ class ImageImportController extends StateNotifier<ImageImportState> {
           extractedLines: const [],
           sourceBytes: sourceBytes,
           allowLowConfidence: skipOcrFallback,
+          fastMode: skipOcrFallback,
         );
 
         if (visualMatch != null && visualMatch.isHighConfidence) {
@@ -524,6 +525,7 @@ class ImageImportController extends StateNotifier<ImageImportState> {
           extractedLines: const [],
           sourceBytes: bytes,
           allowLowConfidence: skipOcrFallback,
+          fastMode: skipOcrFallback,
         );
 
         if (visualMatch != null && visualMatch.isHighConfidence) {
@@ -986,6 +988,7 @@ class ImageImportController extends StateNotifier<ImageImportState> {
     required List<String> extractedLines,
     Uint8List? sourceBytes,
     bool allowLowConfidence = false,
+    bool fastMode = false,
   }) async {
     if (sourceBytes == null) {
       return null;
@@ -996,6 +999,7 @@ class ImageImportController extends StateNotifier<ImageImportState> {
       sourceBytes: sourceBytes,
       cards: allCards,
       limit: 3,
+      fastMode: fastMode,
     );
 
     if (databaseRanked.isNotEmpty) {

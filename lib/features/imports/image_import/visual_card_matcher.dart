@@ -132,6 +132,7 @@ class VisualCardMatcher {
     required Uint8List sourceBytes,
     required List<OpCard> cards,
     int limit = 3,
+    bool fastMode = false,
   }) async {
     final fingerprints = await _loadFingerprintDatabase();
     return rankAgainstCatalog(
@@ -139,6 +140,7 @@ class VisualCardMatcher {
       cards: cards,
       fingerprints: fingerprints,
       limit: limit,
+      fastMode: fastMode,
     );
   }
 
@@ -147,10 +149,14 @@ class VisualCardMatcher {
     required List<OpCard> cards,
     required List<VisualCardCatalogEntry> fingerprints,
     int limit = 3,
+    bool fastMode = false,
   }) {
     if (fingerprints.isEmpty || cards.isEmpty) return const [];
 
-    final sourceVariants = _computeSourceFingerprints(sourceBytes);
+    final sourceVariants = _computeSourceFingerprints(
+      sourceBytes,
+      fastMode: fastMode,
+    );
     if (sourceVariants.isEmpty) return const [];
 
     final cardsByCode = <String, OpCard>{
@@ -229,14 +235,17 @@ class VisualCardMatcher {
     return _differenceHash(cropped);
   }
 
-  List<_SourceFingerprint> _computeSourceFingerprints(Uint8List bytes) {
+  List<_SourceFingerprint> _computeSourceFingerprints(
+    Uint8List bytes, {
+    bool fastMode = false,
+  }) {
     final decoded = img.decodeImage(bytes);
     if (decoded == null) return const [];
 
     final oriented = img.bakeOrientation(decoded);
-    final variants = _candidateCardRegions(
-      oriented,
-    ).expand(_lightingAdjustedVariants).toList(growable: false);
+    final variants = _candidateCardRegions(oriented, fastMode: fastMode)
+        .expand((item) => _lightingAdjustedVariants(item, fastMode: fastMode))
+        .toList(growable: false);
     final fingerprints = <_SourceFingerprint>[];
 
     for (final full in variants) {
@@ -313,7 +322,18 @@ class VisualCardMatcher {
     return img.copyCrop(source, x: x, y: y, width: width, height: height);
   }
 
-  List<img.Image> _candidateCardRegions(img.Image source) {
+  List<img.Image> _candidateCardRegions(
+    img.Image source, {
+    bool fastMode = false,
+  }) {
+    if (fastMode) {
+      return [
+        source,
+        _fallbackCentralCrop(source),
+        _centralCrop(source, widthRatio: 0.82, heightRatio: 0.94),
+      ];
+    }
+
     return [
       _fallbackCentralCrop(source),
       _centralCrop(source, widthRatio: 0.82, heightRatio: 0.94),
@@ -323,10 +343,25 @@ class VisualCardMatcher {
     ];
   }
 
-  Iterable<img.Image> _lightingAdjustedVariants(img.Image source) sync* {
+  Iterable<img.Image> _lightingAdjustedVariants(
+    img.Image source, {
+    bool fastMode = false,
+  }) sync* {
     yield source;
 
     final luma = _averageLuma(source);
+    if (fastMode) {
+      if (luma < 125) {
+        yield img.adjustColor(
+          source,
+          brightness: 1.34,
+          gamma: 0.74,
+          contrast: 1.08,
+        );
+      }
+      return;
+    }
+
     if (luma < 150) {
       yield img.adjustColor(
         source,

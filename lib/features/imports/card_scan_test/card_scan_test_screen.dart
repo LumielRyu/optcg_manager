@@ -13,7 +13,6 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/widgets/home_navigation_button.dart';
 import '../../../core/widgets/primary_bottom_navigation.dart';
 import 'card_scan_deduplicator.dart';
-import 'scanner_browser_torch.dart';
 import '../image_import/image_import_controller.dart';
 
 class CardScanTestScreen extends ConsumerStatefulWidget {
@@ -25,11 +24,11 @@ class CardScanTestScreen extends ConsumerStatefulWidget {
 
 class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
   static const _sampleImagePath = 'assets/test_samples/boa_hancock_p115.jpeg';
-  static const _analysisMaxSide = 1100;
-  static const _autoScanSearchDelay = Duration(milliseconds: 320);
-  static const _autoScanConfirmDelay = Duration(milliseconds: 180);
-  static const _autoScanAfterCountDelay = Duration(milliseconds: 560);
-  static const _autoScanWaitingRemovalDelay = Duration(milliseconds: 520);
+  static const _analysisMaxSide = 760;
+  static const _autoScanSearchDelay = Duration(milliseconds: 950);
+  static const _autoScanConfirmDelay = Duration(milliseconds: 520);
+  static const _autoScanAfterCountDelay = Duration(milliseconds: 1300);
+  static const _autoScanWaitingRemovalDelay = Duration(milliseconds: 1100);
 
   final ImagePicker _picker = ImagePicker();
   final List<_ScanHistoryItem> _history = [];
@@ -46,15 +45,8 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
   bool _initializingCamera = false;
   bool _scanInProgress = false;
   bool _continuousScan = false;
-  bool _torchEnabled = false;
-  bool _flashControlAvailable = true;
-  bool _exposureControlAvailable = false;
-  double _minExposureOffset = 0;
-  double _maxExposureOffset = 0;
-  double _lightLevel = 0.5;
   Duration _nextContinuousDelay = _autoScanSearchDelay;
   String? _scanFeedback;
-  String? _cameraControlError;
   _RecognitionOverlayData? _recognitionOverlay;
 
   @override
@@ -67,7 +59,6 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
   void dispose() {
     _continuousTimer?.cancel();
     _recognitionOverlayTimer?.cancel();
-    unawaited(_cameraController?.setFlashMode(FlashMode.off));
     _cameraController?.dispose();
     super.dispose();
   }
@@ -93,13 +84,12 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
 
       final controller = CameraController(
         selectedCamera,
-        ResolutionPreset.high,
+        ResolutionPreset.medium,
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.jpeg,
       );
 
       await controller.initialize();
-      await _configureCameraControls(controller);
 
       if (!mounted) {
         await controller.dispose();
@@ -119,128 +109,6 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
         _cameraError = 'Nao foi possivel inicializar a camera: $e';
       });
     }
-  }
-
-  Future<void> _configureCameraControls(CameraController controller) async {
-    var flashAvailable = true;
-    var exposureAvailable = false;
-    var minExposure = 0.0;
-    var maxExposure = 0.0;
-    var level = 0.5;
-    String? controlError;
-
-    try {
-      await controller.setFlashMode(FlashMode.off);
-    } catch (_) {
-      flashAvailable = kIsWeb;
-      controlError = kIsWeb
-          ? 'Flash do navegador ainda nao confirmado. Toque no botao para tentar.'
-          : 'Este dispositivo nao permitiu controlar o flash.';
-    }
-
-    try {
-      minExposure = await controller.getMinExposureOffset();
-      maxExposure = await controller.getMaxExposureOffset();
-      exposureAvailable = (maxExposure - minExposure).abs() > 0.05;
-      if (exposureAvailable) {
-        final neutral = 0.0.clamp(minExposure, maxExposure).toDouble();
-        level = _exposureToLevel(neutral, minExposure, maxExposure);
-        await controller.setExposureOffset(neutral);
-      }
-    } catch (_) {
-      exposureAvailable = false;
-      controlError ??=
-          'Usando clareamento digital porque a exposicao da camera nao foi liberada.';
-    }
-
-    _torchEnabled = false;
-    _flashControlAvailable = flashAvailable;
-    _exposureControlAvailable = exposureAvailable;
-    _minExposureOffset = minExposure;
-    _maxExposureOffset = maxExposure;
-    _lightLevel = level;
-    _cameraControlError = controlError;
-  }
-
-  Future<void> _setTorchEnabled(bool enabled) async {
-    final controller = _cameraController;
-    if (controller == null || !controller.value.isInitialized) return;
-
-    try {
-      await controller.setFlashMode(enabled ? FlashMode.torch : FlashMode.off);
-      if (!mounted) return;
-      setState(() {
-        _torchEnabled = enabled;
-        _flashControlAvailable = true;
-        _cameraControlError = null;
-      });
-    } catch (e) {
-      final browserTorch = await setBrowserTorch(enabled);
-      if (!mounted) return;
-      if (browserTorch.supported) {
-        setState(() {
-          _torchEnabled = enabled;
-          _flashControlAvailable = true;
-          _cameraControlError = null;
-        });
-      } else {
-        setState(() {
-          _torchEnabled = false;
-          _flashControlAvailable = kIsWeb;
-          _cameraControlError =
-              browserTorch.message ?? 'Nao foi possivel controlar o flash: $e';
-        });
-      }
-    }
-  }
-
-  Future<void> _setLightLevel(double level) async {
-    final controller = _cameraController;
-    if (controller == null || !controller.value.isInitialized) return;
-
-    final normalizedLevel = level.clamp(0.0, 1.0).toDouble();
-    setState(() {
-      _lightLevel = normalizedLevel;
-    });
-
-    if (!_exposureControlAvailable) return;
-
-    final exposure = _levelToExposure(normalizedLevel);
-    try {
-      final applied = await controller.setExposureOffset(exposure);
-      if (!mounted) return;
-      setState(() {
-        _lightLevel = _exposureToLevel(
-          applied,
-          _minExposureOffset,
-          _maxExposureOffset,
-        );
-        _cameraControlError = null;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _exposureControlAvailable = false;
-        _cameraControlError = 'Ajuste de intensidade indisponivel: $e';
-      });
-    }
-  }
-
-  double _levelToExposure(double level) {
-    if ((_maxExposureOffset - _minExposureOffset).abs() <= 0.05) return 0;
-    return _minExposureOffset +
-        ((_maxExposureOffset - _minExposureOffset) * level);
-  }
-
-  double _exposureToLevel(
-    double exposure,
-    double minExposure,
-    double maxExposure,
-  ) {
-    if ((maxExposure - minExposure).abs() <= 0.05) return 0.5;
-    return ((exposure - minExposure) / (maxExposure - minExposure))
-        .clamp(0.0, 1.0)
-        .toDouble();
   }
 
   Future<void> _scanFromLiveCamera({bool visualOnly = false}) async {
@@ -263,7 +131,7 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
       if (!mounted) return;
 
       setState(() {
-        _imageBytes = bytes;
+        _imageBytes = visualOnly ? analysisBytes : bytes;
         _imagePath = kIsWeb ? null : file.path;
       });
 
@@ -371,25 +239,7 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
   }
 
   Uint8List _prepareAnalysisBytes(Uint8List bytes) {
-    final cropped = _cropToGuide(bytes) ?? bytes;
-    if (_exposureControlAvailable || (_lightLevel - 0.5).abs() < 0.04) {
-      return cropped;
-    }
-
-    final decoded = img.decodeImage(cropped);
-    if (decoded == null) return cropped;
-
-    final brightness = (1 + ((_lightLevel - 0.5) * 1.05)).clamp(0.55, 1.55);
-    final gamma = _lightLevel >= 0.5
-        ? (1 - ((_lightLevel - 0.5) * 0.62)).clamp(0.68, 1.0)
-        : (1 + ((0.5 - _lightLevel) * 0.45)).clamp(1.0, 1.24);
-    final enhanced = img.adjustColor(
-      decoded,
-      brightness: brightness,
-      gamma: gamma,
-      contrast: 1.05,
-    );
-    return Uint8List.fromList(img.encodeJpg(enhanced, quality: 92));
+    return _cropToGuide(bytes) ?? bytes;
   }
 
   Future<void> _analyzeBytes({
@@ -443,7 +293,7 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
       _continuousScan = true;
       _nextContinuousDelay = _autoScanSearchDelay;
       _scanFeedback =
-          'Varredura automatica rapida iniciada. A carta sera contada depois de duas leituras iguais.';
+          'Auto scan iniciado em modo economico. A carta sera contada depois de duas leituras iguais.';
     });
     _deduplicator.reset();
     _scanFromLiveCamera(visualOnly: true);
@@ -779,20 +629,6 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
         ),
         if (_continuousScan)
           const Positioned(left: 12, top: 12, child: _LiveBadge()),
-        Positioned(
-          top: 12,
-          right: 12,
-          child: _CameraLightControls(
-            torchEnabled: _torchEnabled,
-            flashAvailable: _flashControlAvailable,
-            exposureAvailable: _exposureControlAvailable,
-            digitalLightAvailable: !_exposureControlAvailable,
-            lightLevel: _lightLevel,
-            error: _cameraControlError,
-            onTorchChanged: _setTorchEnabled,
-            onLightLevelChanged: _setLightLevel,
-          ),
-        ),
         if (_imageBytes != null && _recognitionOverlay == null)
           Positioned(
             right: 12,
@@ -839,106 +675,6 @@ class _RecognitionOverlayData {
     required this.count,
     this.imageUrl,
   });
-}
-
-class _CameraLightControls extends StatelessWidget {
-  final bool torchEnabled;
-  final bool flashAvailable;
-  final bool exposureAvailable;
-  final bool digitalLightAvailable;
-  final double lightLevel;
-  final String? error;
-  final ValueChanged<bool> onTorchChanged;
-  final ValueChanged<double> onLightLevelChanged;
-
-  const _CameraLightControls({
-    required this.torchEnabled,
-    required this.flashAvailable,
-    required this.exposureAvailable,
-    required this.digitalLightAvailable,
-    required this.lightLevel,
-    required this.onTorchChanged,
-    required this.onLightLevelChanged,
-    this.error,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final canAdjustLight = exposureAvailable || digitalLightAvailable;
-    final canAdjustAny = flashAvailable || canAdjustLight;
-
-    return Material(
-      color: Colors.black.withValues(alpha: 0.62),
-      borderRadius: BorderRadius.circular(14),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-        child: SizedBox(
-          width: 206,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  IconButton.filledTonal(
-                    visualDensity: VisualDensity.compact,
-                    onPressed: flashAvailable
-                        ? () => onTorchChanged(!torchEnabled)
-                        : null,
-                    tooltip: torchEnabled ? 'Desligar flash' : 'Ligar flash',
-                    icon: Icon(
-                      torchEnabled
-                          ? Icons.flashlight_on_outlined
-                          : Icons.flashlight_off_outlined,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      torchEnabled ? 'Flash ligado' : 'Flash desligado',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                exposureAvailable
-                    ? 'Intensidade / exposicao'
-                    : digitalLightAvailable
-                    ? 'Clareamento digital'
-                    : 'Intensidade indisponivel',
-                style: const TextStyle(color: Color(0xFFE7E0DA), fontSize: 12),
-              ),
-              Slider(
-                value: lightLevel.clamp(0.0, 1.0).toDouble(),
-                min: 0,
-                max: 1,
-                divisions: 10,
-                label: '${(lightLevel * 100).round()}%',
-                onChanged: canAdjustLight ? onLightLevelChanged : null,
-              ),
-              if (!canAdjustAny || (error?.trim().isNotEmpty ?? false))
-                Text(
-                  error?.trim().isNotEmpty ?? false
-                      ? error!
-                      : 'Controle nao suportado nesta camera.',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFFFFD7D7),
-                    fontSize: 11,
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _RecognitionSuccessOverlay extends StatelessWidget {
