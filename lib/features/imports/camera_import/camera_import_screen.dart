@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+
 import '../../../core/widgets/home_navigation_button.dart';
 
 class CameraImportScreen extends StatefulWidget {
@@ -40,7 +41,6 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
     if (_hasStartedCameraFlow && (_isWebMode || _cameraController != null)) {
       return;
     }
-
     if (_isInitializingCamera) return;
 
     setState(() {
@@ -60,7 +60,6 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
 
     try {
       final cameras = await availableCameras();
-
       if (cameras.isEmpty) {
         if (!mounted) return;
         setState(() {
@@ -78,13 +77,18 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
 
       final controller = CameraController(
         backCamera,
-        ResolutionPreset.medium,
+        ResolutionPreset.high,
         enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.jpeg,
       );
 
       await controller.initialize();
 
-      if (!mounted) return;
+      if (!mounted) {
+        await controller.dispose();
+        return;
+      }
+
       setState(() {
         _cameraController = controller;
         _isWebMode = false;
@@ -107,7 +111,6 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
 
   Future<void> _capturePhoto() async {
     await _ensureCameraInitialized();
-
     if (!_isCameraReady) return;
 
     if (_isWebMode) {
@@ -124,7 +127,6 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
 
     try {
       final file = await controller.takePicture();
-
       if (!mounted) return;
       setState(() {
         _capturedImagePath = file.path;
@@ -153,7 +155,7 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
     try {
       final file = await _imagePicker.pickImage(
         source: ImageSource.camera,
-        imageQuality: 90,
+        imageQuality: 92,
       );
 
       if (file == null) {
@@ -218,75 +220,26 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Importar com câmera'),
+        title: const Text('Escanear com câmera'),
         actions: const [HomeNavigationButton()],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          Expanded(child: _buildBodyPreview()),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_hasStartedCameraFlow && _isWebMode)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Text(
-                        canContinue
-                            ? 'Foto capturada. A análise será aberta em seguida.'
-                            : 'No navegador, a captura usa a câmera do próprio navegador.',
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _isCapturing || _isInitializingCamera
-                              ? null
-                              : _capturePhoto,
-                          icon: (_isCapturing || _isInitializingCamera)
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.camera_alt_outlined),
-                          label: Text(
-                            _hasStartedCameraFlow
-                                ? (_isWebMode
-                                      ? 'Abrir câmera'
-                                      : 'Capturar foto')
-                                : 'Usar câmera',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: FilledButton.icon(
-                          onPressed: canContinue && !_isOpeningImport
-                              ? _openImageImport
-                              : null,
-                          icon: _isOpeningImport
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.arrow_forward),
-                          label: const Text('Continuar'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+          Positioned.fill(child: _buildBodyPreview()),
+          Positioned(
+            left: 12,
+            right: 12,
+            bottom: 12,
+            child: SafeArea(
+              top: false,
+              child: _CameraActionPanel(
+                isWebMode: _isWebMode,
+                hasStarted: _hasStartedCameraFlow,
+                canContinue: canContinue,
+                isBusy:
+                    _isCapturing || _isInitializingCamera || _isOpeningImport,
+                onCapture: _capturePhoto,
+                onContinue: _openImageImport,
               ),
             ),
           ),
@@ -297,17 +250,9 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
 
   Widget _buildBodyPreview() {
     if (!_hasStartedCameraFlow) {
-      return Container(
-        color: Colors.black,
-        alignment: Alignment.center,
-        child: const Padding(
-          padding: EdgeInsets.all(24),
-          child: Text(
-            'A câmera só será solicitada quando você clicar em "Usar câmera".',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white),
-          ),
-        ),
+      return _PreviewMessage(
+        text: 'A câmera só será solicitada quando você tocar em "Usar câmera".',
+        icon: Icons.photo_camera_outlined,
       );
     }
 
@@ -316,30 +261,17 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
     }
 
     if (!_isCameraReady) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Text(
-            'Câmera indisponível neste dispositivo.',
-            textAlign: TextAlign.center,
-          ),
-        ),
+      return const _PreviewMessage(
+        text: 'Câmera indisponível neste dispositivo.',
+        icon: Icons.no_photography_outlined,
       );
     }
 
     if (_isWebMode) {
       if (_webCapturedBytes == null) {
-        return Container(
-          color: Colors.black,
-          alignment: Alignment.center,
-          child: const Padding(
-            padding: EdgeInsets.all(24),
-            child: Text(
-              'Clique em "Abrir câmera" para tirar uma foto no navegador.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
+        return const _PreviewMessage(
+          text: 'Toque em "Abrir câmera" para tirar uma foto no navegador.',
+          icon: Icons.camera_alt_outlined,
         );
       }
 
@@ -363,6 +295,130 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    return CameraPreview(controller);
+    return Container(color: Colors.black, child: CameraPreview(controller));
+  }
+}
+
+class _CameraActionPanel extends StatelessWidget {
+  final bool isWebMode;
+  final bool hasStarted;
+  final bool canContinue;
+  final bool isBusy;
+  final VoidCallback onCapture;
+  final VoidCallback onContinue;
+
+  const _CameraActionPanel({
+    required this.isWebMode,
+    required this.hasStarted,
+    required this.canContinue,
+    required this.isBusy,
+    required this.onCapture,
+    required this.onContinue,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Material(
+      color: theme.colorScheme.surface.withValues(alpha: 0.94),
+      elevation: 10,
+      borderRadius: BorderRadius.circular(22),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.center_focus_strong_outlined,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Enquadre a carta inteira',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              canContinue
+                  ? 'Foto capturada. Continue para revisar e adicionar à coleção.'
+                  : 'Use boa luz e deixe a borda da carta visível para melhorar o reconhecimento.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: isBusy ? null : onCapture,
+                    icon: isBusy
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.camera_alt_outlined),
+                    label: Text(
+                      hasStarted
+                          ? (isWebMode ? 'Abrir câmera' : 'Capturar')
+                          : 'Usar câmera',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: canContinue && !isBusy ? onContinue : null,
+                    icon: const Icon(Icons.arrow_forward),
+                    label: const Text('Revisar'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PreviewMessage extends StatelessWidget {
+  final String text;
+  final IconData icon;
+
+  const _PreviewMessage({required this.text, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.black,
+      alignment: Alignment.center,
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white70, size: 52),
+            const SizedBox(height: 14),
+            Text(
+              text,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

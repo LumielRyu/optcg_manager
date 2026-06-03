@@ -111,6 +111,9 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
       0,
       (sum, item) => sum + item.quantity,
     );
+    final destination = _selectedLibrary == CollectionTypes.deck
+        ? CollectionTypes.deck
+        : CollectionTypes.owned;
 
     return Scaffold(
       appBar: AppBar(
@@ -134,18 +137,18 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
             ),
           ),
           IconButton(
+            tooltip: 'Escanear com camera',
+            onPressed: () => _openCameraImport(destination),
+            icon: const Icon(Icons.center_focus_strong_outlined),
+          ),
+          IconButton(
             tooltip: 'Importar por c\u00F3digo',
-            onPressed: () => context.push('/code-import'),
+            onPressed: () => _openCodeImport(destination),
             icon: const Icon(Icons.content_paste_outlined),
           ),
           IconButton(
             tooltip: 'Adicionar carta',
-            onPressed: () async {
-              await showDialog(
-                context: context,
-                builder: (_) => const ManualAddDialog(),
-              );
-            },
+            onPressed: _openManualAddDialog,
             icon: const Icon(Icons.add),
           ),
         ],
@@ -180,6 +183,10 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
               onOpenFilters: () {
                 _openFiltersPanel(context, libraryItems);
               },
+              onScanWithCamera: () => _openCameraImport(destination),
+              onImportImage: () => _openImageImport(destination),
+              onImportCode: () => _openCodeImport(destination),
+              onManualAdd: _openManualAddDialog,
             ),
             _selectedLibrary == CollectionTypes.deck
                 ? _DeckLibraryView(
@@ -202,18 +209,99 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          await showDialog(
-            context: context,
-            builder: (_) => const ManualAddDialog(),
-          );
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Adicionar'),
+        onPressed: () => _openAddCardsSheet(destination),
+        icon: const Icon(Icons.add_photo_alternate_outlined),
+        label: const Text('Adicionar cartas'),
       ),
       bottomNavigationBar: const PrimaryBottomNavigation(
         currentRoute: '/collection',
       ),
+    );
+  }
+
+  void _openCameraImport(String destination) {
+    context.push('/camera-import?destination=$destination');
+  }
+
+  void _openImageImport(String destination) {
+    context.push('/image-import?destination=$destination');
+  }
+
+  void _openCodeImport(String destination) {
+    context.push('/code-import?destination=$destination');
+  }
+
+  Future<void> _openManualAddDialog() async {
+    await showDialog(context: context, builder: (_) => const ManualAddDialog());
+  }
+
+  Future<void> _openAddCardsSheet(String destination) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      useSafeArea: true,
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Adicionar cartas',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Escolha o jeito mais rápido para registrar cartas na ${CollectionTypes.label(destination).toLowerCase()}.',
+              ),
+              const SizedBox(height: 16),
+              _AddMethodTile(
+                icon: Icons.center_focus_strong_outlined,
+                title: 'Escanear com câmera',
+                subtitle: 'Use a câmera do celular para reconhecer a carta.',
+                highlighted: true,
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _openCameraImport(destination);
+                },
+              ),
+              const SizedBox(height: 10),
+              _AddMethodTile(
+                icon: Icons.image_search_outlined,
+                title: 'Importar imagem',
+                subtitle: 'Envie uma foto já salva na galeria.',
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _openImageImport(destination);
+                },
+              ),
+              const SizedBox(height: 10),
+              _AddMethodTile(
+                icon: Icons.content_paste_outlined,
+                title: 'Importar por código',
+                subtitle: 'Cole códigos ou listas de deck.',
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _openCodeImport(destination);
+                },
+              ),
+              const SizedBox(height: 10),
+              _AddMethodTile(
+                icon: Icons.add_circle_outline,
+                title: 'Adicionar manualmente',
+                subtitle: 'Pesquise e registre uma carta sem foto.',
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _openManualAddDialog();
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -477,6 +565,10 @@ class _HeaderSection extends StatelessWidget {
   final VoidCallback onToggleCollapsed;
   final VoidCallback onFavoritesOnlyChanged;
   final VoidCallback onOpenFilters;
+  final VoidCallback onScanWithCamera;
+  final VoidCallback onImportImage;
+  final VoidCallback onImportCode;
+  final VoidCallback onManualAdd;
 
   const _HeaderSection({
     required this.selectedLibrary,
@@ -493,6 +585,10 @@ class _HeaderSection extends StatelessWidget {
     required this.onToggleCollapsed,
     required this.onFavoritesOnlyChanged,
     required this.onOpenFilters,
+    required this.onScanWithCamera,
+    required this.onImportImage,
+    required this.onImportCode,
+    required this.onManualAdd,
   });
 
   @override
@@ -517,57 +613,167 @@ class _HeaderSection extends StatelessWidget {
     );
 
     return DashboardHeaderPanel(
-      top: Row(
+      top: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: libraryOptions.map((type) {
-                final selected = selectedLibrary == type;
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 720;
+              final title = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Minha coleção One Piece',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Gerencie cartas, decks e importações por câmera em um só painel.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              );
+              final actions = Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: compact ? WrapAlignment.start : WrapAlignment.end,
+                children: [
+                  FilledButton.icon(
+                    onPressed: onScanWithCamera,
+                    icon: const Icon(Icons.center_focus_strong_outlined),
+                    label: const Text('Escanear'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: onImportCode,
+                    icon: const Icon(Icons.content_paste_outlined),
+                    label: const Text('Código'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: onManualAdd,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Manual'),
+                  ),
+                ],
+              );
 
-                return ChoiceChip(
-                  label: Text(CollectionTypes.label(type)),
-                  selected: selected,
-                  onSelected: (_) => onLibraryChanged(type),
+              if (compact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [title, const SizedBox(height: 12), actions],
                 );
-              }).toList(),
-            ),
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: title),
+                  const SizedBox(width: 16),
+                  actions,
+                ],
+              );
+            },
           ),
-          if (selectedLibrary != CollectionTypes.deck) ...[
-            const SizedBox(width: 12),
-            segmentedControl,
-          ],
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: libraryOptions.map((type) {
+              final selected = selectedLibrary == type;
+
+              return ChoiceChip(
+                label: Text(CollectionTypes.label(type)),
+                selected: selected,
+                onSelected: (_) => onLibraryChanged(type),
+              );
+            }).toList(),
+          ),
         ],
       ),
-      stats: Row(
-        children: [
-          Expanded(
-            child: SummaryStatCard(
+      stats: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 680;
+          final cards = [
+            SummaryStatCard(
               label: selectedLibrary == CollectionTypes.deck
                   ? 'Decks'
-                  : 'Cartas \u00FAnicas',
+                  : 'Cartas únicas',
               value: '$totalUnique',
               icon: selectedLibrary == CollectionTypes.deck
                   ? Icons.dashboard_customize_outlined
                   : Icons.style_outlined,
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: SummaryStatCard(
+            SummaryStatCard(
               label: 'Total geral',
-              value: '$totalUnique',
+              value: '$totalCards',
               icon: Icons.format_list_numbered,
             ),
+          ];
+
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final card in cards) ...[
+                  card,
+                  if (card != cards.last) const SizedBox(height: 10),
+                ],
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              for (final card in cards) ...[
+                Expanded(child: card),
+                if (card != cards.last) const SizedBox(width: 12),
+              ],
+            ],
+          );
+        },
+      ),
+      search: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          CatalogSearchField(
+            controller: searchController,
+            hintText: selectedLibrary == CollectionTypes.deck
+                ? 'Buscar por deck, carta ou set'
+                : 'Buscar por nome, código ou set',
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              if (selectedLibrary != CollectionTypes.deck) segmentedControl,
+              FilterChip(
+                label: const Text('Favoritas'),
+                selected: favoritesOnly,
+                onSelected: (_) => onFavoritesOnlyChanged(),
+                avatar: const Icon(Icons.star_outline, size: 18),
+              ),
+              ActionChip(
+                avatar: const Icon(Icons.tune, size: 18),
+                label: Text(
+                  activeFilterCount == 0
+                      ? 'Filtros'
+                      : 'Filtros ($activeFilterCount)',
+                ),
+                onPressed: onOpenFilters,
+              ),
+              ActionChip(
+                avatar: const Icon(Icons.image_search_outlined, size: 18),
+                label: const Text('Imagem'),
+                onPressed: onImportImage,
+              ),
+            ],
           ),
         ],
-      ),
-      search: CatalogSearchField(
-        controller: searchController,
-        hintText: selectedLibrary == CollectionTypes.deck
-            ? 'Buscar por deck, carta ou set'
-            : 'Buscar por nome, c\u00F3digo ou set',
       ),
     );
   }
@@ -599,6 +805,84 @@ class _CollectionDropdown extends StatelessWidget {
       onChanged: onChanged,
       allowEmpty: allowEmpty,
       emptyLabel: emptyLabel,
+    );
+  }
+}
+
+class _AddMethodTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  final bool highlighted;
+
+  const _AddMethodTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.highlighted = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Material(
+      color: highlighted
+          ? theme.colorScheme.primaryContainer.withValues(alpha: 0.7)
+          : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: highlighted
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  icon,
+                  color: highlighted
+                      ? theme.colorScheme.onPrimary
+                      : theme.colorScheme.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -879,8 +1163,7 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
       });
     } catch (_) {
       setState(() {
-        _translatedText =
-            'Não foi possível traduzir o texto da carta.';
+        _translatedText = 'Não foi possível traduzir o texto da carta.';
         _showTranslated = true;
       });
     } finally {
