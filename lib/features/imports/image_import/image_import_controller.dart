@@ -260,7 +260,6 @@ class ImageImportController extends StateNotifier<ImageImportState> {
           extractedLines: const [],
           sourceBytes: sourceBytes,
           allowLowConfidence: skipOcrFallback,
-          fastMode: skipOcrFallback,
         );
 
         if (visualMatch != null && visualMatch.isHighConfidence) {
@@ -525,7 +524,6 @@ class ImageImportController extends StateNotifier<ImageImportState> {
           extractedLines: const [],
           sourceBytes: bytes,
           allowLowConfidence: skipOcrFallback,
-          fastMode: skipOcrFallback,
         );
 
         if (visualMatch != null && visualMatch.isHighConfidence) {

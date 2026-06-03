@@ -25,10 +25,12 @@ class CardScanTestScreen extends ConsumerStatefulWidget {
 class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
   static const _sampleImagePath = 'assets/test_samples/boa_hancock_p115.jpeg';
   static const _analysisMaxSide = 920;
-  static const _autoScanSearchDelay = Duration(milliseconds: 950);
-  static const _autoScanConfirmDelay = Duration(milliseconds: 520);
-  static const _autoScanAfterCountDelay = Duration(milliseconds: 1300);
-  static const _autoScanWaitingRemovalDelay = Duration(milliseconds: 1100);
+  static const _autoScanSearchDelay = Duration(milliseconds: 1700);
+  static const _autoScanConfirmDelay = Duration(milliseconds: 900);
+  static const _autoScanAfterCountDelay = Duration(milliseconds: 1900);
+  static const _autoScanWaitingRemovalDelay = Duration(milliseconds: 1700);
+  static const _autoScanMaxDuration = Duration(minutes: 3);
+  static const _autoScanMaxAttempts = 110;
 
   final ImagePicker _picker = ImagePicker();
   final List<_ScanHistoryItem> _history = [];
@@ -46,6 +48,8 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
   bool _scanInProgress = false;
   bool _continuousScan = false;
   Duration _nextContinuousDelay = _autoScanSearchDelay;
+  DateTime? _continuousScanStartedAt;
+  int _continuousScanAttempts = 0;
   String? _scanFeedback;
   _RecognitionOverlayData? _recognitionOverlay;
 
@@ -131,7 +135,9 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
       if (!mounted) return;
 
       setState(() {
-        _imageBytes = visualOnly ? analysisBytes : bytes;
+        if (!visualOnly) {
+          _imageBytes = bytes;
+        }
         _imagePath = kIsWeb ? null : file.path;
       });
 
@@ -285,6 +291,7 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
       _continuousTimer?.cancel();
       setState(() {
         _continuousScan = false;
+        _continuousScanStartedAt = null;
       });
       return;
     }
@@ -292,8 +299,10 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
     setState(() {
       _continuousScan = true;
       _nextContinuousDelay = _autoScanSearchDelay;
+      _continuousScanStartedAt = DateTime.now();
+      _continuousScanAttempts = 0;
       _scanFeedback =
-          'Auto scan iniciado em alta resolucao economica. A carta sera contada depois de duas leituras iguais.';
+          'Auto scan iniciado em alta resolucao. A carta sera contada depois de duas leituras iguais.';
     });
     _deduplicator.reset();
     _scanFromLiveCamera(visualOnly: true);
@@ -305,7 +314,29 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
 
     _continuousTimer = Timer(delay, () {
       if (!mounted || !_continuousScan) return;
+      if (!_canRunNextContinuousScan()) {
+        _pauseContinuousScanForSafety();
+        return;
+      }
+      _continuousScanAttempts++;
       _scanFromLiveCamera(visualOnly: true);
+    });
+  }
+
+  bool _canRunNextContinuousScan() {
+    final startedAt = _continuousScanStartedAt;
+    if (startedAt == null) return true;
+    if (_continuousScanAttempts >= _autoScanMaxAttempts) return false;
+    return DateTime.now().difference(startedAt) < _autoScanMaxDuration;
+  }
+
+  void _pauseContinuousScanForSafety() {
+    _continuousTimer?.cancel();
+    setState(() {
+      _continuousScan = false;
+      _continuousScanStartedAt = null;
+      _scanFeedback =
+          'Auto scan pausado para proteger o navegador do celular. Toque em Auto scan para iniciar outra rodada.';
     });
   }
 
