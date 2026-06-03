@@ -39,7 +39,14 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
   bool _initializingCamera = false;
   bool _scanInProgress = false;
   bool _continuousScan = false;
+  bool _torchEnabled = false;
+  bool _flashControlAvailable = true;
+  bool _exposureControlAvailable = false;
+  double _minExposureOffset = 0;
+  double _maxExposureOffset = 0;
+  double _lightLevel = 0.5;
   String? _scanFeedback;
+  String? _cameraControlError;
   _RecognitionOverlayData? _recognitionOverlay;
 
   @override
@@ -52,6 +59,7 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
   void dispose() {
     _continuousTimer?.cancel();
     _recognitionOverlayTimer?.cancel();
+    unawaited(_cameraController?.setFlashMode(FlashMode.off));
     _cameraController?.dispose();
     super.dispose();
   }
@@ -83,6 +91,7 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
       );
 
       await controller.initialize();
+      await _configureCameraControls(controller);
 
       if (!mounted) {
         await controller.dispose();
@@ -102,6 +111,115 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
         _cameraError = 'Nao foi possivel inicializar a camera: $e';
       });
     }
+  }
+
+  Future<void> _configureCameraControls(CameraController controller) async {
+    var flashAvailable = true;
+    var exposureAvailable = false;
+    var minExposure = 0.0;
+    var maxExposure = 0.0;
+    var level = 0.5;
+    String? controlError;
+
+    try {
+      await controller.setFlashMode(FlashMode.off);
+    } catch (_) {
+      flashAvailable = false;
+      controlError = 'Este dispositivo nao permitiu controlar o flash.';
+    }
+
+    try {
+      minExposure = await controller.getMinExposureOffset();
+      maxExposure = await controller.getMaxExposureOffset();
+      exposureAvailable = (maxExposure - minExposure).abs() > 0.05;
+      if (exposureAvailable) {
+        final neutral = 0.0.clamp(minExposure, maxExposure).toDouble();
+        level = _exposureToLevel(neutral, minExposure, maxExposure);
+        await controller.setExposureOffset(neutral);
+      }
+    } catch (_) {
+      exposureAvailable = false;
+      controlError ??= 'Ajuste de intensidade indisponivel nesta camera.';
+    }
+
+    _torchEnabled = false;
+    _flashControlAvailable = flashAvailable;
+    _exposureControlAvailable = exposureAvailable;
+    _minExposureOffset = minExposure;
+    _maxExposureOffset = maxExposure;
+    _lightLevel = level;
+    _cameraControlError = controlError;
+  }
+
+  Future<void> _setTorchEnabled(bool enabled) async {
+    final controller = _cameraController;
+    if (controller == null || !controller.value.isInitialized) return;
+
+    try {
+      await controller.setFlashMode(enabled ? FlashMode.torch : FlashMode.off);
+      if (!mounted) return;
+      setState(() {
+        _torchEnabled = enabled;
+        _flashControlAvailable = true;
+        _cameraControlError = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _torchEnabled = false;
+        _flashControlAvailable = false;
+        _cameraControlError = 'Nao foi possivel controlar o flash: $e';
+      });
+    }
+  }
+
+  Future<void> _setLightLevel(double level) async {
+    final controller = _cameraController;
+    if (controller == null || !controller.value.isInitialized) return;
+
+    final normalizedLevel = level.clamp(0.0, 1.0).toDouble();
+    setState(() {
+      _lightLevel = normalizedLevel;
+    });
+
+    if (!_exposureControlAvailable) return;
+
+    final exposure = _levelToExposure(normalizedLevel);
+    try {
+      final applied = await controller.setExposureOffset(exposure);
+      if (!mounted) return;
+      setState(() {
+        _lightLevel = _exposureToLevel(
+          applied,
+          _minExposureOffset,
+          _maxExposureOffset,
+        );
+        _cameraControlError = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _exposureControlAvailable = false;
+        _cameraControlError = 'Ajuste de intensidade indisponivel: $e';
+      });
+    }
+  }
+
+  double _levelToExposure(double level) {
+    if ((_maxExposureOffset - _minExposureOffset).abs() <= 0.05) return 0;
+    return _minExposureOffset +
+        ((_maxExposureOffset - _minExposureOffset) * level);
+  }
+
+  double _exposureToLevel(
+    double exposure,
+    double minExposure,
+    double maxExposure,
+  ) {
+    if ((maxExposure - minExposure).abs() <= 0.05) return 0.5;
+    return ((exposure - minExposure) / (maxExposure - minExposure))
+        .clamp(0.0, 1.0)
+        .toDouble();
   }
 
   Future<void> _scanFromLiveCamera({bool visualOnly = false}) async {
@@ -588,6 +706,19 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
         ),
         if (_continuousScan)
           const Positioned(left: 12, top: 12, child: _LiveBadge()),
+        Positioned(
+          top: 12,
+          right: 12,
+          child: _CameraLightControls(
+            torchEnabled: _torchEnabled,
+            flashAvailable: _flashControlAvailable,
+            exposureAvailable: _exposureControlAvailable,
+            lightLevel: _lightLevel,
+            error: _cameraControlError,
+            onTorchChanged: _setTorchEnabled,
+            onLightLevelChanged: _setLightLevel,
+          ),
+        ),
         if (_imageBytes != null && _recognitionOverlay == null)
           Positioned(
             right: 12,
@@ -634,6 +765,101 @@ class _RecognitionOverlayData {
     required this.count,
     this.imageUrl,
   });
+}
+
+class _CameraLightControls extends StatelessWidget {
+  final bool torchEnabled;
+  final bool flashAvailable;
+  final bool exposureAvailable;
+  final double lightLevel;
+  final String? error;
+  final ValueChanged<bool> onTorchChanged;
+  final ValueChanged<double> onLightLevelChanged;
+
+  const _CameraLightControls({
+    required this.torchEnabled,
+    required this.flashAvailable,
+    required this.exposureAvailable,
+    required this.lightLevel,
+    required this.onTorchChanged,
+    required this.onLightLevelChanged,
+    this.error,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final canAdjustAny = flashAvailable || exposureAvailable;
+
+    return Material(
+      color: Colors.black.withValues(alpha: 0.62),
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+        child: SizedBox(
+          width: 206,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  IconButton.filledTonal(
+                    visualDensity: VisualDensity.compact,
+                    onPressed: flashAvailable
+                        ? () => onTorchChanged(!torchEnabled)
+                        : null,
+                    tooltip: torchEnabled ? 'Desligar flash' : 'Ligar flash',
+                    icon: Icon(
+                      torchEnabled
+                          ? Icons.flashlight_on_outlined
+                          : Icons.flashlight_off_outlined,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      torchEnabled ? 'Flash ligado' : 'Flash desligado',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                exposureAvailable
+                    ? 'Intensidade / exposicao'
+                    : 'Intensidade indisponivel',
+                style: const TextStyle(color: Color(0xFFE7E0DA), fontSize: 12),
+              ),
+              Slider(
+                value: lightLevel.clamp(0.0, 1.0).toDouble(),
+                min: 0,
+                max: 1,
+                divisions: 10,
+                label: '${(lightLevel * 100).round()}%',
+                onChanged: exposureAvailable ? onLightLevelChanged : null,
+              ),
+              if (!canAdjustAny || (error?.trim().isNotEmpty ?? false))
+                Text(
+                  error?.trim().isNotEmpty ?? false
+                      ? error!
+                      : 'Controle nao suportado nesta camera.',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFFFFD7D7),
+                    fontSize: 11,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _RecognitionSuccessOverlay extends StatelessWidget {
