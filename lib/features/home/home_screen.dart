@@ -34,6 +34,11 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
           IconButton(
+            tooltip: 'Ajuda',
+            onPressed: () => context.go('/help'),
+            icon: const Icon(Icons.help_outline),
+          ),
+          IconButton(
             tooltip: 'Sair',
             onPressed: () async {
               await ref.read(authRepositoryProvider).signOut();
@@ -166,6 +171,17 @@ class HomeScreen extends ConsumerWidget {
                                 'Veja todas as cartas públicas à venda dentro da plataforma e fale direto no WhatsApp com o vendedor.',
                             buttonLabel: 'Abrir marketplace',
                             route: '/marketplace',
+                          ),
+                        ),
+                        SizedBox(
+                          width: cardWidth,
+                          child: const _HomeFeatureCard(
+                            icon: Icons.help_outline,
+                            title: 'Ajuda e documentação',
+                            subtitle:
+                                'Veja como usar coleção, scanner, vendas, biblioteca, semanais e importações.',
+                            buttonLabel: 'Abrir ajuda',
+                            route: '/help',
                           ),
                         ),
                         SizedBox(

@@ -14,6 +14,7 @@ import '../features/collection/shared_sale_card_screen.dart';
 import '../features/collection/shared_store_screen.dart';
 import '../features/decks/shared_deck_screen.dart';
 import '../features/digimon/digimon_library_screen.dart';
+import '../features/help/help_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/integrations/liga_one_piece_test_screen.dart';
 import '../features/imports/camera_import/camera_import_screen.dart';
@@ -288,6 +289,7 @@ final GoRouter appRouter = GoRouter(
       ),
     ),
     GoRoute(path: '/sales', builder: (context, state) => const SalesScreen()),
+    GoRoute(path: '/help', builder: (context, state) => const HelpScreen()),
     GoRoute(
       path: '/code-import',
       builder: (context, state) => CodeImportScreen(

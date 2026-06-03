@@ -142,6 +142,11 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
             icon: const Icon(Icons.center_focus_strong_outlined),
           ),
           IconButton(
+            tooltip: 'Ajuda',
+            onPressed: () => context.go('/help'),
+            icon: const Icon(Icons.help_outline),
+          ),
+          IconButton(
             tooltip: 'Importar por c\u00F3digo',
             onPressed: () => _openCodeImport(destination),
             icon: const Icon(Icons.content_paste_outlined),
