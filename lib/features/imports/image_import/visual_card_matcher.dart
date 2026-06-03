@@ -233,7 +233,9 @@ class VisualCardMatcher {
     if (decoded == null) return const [];
 
     final oriented = img.bakeOrientation(decoded);
-    final variants = _candidateCardRegions(oriented);
+    final variants = _candidateCardRegions(
+      oriented,
+    ).expand(_lightingAdjustedVariants).toList(growable: false);
     final fingerprints = <_SourceFingerprint>[];
 
     for (final full in variants) {
@@ -318,6 +320,29 @@ class VisualCardMatcher {
       ..._centeredCardAspectCrops(source),
       source,
     ];
+  }
+
+  Iterable<img.Image> _lightingAdjustedVariants(img.Image source) sync* {
+    yield source;
+
+    final luma = _averageLuma(source);
+    if (luma < 150) {
+      yield img.adjustColor(
+        source,
+        brightness: 1.22,
+        gamma: 0.82,
+        contrast: 1.08,
+      );
+    }
+
+    if (luma < 115) {
+      yield img.adjustColor(
+        source,
+        brightness: 1.48,
+        gamma: 0.68,
+        contrast: 1.12,
+      );
+    }
   }
 
   List<img.Image> _centeredCardAspectCrops(img.Image source) {
@@ -535,6 +560,29 @@ class VisualCardMatcher {
     return [r ~/ count, g ~/ count, b ~/ count];
   }
 
+  int _averageLuma(img.Image image) {
+    final resized = img.copyResize(
+      image,
+      width: 24,
+      height: 24,
+      interpolation: img.Interpolation.average,
+    );
+
+    var total = 0;
+    var count = 0;
+
+    for (var y = 0; y < resized.height; y++) {
+      for (var x = 0; x < resized.width; x++) {
+        final pixel = resized.getPixel(x, y);
+        total += _pixelLuma(pixel.r.toInt(), pixel.g.toInt(), pixel.b.toInt());
+        count++;
+      }
+    }
+
+    if (count == 0) return 180;
+    return total ~/ count;
+  }
+
   int _hammingDistance(BigInt a, BigInt b) {
     var value = a ^ b;
     var count = 0;
@@ -556,8 +604,36 @@ class VisualCardMatcher {
   }
 
   int _rgbDistance(List<int> a, List<int> b) {
-    if (a.length < 3 || b.length < 3) return 255;
-    return ((a[0] - b[0]).abs() + (a[1] - b[1]).abs() + (a[2] - b[2]).abs()) ~/
-        12;
+    if (a.length < 3 || b.length < 3) return 40;
+
+    final normalizedA = _normalizeRgbBrightness(a);
+    final normalizedB = _normalizeRgbBrightness(b);
+    final chromaDistance =
+        ((normalizedA[0] - normalizedB[0]).abs() +
+            (normalizedA[1] - normalizedB[1]).abs() +
+            (normalizedA[2] - normalizedB[2]).abs()) ~/
+        18;
+    final brightnessDistance = (_rgbLuma(a) - _rgbLuma(b)).abs() ~/ 34;
+
+    return min(35, chromaDistance + brightnessDistance);
+  }
+
+  List<int> _normalizeRgbBrightness(List<int> rgb) {
+    final luma = max(32, _rgbLuma(rgb));
+    final scale = 128 / luma;
+    return [
+      (rgb[0] * scale).round().clamp(0, 255),
+      (rgb[1] * scale).round().clamp(0, 255),
+      (rgb[2] * scale).round().clamp(0, 255),
+    ];
+  }
+
+  int _rgbLuma(List<int> rgb) {
+    if (rgb.length < 3) return 0;
+    return _pixelLuma(rgb[0], rgb[1], rgb[2]);
+  }
+
+  int _pixelLuma(int r, int g, int b) {
+    return ((r * 299) + (g * 587) + (b * 114)) ~/ 1000;
   }
 }
