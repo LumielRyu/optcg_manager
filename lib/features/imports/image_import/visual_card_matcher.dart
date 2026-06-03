@@ -94,6 +94,7 @@ class _SourceFingerprint {
 
 class VisualCardMatcher {
   final Map<String, BigInt> _hashCache = {};
+  final Map<String, BigInt> _hexHashCache = {};
   List<VisualCardCatalogEntry>? _databaseCache;
 
   Future<List<VisualCardMatchResult>> rankCandidates({
@@ -597,10 +598,11 @@ class VisualCardMatcher {
 
   int _hammingDistanceFromHex(String a, String b) {
     if (a.isEmpty || b.isEmpty) return 64;
-    return _hammingDistance(
-      BigInt.parse(a, radix: 16),
-      BigInt.parse(b, radix: 16),
-    );
+    return _hammingDistance(_parseHexHash(a), _parseHexHash(b));
+  }
+
+  BigInt _parseHexHash(String value) {
+    return _hexHashCache[value] ??= BigInt.parse(value, radix: 16);
   }
 
   int _rgbDistance(List<int> a, List<int> b) {

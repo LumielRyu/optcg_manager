@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
@@ -24,6 +25,11 @@ class CardScanTestScreen extends ConsumerStatefulWidget {
 
 class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
   static const _sampleImagePath = 'assets/test_samples/boa_hancock_p115.jpeg';
+  static const _analysisMaxSide = 1100;
+  static const _autoScanSearchDelay = Duration(milliseconds: 320);
+  static const _autoScanConfirmDelay = Duration(milliseconds: 180);
+  static const _autoScanAfterCountDelay = Duration(milliseconds: 560);
+  static const _autoScanWaitingRemovalDelay = Duration(milliseconds: 520);
 
   final ImagePicker _picker = ImagePicker();
   final List<_ScanHistoryItem> _history = [];
@@ -46,6 +52,7 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
   double _minExposureOffset = 0;
   double _maxExposureOffset = 0;
   double _lightLevel = 0.5;
+  Duration _nextContinuousDelay = _autoScanSearchDelay;
   String? _scanFeedback;
   String? _cameraControlError;
   _RecognitionOverlayData? _recognitionOverlay;
@@ -275,6 +282,9 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
         setState(() {
           _scanInProgress = false;
         });
+        if (visualOnly && _continuousScan) {
+          _scheduleNextContinuousScan(_nextContinuousDelay);
+        }
       }
     }
   }
@@ -338,7 +348,7 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
       source.height - 1,
     );
 
-    final cropped = img.copyCrop(
+    var cropped = img.copyCrop(
       source,
       x: x,
       y: y,
@@ -346,7 +356,18 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
       height: safeHeight,
     );
 
-    return Uint8List.fromList(img.encodeJpg(cropped, quality: 92));
+    final longestSide = max(cropped.width, cropped.height);
+    if (longestSide > _analysisMaxSide) {
+      final scale = _analysisMaxSide / longestSide;
+      cropped = img.copyResize(
+        cropped,
+        width: max(1, (cropped.width * scale).round()),
+        height: max(1, (cropped.height * scale).round()),
+        interpolation: img.Interpolation.average,
+      );
+    }
+
+    return Uint8List.fromList(img.encodeJpg(cropped, quality: 84));
   }
 
   Uint8List _prepareAnalysisBytes(Uint8List bytes) {
@@ -420,12 +441,19 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
 
     setState(() {
       _continuousScan = true;
+      _nextContinuousDelay = _autoScanSearchDelay;
       _scanFeedback =
-          'Varredura automatica iniciada. Cada carta sera contada uma unica vez enquanto permanecer no quadro.';
+          'Varredura automatica rapida iniciada. A carta sera contada depois de duas leituras iguais.';
     });
     _deduplicator.reset();
     _scanFromLiveCamera(visualOnly: true);
-    _continuousTimer = Timer.periodic(const Duration(milliseconds: 1800), (_) {
+  }
+
+  void _scheduleNextContinuousScan(Duration delay) {
+    _continuousTimer?.cancel();
+    if (!_continuousScan || !mounted) return;
+
+    _continuousTimer = Timer(delay, () {
       if (!mounted || !_continuousScan) return;
       _scanFromLiveCamera(visualOnly: true);
     });
@@ -435,6 +463,9 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
     final state = ref.read(imageImportControllerProvider);
     final found = state.candidates.where((item) => item.found).toList();
     if (found.isEmpty) {
+      if (deduplicateAutomaticScan) {
+        _nextContinuousDelay = _autoScanSearchDelay;
+      }
       if (deduplicateAutomaticScan && _deduplicator.markNoCardDetected()) {
         setState(() {
           _scanFeedback =
@@ -451,6 +482,9 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
             _candidateKey(candidate),
           );
           if (!decision.shouldCount) {
+            _nextContinuousDelay = decision.awaitingConfirmation
+                ? _autoScanConfirmDelay
+                : _autoScanWaitingRemovalDelay;
             _scanFeedback = decision.awaitingConfirmation
                 ? 'Confirmando ${candidate.name ?? candidate.code}. Mantenha a carta parada no quadro por mais um instante.'
                 : '${candidate.name ?? candidate.code} ja foi registrada. Retire a carta do quadro antes de ler outra copia.';
@@ -460,6 +494,9 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
 
         final currentCount = _incrementHistory(candidate);
         _showRecognitionOverlay(candidate, currentCount);
+        if (deduplicateAutomaticScan) {
+          _nextContinuousDelay = _autoScanAfterCountDelay;
+        }
         _scanFeedback = deduplicateAutomaticScan
             ? '${candidate.name ?? candidate.code} registrada. Retire a carta do quadro para liberar a proxima leitura.'
             : '${candidate.name ?? candidate.code} adicionada ao contador.';
