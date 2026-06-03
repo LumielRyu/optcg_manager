@@ -139,7 +139,8 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
       }
     } catch (_) {
       exposureAvailable = false;
-      controlError ??= 'Ajuste de intensidade indisponivel nesta camera.';
+      controlError ??=
+          'Usando clareamento digital porque a exposicao da camera nao foi liberada.';
     }
 
     _torchEnabled = false;
@@ -238,7 +239,7 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
     try {
       final file = await controller.takePicture();
       final bytes = await file.readAsBytes();
-      final analysisBytes = _cropToGuide(bytes) ?? bytes;
+      final analysisBytes = _prepareAnalysisBytes(bytes);
       if (!mounted) return;
 
       setState(() {
@@ -270,7 +271,7 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
     if (file == null) return;
 
     final bytes = await file.readAsBytes();
-    final analysisBytes = _cropToGuide(bytes) ?? bytes;
+    final analysisBytes = _prepareAnalysisBytes(bytes);
     if (!mounted) return;
 
     setState(() {
@@ -291,7 +292,7 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
   Future<void> _analyzeBundledSample() async {
     final data = await rootBundle.load(_sampleImagePath);
     final bytes = data.buffer.asUint8List();
-    final analysisBytes = _cropToGuide(bytes) ?? bytes;
+    final analysisBytes = _prepareAnalysisBytes(bytes);
     if (!mounted) return;
 
     setState(() {
@@ -333,6 +334,28 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
     );
 
     return Uint8List.fromList(img.encodeJpg(cropped, quality: 92));
+  }
+
+  Uint8List _prepareAnalysisBytes(Uint8List bytes) {
+    final cropped = _cropToGuide(bytes) ?? bytes;
+    if (_exposureControlAvailable || (_lightLevel - 0.5).abs() < 0.04) {
+      return cropped;
+    }
+
+    final decoded = img.decodeImage(cropped);
+    if (decoded == null) return cropped;
+
+    final brightness = (1 + ((_lightLevel - 0.5) * 1.05)).clamp(0.55, 1.55);
+    final gamma = _lightLevel >= 0.5
+        ? (1 - ((_lightLevel - 0.5) * 0.62)).clamp(0.68, 1.0)
+        : (1 + ((0.5 - _lightLevel) * 0.45)).clamp(1.0, 1.24);
+    final enhanced = img.adjustColor(
+      decoded,
+      brightness: brightness,
+      gamma: gamma,
+      contrast: 1.05,
+    );
+    return Uint8List.fromList(img.encodeJpg(enhanced, quality: 92));
   }
 
   Future<void> _analyzeBytes({
@@ -713,6 +736,7 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
             torchEnabled: _torchEnabled,
             flashAvailable: _flashControlAvailable,
             exposureAvailable: _exposureControlAvailable,
+            digitalLightAvailable: !_exposureControlAvailable,
             lightLevel: _lightLevel,
             error: _cameraControlError,
             onTorchChanged: _setTorchEnabled,
@@ -771,6 +795,7 @@ class _CameraLightControls extends StatelessWidget {
   final bool torchEnabled;
   final bool flashAvailable;
   final bool exposureAvailable;
+  final bool digitalLightAvailable;
   final double lightLevel;
   final String? error;
   final ValueChanged<bool> onTorchChanged;
@@ -780,6 +805,7 @@ class _CameraLightControls extends StatelessWidget {
     required this.torchEnabled,
     required this.flashAvailable,
     required this.exposureAvailable,
+    required this.digitalLightAvailable,
     required this.lightLevel,
     required this.onTorchChanged,
     required this.onLightLevelChanged,
@@ -788,7 +814,8 @@ class _CameraLightControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final canAdjustAny = flashAvailable || exposureAvailable;
+    final canAdjustLight = exposureAvailable || digitalLightAvailable;
+    final canAdjustAny = flashAvailable || canAdjustLight;
 
     return Material(
       color: Colors.black.withValues(alpha: 0.62),
@@ -831,6 +858,8 @@ class _CameraLightControls extends StatelessWidget {
               Text(
                 exposureAvailable
                     ? 'Intensidade / exposicao'
+                    : digitalLightAvailable
+                    ? 'Clareamento digital'
                     : 'Intensidade indisponivel',
                 style: const TextStyle(color: Color(0xFFE7E0DA), fontSize: 12),
               ),
@@ -840,7 +869,7 @@ class _CameraLightControls extends StatelessWidget {
                 max: 1,
                 divisions: 10,
                 label: '${(lightLevel * 100).round()}%',
-                onChanged: exposureAvailable ? onLightLevelChanged : null,
+                onChanged: canAdjustLight ? onLightLevelChanged : null,
               ),
               if (!canAdjustAny || (error?.trim().isNotEmpty ?? false))
                 Text(
