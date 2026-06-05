@@ -36,8 +36,17 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
   Future<void> _loadCurrentData() async {
     final profile = await ref.read(userPreferencesRepositoryProvider).load();
     if (!mounted) return;
-    _nameController.text = profile.displayName;
+    _nameController.text = profile.displayName.trim().isNotEmpty
+        ? profile.displayName
+        : _socialDisplayName();
     _whatsAppController.text = profile.whatsAppPhone;
+  }
+
+  String _socialDisplayName() {
+    final metadata = ref
+        .read(userPreferencesRepositoryProvider)
+        .currentUserMetadata;
+    return (metadata['full_name'] ?? metadata['name'] ?? '').toString().trim();
   }
 
   Future<void> _save() async {

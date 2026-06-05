@@ -77,6 +77,23 @@ class AuthRepository {
     }
   }
 
+  Future<void> signInWithOAuth(OAuthProvider provider) async {
+    try {
+      final redirectTo = kIsWeb ? Uri.base.origin : null;
+      final opened = await _client.auth.signInWithOAuth(
+        provider,
+        redirectTo: redirectTo,
+      );
+
+      if (!opened) {
+        throw Exception('Nao foi possivel abrir o login social.');
+      }
+    } catch (e) {
+      debugPrint('OAUTH SIGNIN ERROR: $e');
+      rethrow;
+    }
+  }
+
   Future<bool> needsWhatsAppCompletion() async {
     return !(await _prefs.hasCompletedProfile());
   }

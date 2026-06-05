@@ -56,6 +56,10 @@ class UserPreferencesRepository {
 
   String? _currentUserIdOrNull() => _client.auth.currentUser?.id;
 
+  Map<String, dynamic> get currentUserMetadata {
+    return _client.auth.currentUser?.userMetadata ?? const {};
+  }
+
   bool _hasCachedProfileForCurrentUser() {
     final userId = _currentUserIdOrNull();
     if (userId == null) return false;
