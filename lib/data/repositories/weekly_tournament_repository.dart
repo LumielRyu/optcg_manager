@@ -182,6 +182,10 @@ class WeeklyTournamentRepository {
         .eq('id', eventId);
   }
 
+  Future<void> resetWeeklyHistory({required String gameSlug}) async {
+    await _client.from('weekly_events').delete().eq('game_slug', gameSlug);
+  }
+
   Future<void> enrollPlayer({
     required String eventId,
     required WeeklyPlayerProfile profile,

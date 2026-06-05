@@ -335,6 +335,23 @@ class _AdminPanel extends StatelessWidget {
                     );
                     if (created == true) await onChanged();
                   },
+                  onResetHistory: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (_) => const _ResetWeeklyHistoryDialog(),
+                    );
+                    if (confirmed != true) return;
+                    await repository.resetWeeklyHistory(gameSlug: gameSlug);
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Historico de semanais resetado com sucesso.',
+                        ),
+                      ),
+                    );
+                    await onChanged();
+                  },
                 ),
                 const SizedBox(height: 24),
                 const _SectionHeading(
@@ -379,6 +396,7 @@ class _AdminOverview extends StatelessWidget {
   final int playerCount;
   final int matchCount;
   final Future<void> Function() onCreate;
+  final Future<void> Function() onResetHistory;
 
   const _AdminOverview({
     required this.month,
@@ -387,6 +405,7 @@ class _AdminOverview extends StatelessWidget {
     required this.playerCount,
     required this.matchCount,
     required this.onCreate,
+    required this.onResetHistory,
   });
 
   @override
@@ -454,6 +473,15 @@ class _AdminOverview extends StatelessWidget {
                 onPressed: onCreate,
                 icon: const Icon(Icons.add),
                 label: const Text('Iniciar semanal'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onResetHistory,
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Resetar historico'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: theme.colorScheme.error,
+                  side: BorderSide(color: theme.colorScheme.error),
+                ),
               ),
             ],
           ),
@@ -1765,6 +1793,42 @@ class _AdminEventCard extends StatelessWidget {
               ),
         ],
       ),
+    );
+  }
+}
+
+class _ResetWeeklyHistoryDialog extends StatelessWidget {
+  const _ResetWeeklyHistoryDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AlertDialog(
+      icon: Icon(Icons.warning_amber_rounded, color: theme.colorScheme.error),
+      title: const Text('Resetar historico dos semanais?'),
+      content: const SizedBox(
+        width: 420,
+        child: Text(
+          'Isto vai apagar todos os semanais cadastrados neste card game, '
+          'incluindo inscricoes, partidas, rodadas e resultados. '
+          'Usuarios, colecao, nicks e codigo Bandai serao preservados.',
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton.icon(
+          style: FilledButton.styleFrom(
+            backgroundColor: theme.colorScheme.error,
+            foregroundColor: theme.colorScheme.onError,
+          ),
+          onPressed: () => Navigator.of(context).pop(true),
+          icon: const Icon(Icons.delete_outline),
+          label: const Text('Resetar historico'),
+        ),
+      ],
     );
   }
 }
