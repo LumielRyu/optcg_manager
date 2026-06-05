@@ -270,7 +270,7 @@ class _PlayerPanel extends StatelessWidget {
                     icon: Icons.emoji_events_outlined,
                     title: 'Ranking mensal',
                     subtitle:
-                        'Classificacao mensal da STOP TCG por pontos, com desempate pelo numero de vitorias.',
+                        'Top 3 da STOP TCG. Sexta e domingo contam como uma semana: so vale a maior pontuacao do jogador.',
                   ),
                   const SizedBox(height: 12),
                   if (data.ranking.isEmpty)
@@ -1282,50 +1282,207 @@ class _RankingTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _TableShell(
-      child: DataTable(
-        headingRowColor: WidgetStatePropertyAll(
-          Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
-        ),
-        columns: const [
-          DataColumn(label: Text('#')),
-          DataColumn(label: Text('Nome')),
-          DataColumn(label: Text('Nick')),
-          DataColumn(label: Text('Partidas')),
-          DataColumn(label: Text('Wins')),
-          DataColumn(label: Text('Empates')),
-          DataColumn(label: Text('Loses')),
-          DataColumn(label: Text('Top decks')),
-          DataColumn(label: Text('Pontos')),
-        ],
-        rows: [
-          for (var index = 0; index < entries.length; index++)
-            DataRow(
-              cells: [
-                DataCell(_RankingPosition(position: index + 1)),
-                DataCell(
-                  Text(
-                    entries[index].playerDisplayName,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _MonthlyTopThree(entries: entries.take(3).toList(growable: false)),
+        const SizedBox(height: 12),
+        _TableShell(
+          child: DataTable(
+            headingRowColor: WidgetStatePropertyAll(
+              Theme.of(
+                context,
+              ).colorScheme.primaryContainer.withValues(alpha: 0.5),
+            ),
+            columns: const [
+              DataColumn(label: Text('#')),
+              DataColumn(label: Text('Nome')),
+              DataColumn(label: Text('Nick')),
+              DataColumn(label: Text('Partidas validas')),
+              DataColumn(label: Text('Wins')),
+              DataColumn(label: Text('Empates')),
+              DataColumn(label: Text('Loses')),
+              DataColumn(label: Text('Top decks')),
+              DataColumn(label: Text('Pontos')),
+            ],
+            rows: [
+              for (var index = 0; index < entries.length; index++)
+                DataRow(
+                  cells: [
+                    DataCell(_RankingPosition(position: index + 1)),
+                    DataCell(
+                      Text(
+                        entries[index].playerDisplayName,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    DataCell(Text(entries[index].playerNickname)),
+                    DataCell(Text('${entries[index].games}')),
+                    DataCell(Text('${entries[index].wins}')),
+                    DataCell(Text('${entries[index].draws}')),
+                    DataCell(Text('${entries[index].losses}')),
+                    DataCell(Text(entries[index].topDecks.join(', '))),
+                    DataCell(
+                      Text(
+                        '${entries[index].points}',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                DataCell(Text(entries[index].playerNickname)),
-                DataCell(Text('${entries[index].games}')),
-                DataCell(Text('${entries[index].wins}')),
-                DataCell(Text('${entries[index].draws}')),
-                DataCell(Text('${entries[index].losses}')),
-                DataCell(Text(entries[index].topDecks.join(', '))),
-                DataCell(
-                  Text(
-                    '${entries[index].points}',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MonthlyTopThree extends StatelessWidget {
+  final List<MonthlyRankingEntry> entries;
+
+  const _MonthlyTopThree({required this.entries});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.workspace_premium, color: theme.colorScheme.primary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Top 3 do mes',
+                    style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w900,
                     ),
                   ),
                 ),
               ],
             ),
+            const SizedBox(height: 6),
+            Text(
+              'Ranking com a melhor pontuacao de cada jogador por semana.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 14),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final compact = constraints.maxWidth < 760;
+                final cards = [
+                  for (var index = 0; index < entries.length; index++)
+                    _TopThreeCard(entry: entries[index], position: index + 1),
+                ];
+                if (compact) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: cards
+                        .map(
+                          (card) => Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: card,
+                          ),
+                        )
+                        .toList(growable: false),
+                  );
+                }
+                return Row(
+                  children: cards
+                      .map(
+                        (card) => Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 10),
+                            child: card,
+                          ),
+                        ),
+                      )
+                      .toList(growable: false),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TopThreeCard extends StatelessWidget {
+  final MonthlyRankingEntry entry;
+  final int position;
+
+  const _TopThreeCard({required this.entry, required this.position});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = switch (position) {
+      1 => const Color(0xFFD4A017),
+      2 => const Color(0xFF8A8F98),
+      _ => const Color(0xFFB87333),
+    };
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withValues(alpha: 0.55)),
+        gradient: LinearGradient(
+          colors: [
+            color.withValues(alpha: 0.20),
+            theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Row(
+        children: [
+          _RankingPosition(position: position),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  entry.playerDisplayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                Text(
+                  entry.playerNickname,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            '${entry.points} pts',
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
         ],
       ),
     );

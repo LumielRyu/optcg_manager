@@ -152,6 +152,8 @@ class HelpScreen extends StatelessWidget {
                     children: const [
                       'A pagina de semanais sera usada inicialmente para organizar os encontros da loja STOP TCG.',
                       'Ela mostra eventos abertos, participacoes, pontuacao e ranking mensal.',
+                      'Sexta e domingo formam a mesma semana competitiva: para cada jogador, so entra no ranking a maior pontuacao feita entre esses dois dias.',
+                      'No fim do mes, o ranking destaca o Top 3 com a soma das melhores semanas de cada jogador.',
                       'Jogadores podem entrar em semanais abertos e escolher o deck usado.',
                       'Administradores podem gerenciar partidas, rodadas e resultados.',
                     ],

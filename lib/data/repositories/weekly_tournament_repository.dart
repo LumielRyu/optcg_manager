@@ -95,7 +95,7 @@ class WeeklyTournamentRepository {
       events: events,
       participants: participants,
       matches: matches,
-      ranking: _buildRanking(participants, matches),
+      ranking: _buildRanking(events, participants, matches),
       profiles: supportingData[0] as List<WeeklyPlayerProfile>,
       currentGameProfile: supportingData[1] as WeeklyGameProfile?,
       leaders: supportingData[2] as List<WeeklyLeaderOption>,
@@ -310,16 +310,22 @@ class WeeklyTournamentRepository {
   }
 
   List<MonthlyRankingEntry> _buildRanking(
+    List<WeeklyEvent> events,
     List<WeeklyParticipant> participants,
     List<WeeklyMatch> matches,
   ) {
+    final eventsById = {for (final event in events) event.id: event};
     final participantsById = {
       for (final participant in participants) participant.id: participant,
     };
-    final stats = <String, _RankingAccumulator>{};
+    final eventStats = <String, Map<String, _RankingAccumulator>>{};
 
     for (final participant in participants) {
-      stats
+      eventStats
+          .putIfAbsent(
+            participant.eventId,
+            () => <String, _RankingAccumulator>{},
+          )
           .putIfAbsent(
             participant.userId,
             () => _RankingAccumulator(
@@ -334,13 +340,13 @@ class WeeklyTournamentRepository {
       final one = participantsById[match.playerOneId];
       final two = participantsById[match.playerTwoId];
       if (one == null) continue;
-      final oneStats = stats[one.userId]!;
+      final oneStats = eventStats[one.eventId]![one.userId]!;
       if (match.isBye) {
         oneStats.wins++;
         continue;
       }
       if (two == null) continue;
-      final twoStats = stats[two.userId]!;
+      final twoStats = eventStats[two.eventId]![two.userId]!;
       if (match.result == 'draw') {
         oneStats.draws++;
         twoStats.draws++;
@@ -356,6 +362,40 @@ class WeeklyTournamentRepository {
         oneStats.losses++;
         twoStats.addOpponentDeck(one.deckName, _MatchOutcome.win);
         oneStats.addOpponentDeck(two.deckName, _MatchOutcome.loss);
+      }
+    }
+
+    final weeklyBestByUser = <String, Map<String, _WeeklyBestPerformance>>{};
+    for (final eventEntry in eventStats.entries) {
+      final event = eventsById[eventEntry.key];
+      if (event == null) continue;
+      final weekKey = _rankingWeekKey(event.eventDate);
+      for (final playerEntry in eventEntry.value.entries) {
+        final userId = playerEntry.key;
+        final performance = _WeeklyBestPerformance(
+          stats: playerEntry.value,
+          eventDate: event.eventDate,
+        );
+        final bestByWeek = weeklyBestByUser.putIfAbsent(userId, () => {});
+        final currentBest = bestByWeek[weekKey];
+        if (currentBest == null || performance.isBetterThan(currentBest)) {
+          bestByWeek[weekKey] = performance;
+        }
+      }
+    }
+
+    final stats = <String, _RankingAccumulator>{};
+    for (final userEntry in weeklyBestByUser.entries) {
+      for (final best in userEntry.value.values) {
+        stats
+            .putIfAbsent(
+              userEntry.key,
+              () => _RankingAccumulator(
+                playerDisplayName: best.stats.playerDisplayName,
+                playerNickname: best.stats.playerNickname,
+              ),
+            )
+            .merge(best.stats);
       }
     }
 
@@ -376,6 +416,11 @@ class WeeklyTournamentRepository {
     return '${date.year.toString().padLeft(4, '0')}-'
         '${date.month.toString().padLeft(2, '0')}-'
         '${date.day.toString().padLeft(2, '0')}';
+  }
+
+  String _rankingWeekKey(DateTime date) {
+    final weekStart = date.subtract(Duration(days: date.weekday - 1));
+    return _dateOnly(DateTime(weekStart.year, weekStart.month, weekStart.day));
   }
 }
 
@@ -403,6 +448,27 @@ class _RankingAccumulator {
         .add(outcome);
   }
 
+  int get games => wins + draws + losses;
+  int get points => (wins * 3) + draws;
+
+  void merge(_RankingAccumulator other) {
+    wins += other.wins;
+    draws += other.draws;
+    losses += other.losses;
+    for (final entry in other._deckUses.entries) {
+      _deckUses.update(
+        entry.key,
+        (count) => count + entry.value,
+        ifAbsent: () => entry.value,
+      );
+    }
+    for (final entry in other._opponentDecks.entries) {
+      _opponentDecks
+          .putIfAbsent(entry.key, _OpponentDeckAccumulator.new)
+          .merge(entry.value);
+    }
+  }
+
   MonthlyRankingEntry toEntry(String userId) {
     final decks = _deckUses.entries.toList()
       ..sort((a, b) {
@@ -413,7 +479,7 @@ class _RankingAccumulator {
       userId: userId,
       playerDisplayName: playerDisplayName,
       playerNickname: playerNickname,
-      games: wins + draws + losses,
+      games: games,
       wins: wins,
       draws: draws,
       losses: losses,
@@ -440,10 +506,33 @@ class _RankingAccumulator {
 
 enum _MatchOutcome { win, draw, loss }
 
+class _WeeklyBestPerformance {
+  final _RankingAccumulator stats;
+  final DateTime eventDate;
+
+  const _WeeklyBestPerformance({required this.stats, required this.eventDate});
+
+  bool isBetterThan(_WeeklyBestPerformance other) {
+    final byPoints = stats.points.compareTo(other.stats.points);
+    if (byPoints != 0) return byPoints > 0;
+    final byWins = stats.wins.compareTo(other.stats.wins);
+    if (byWins != 0) return byWins > 0;
+    final byGames = stats.games.compareTo(other.stats.games);
+    if (byGames != 0) return byGames > 0;
+    return eventDate.isAfter(other.eventDate);
+  }
+}
+
 class _OpponentDeckAccumulator {
   int wins = 0;
   int draws = 0;
   int losses = 0;
+
+  void merge(_OpponentDeckAccumulator other) {
+    wins += other.wins;
+    draws += other.draws;
+    losses += other.losses;
+  }
 
   void add(_MatchOutcome outcome) {
     switch (outcome) {
