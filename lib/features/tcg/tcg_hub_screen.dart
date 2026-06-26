@@ -29,7 +29,10 @@ class TcgHubScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(leading: const HomeNavigationButton(), title: Text(title)),
+      appBar: AppBar(
+        leading: const HomeNavigationButton(goHome: true),
+        title: Text(title),
+      ),
       body: AppPageShell(
         maxWidth: 1200,
         child: Column(
