@@ -197,6 +197,12 @@ class MonthlyRankingEntry {
   final String userId;
   final String playerDisplayName;
   final String playerNickname;
+  final int rankingPoints;
+  final List<int> weeklyScores;
+  final int firstPlaces;
+  final int secondPlaces;
+  final int top4Finishes;
+  final int? lastWeeklyRank;
   final int games;
   final int wins;
   final int draws;
@@ -208,6 +214,12 @@ class MonthlyRankingEntry {
     required this.userId,
     required this.playerDisplayName,
     required this.playerNickname,
+    required this.rankingPoints,
+    required this.weeklyScores,
+    required this.firstPlaces,
+    required this.secondPlaces,
+    required this.top4Finishes,
+    required this.lastWeeklyRank,
     required this.games,
     required this.wins,
     required this.draws,
@@ -216,7 +228,8 @@ class MonthlyRankingEntry {
     required this.opponentDeckStats,
   });
 
-  int get points => (wins * 3) + draws;
+  int get points => rankingPoints;
+  int get validWeeks => weeklyScores.where((score) => score > 0).length;
   List<String> get topDecks => deckUsage
       .take(3)
       .map((item) => '${item.deckName} (${item.games})')

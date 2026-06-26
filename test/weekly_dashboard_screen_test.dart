@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:optcg_manager/data/models/weekly_tournament.dart';
+import 'package:optcg_manager/data/repositories/weekly_tournament_repository.dart';
 import 'package:optcg_manager/features/weeklies/weekly_dashboard_screen.dart';
 
 void main() {
@@ -64,5 +65,17 @@ void main() {
 
     expect(participant.playerDisplayName, 'Otavio Augusto');
     expect(participant.playerName, 'Lumiel');
+  });
+
+  test('monthly ranking rule points match the wanted trio regulation', () {
+    expect(weeklyPlacementPoints(1), 100);
+    expect(weeklyPlacementPoints(2), 80);
+    expect(weeklyPlacementPoints(10), 20);
+    expect(weeklyPlacementPoints(11), 15);
+
+    expect(weeklyParticipantBonus(7), 0);
+    expect(weeklyParticipantBonus(8), 5);
+    expect(weeklyParticipantBonus(12), 10);
+    expect(weeklyParticipantBonus(16), 15);
   });
 }

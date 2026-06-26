@@ -369,28 +369,48 @@ class WeeklyTournamentRepository {
       }
     }
 
-    final weeklyBestByUser = <String, Map<String, _WeeklyBestPerformance>>{};
+    final weeklyPerformancesByUser =
+        <String, Map<String, List<_WeeklyPerformance>>>{};
+    final monthWeekKeys = <String>{};
     for (final eventEntry in eventStats.entries) {
       final event = eventsById[eventEntry.key];
       if (event == null) continue;
       final weekKey = _rankingWeekKey(event.eventDate);
-      for (final playerEntry in eventEntry.value.entries) {
-        final userId = playerEntry.key;
-        final performance = _WeeklyBestPerformance(
-          stats: playerEntry.value,
-          eventDate: event.eventDate,
-        );
-        final bestByWeek = weeklyBestByUser.putIfAbsent(userId, () => {});
-        final currentBest = bestByWeek[weekKey];
-        if (currentBest == null || performance.isBetterThan(currentBest)) {
-          bestByWeek[weekKey] = performance;
-        }
+      monthWeekKeys.add(weekKey);
+      final standings = _buildEventStandings(
+        eventDate: event.eventDate,
+        eventStats: eventEntry.value,
+      );
+      for (final standing in standings) {
+        weeklyPerformancesByUser
+            .putIfAbsent(standing.userId, () => {})
+            .putIfAbsent(weekKey, () => [])
+            .add(standing);
       }
     }
 
     final stats = <String, _RankingAccumulator>{};
-    for (final userEntry in weeklyBestByUser.entries) {
-      for (final best in userEntry.value.values) {
+    final sortedMonthWeekKeys = monthWeekKeys.toList()..sort();
+    for (final userEntry in weeklyPerformancesByUser.entries) {
+      for (
+        var weekIndex = 0;
+        weekIndex < sortedMonthWeekKeys.length;
+        weekIndex++
+      ) {
+        final weekKey = sortedMonthWeekKeys[weekIndex];
+        final performances = userEntry.value[weekKey];
+        if (performances == null || performances.isEmpty) continue;
+        performances.sort((a, b) {
+          final byPlacement = a.rank.compareTo(b.rank);
+          if (byPlacement != 0) return byPlacement;
+          return b.eventDate.compareTo(a.eventDate);
+        });
+        final best = performances.first;
+        final playedBothWeeklies = performances.length >= 2;
+        final weekScore =
+            weeklyPlacementPoints(best.rank) +
+            weeklyParticipantBonus(best.participantCount) +
+            (playedBothWeeklies ? 5 : 0);
         stats
             .putIfAbsent(
               userEntry.key,
@@ -399,21 +419,68 @@ class WeeklyTournamentRepository {
                 playerNickname: best.stats.playerNickname,
               ),
             )
-            .merge(best.stats);
+            .applyWeeklyPerformance(
+              best,
+              weekScore: weekScore,
+              weekIndex: weekIndex,
+              isLastWeek: weekIndex == sortedMonthWeekKeys.length - 1,
+            );
       }
     }
 
     final ranking = stats.entries
         .map((entry) => entry.value.toEntry(entry.key))
         .toList();
-    ranking.sort((a, b) {
-      final byPoints = b.points.compareTo(a.points);
-      if (byPoints != 0) return byPoints;
-      final byWins = b.wins.compareTo(a.wins);
-      if (byWins != 0) return byWins;
-      return a.playerDisplayName.compareTo(b.playerDisplayName);
-    });
+    ranking.sort(_compareMonthlyRankingEntries);
     return ranking;
+  }
+
+  List<_WeeklyPerformance> _buildEventStandings({
+    required DateTime eventDate,
+    required Map<String, _RankingAccumulator> eventStats,
+  }) {
+    final standings = eventStats.entries
+        .map(
+          (entry) => _WeeklyPerformance(
+            userId: entry.key,
+            stats: entry.value,
+            eventDate: eventDate,
+            participantCount: eventStats.length,
+          ),
+        )
+        .toList();
+    standings.sort((a, b) {
+      final byPoints = b.stats.matchPoints.compareTo(a.stats.matchPoints);
+      if (byPoints != 0) return byPoints;
+      final byWins = b.stats.wins.compareTo(a.stats.wins);
+      if (byWins != 0) return byWins;
+      final byGames = b.stats.games.compareTo(a.stats.games);
+      if (byGames != 0) return byGames;
+      return a.stats.playerDisplayName.compareTo(b.stats.playerDisplayName);
+    });
+    for (var index = 0; index < standings.length; index++) {
+      standings[index].rank = index + 1;
+    }
+    return standings;
+  }
+
+  int _compareMonthlyRankingEntries(
+    MonthlyRankingEntry a,
+    MonthlyRankingEntry b,
+  ) {
+    final byPoints = b.points.compareTo(a.points);
+    if (byPoints != 0) return byPoints;
+    final byFirstPlaces = b.firstPlaces.compareTo(a.firstPlaces);
+    if (byFirstPlaces != 0) return byFirstPlaces;
+    final bySecondPlaces = b.secondPlaces.compareTo(a.secondPlaces);
+    if (bySecondPlaces != 0) return bySecondPlaces;
+    final byTop4 = b.top4Finishes.compareTo(a.top4Finishes);
+    if (byTop4 != 0) return byTop4;
+    final aLastRank = a.lastWeeklyRank ?? 999;
+    final bLastRank = b.lastWeeklyRank ?? 999;
+    final byLastWeekly = aLastRank.compareTo(bLastRank);
+    if (byLastWeekly != 0) return byLastWeekly;
+    return a.playerDisplayName.compareTo(b.playerDisplayName);
   }
 
   String _dateOnly(DateTime date) {
@@ -428,11 +495,42 @@ class WeeklyTournamentRepository {
   }
 }
 
+int weeklyPlacementPoints(int placement) {
+  return switch (placement) {
+    1 => 100,
+    2 => 80,
+    3 => 65,
+    4 => 55,
+    5 => 45,
+    6 => 38,
+    7 => 32,
+    8 => 27,
+    9 => 23,
+    10 => 20,
+    _ => 15,
+  };
+}
+
+int weeklyParticipantBonus(int participantCount) {
+  return switch (participantCount) {
+    >= 16 => 15,
+    >= 12 => 10,
+    >= 8 => 5,
+    _ => 0,
+  };
+}
+
 class _RankingAccumulator {
   final String playerDisplayName;
   final String playerNickname;
   final Map<String, int> _deckUses = {};
   final Map<String, _OpponentDeckAccumulator> _opponentDecks = {};
+  final List<int> _weeklyScores = [];
+  int rankingPoints = 0;
+  int firstPlaces = 0;
+  int secondPlaces = 0;
+  int top4Finishes = 0;
+  int? lastWeeklyRank;
   int wins = 0;
   int draws = 0;
   int losses = 0;
@@ -453,9 +551,27 @@ class _RankingAccumulator {
   }
 
   int get games => wins + draws + losses;
-  int get points => (wins * 3) + draws;
+  int get matchPoints => (wins * 3) + draws;
 
-  void merge(_RankingAccumulator other) {
+  void applyWeeklyPerformance(
+    _WeeklyPerformance performance, {
+    required int weekScore,
+    required int weekIndex,
+    required bool isLastWeek,
+  }) {
+    while (_weeklyScores.length <= weekIndex) {
+      _weeklyScores.add(0);
+    }
+    _weeklyScores[weekIndex] = weekScore;
+    rankingPoints += weekScore;
+    if (performance.rank == 1) firstPlaces++;
+    if (performance.rank == 2) secondPlaces++;
+    if (performance.rank <= 4) top4Finishes++;
+    if (isLastWeek) lastWeeklyRank = performance.rank;
+    mergeMatchStats(performance.stats);
+  }
+
+  void mergeMatchStats(_RankingAccumulator other) {
     wins += other.wins;
     draws += other.draws;
     losses += other.losses;
@@ -483,6 +599,12 @@ class _RankingAccumulator {
       userId: userId,
       playerDisplayName: playerDisplayName,
       playerNickname: playerNickname,
+      rankingPoints: rankingPoints,
+      weeklyScores: List.unmodifiable(_weeklyScores),
+      firstPlaces: firstPlaces,
+      secondPlaces: secondPlaces,
+      top4Finishes: top4Finishes,
+      lastWeeklyRank: lastWeeklyRank,
       games: games,
       wins: wins,
       draws: draws,
@@ -510,21 +632,19 @@ class _RankingAccumulator {
 
 enum _MatchOutcome { win, draw, loss }
 
-class _WeeklyBestPerformance {
+class _WeeklyPerformance {
+  final String userId;
   final _RankingAccumulator stats;
   final DateTime eventDate;
+  final int participantCount;
+  int rank = 0;
 
-  const _WeeklyBestPerformance({required this.stats, required this.eventDate});
-
-  bool isBetterThan(_WeeklyBestPerformance other) {
-    final byPoints = stats.points.compareTo(other.stats.points);
-    if (byPoints != 0) return byPoints > 0;
-    final byWins = stats.wins.compareTo(other.stats.wins);
-    if (byWins != 0) return byWins > 0;
-    final byGames = stats.games.compareTo(other.stats.games);
-    if (byGames != 0) return byGames > 0;
-    return eventDate.isAfter(other.eventDate);
-  }
+  _WeeklyPerformance({
+    required this.userId,
+    required this.stats,
+    required this.eventDate,
+    required this.participantCount,
+  });
 }
 
 class _OpponentDeckAccumulator {

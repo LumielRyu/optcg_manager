@@ -270,7 +270,7 @@ class _PlayerPanel extends StatelessWidget {
                     icon: Icons.emoji_events_outlined,
                     title: 'Ranking mensal',
                     subtitle:
-                        'Top 3 da STOP TCG. Sexta e domingo contam como uma semana: so vale a maior pontuacao do jogador.',
+                        'Trio de Piratas Mais Procurados. Sexta e domingo contam como uma semana: vale a melhor colocacao, com bonus de presenca.',
                   ),
                   const SizedBox(height: 12),
                   if (data.ranking.isEmpty)
@@ -623,14 +623,14 @@ class _WeeklyHero extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Circuito mensal STOP TCG',
+                      'Trio de Piratas Mais Procurados',
                       style: theme.textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w900,
                       ),
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      'Acompanhe inscricoes, rodadas, desempenho e classificacao dos semanais da loja.',
+                      'Some pontos nos semanais, jogue sexta e domingo para ganhar bonus e dispute o mural mensal da STOP TCG.',
                       style: theme.textTheme.bodyMedium,
                     ),
                   ],
@@ -863,24 +863,24 @@ class _SummaryCard extends StatelessWidget {
                 icon: Icons.stars_outlined,
               ),
               _Stat(
-                label: 'Partidas',
-                value: '${item?.games ?? 0}',
-                icon: Icons.sports_esports_outlined,
+                label: 'Semanas validas',
+                value: '${item?.validWeeks ?? 0}',
+                icon: Icons.calendar_view_week_outlined,
               ),
               _Stat(
-                label: 'Vitorias',
-                value: '${item?.wins ?? 0}',
+                label: '1os lugares',
+                value: '${item?.firstPlaces ?? 0}',
                 icon: Icons.emoji_events_outlined,
               ),
               _Stat(
-                label: 'Empates',
-                value: '${item?.draws ?? 0}',
-                icon: Icons.handshake_outlined,
+                label: 'Top 4',
+                value: '${item?.top4Finishes ?? 0}',
+                icon: Icons.military_tech_outlined,
               ),
               _Stat(
-                label: 'Derrotas',
-                value: '${item?.losses ?? 0}',
-                icon: Icons.close,
+                label: 'Partidas',
+                value: '${item?.games ?? 0}',
+                icon: Icons.sports_esports_outlined,
               ),
             ],
           ),
@@ -1315,6 +1315,8 @@ class _RankingTable extends StatelessWidget {
       children: [
         _MonthlyTopThree(entries: entries.take(3).toList(growable: false)),
         const SizedBox(height: 12),
+        const _MonthlyRankingRules(),
+        const SizedBox(height: 12),
         _TableShell(
           child: DataTable(
             headingRowColor: WidgetStatePropertyAll(
@@ -1326,12 +1328,15 @@ class _RankingTable extends StatelessWidget {
               DataColumn(label: Text('#')),
               DataColumn(label: Text('Nome')),
               DataColumn(label: Text('Nick')),
-              DataColumn(label: Text('Partidas validas')),
-              DataColumn(label: Text('Wins')),
-              DataColumn(label: Text('Empates')),
-              DataColumn(label: Text('Loses')),
-              DataColumn(label: Text('Top decks')),
-              DataColumn(label: Text('Pontos')),
+              DataColumn(label: Text('Semana 1')),
+              DataColumn(label: Text('Semana 2')),
+              DataColumn(label: Text('Semana 3')),
+              DataColumn(label: Text('Semana 4')),
+              DataColumn(label: Text('Total')),
+              DataColumn(label: Text('1os')),
+              DataColumn(label: Text('2os')),
+              DataColumn(label: Text('Top 4')),
+              DataColumn(label: Text('Partidas')),
             ],
             rows: [
               for (var index = 0; index < entries.length; index++)
@@ -1345,11 +1350,10 @@ class _RankingTable extends StatelessWidget {
                       ),
                     ),
                     DataCell(Text(entries[index].playerNickname)),
-                    DataCell(Text('${entries[index].games}')),
-                    DataCell(Text('${entries[index].wins}')),
-                    DataCell(Text('${entries[index].draws}')),
-                    DataCell(Text('${entries[index].losses}')),
-                    DataCell(Text(entries[index].topDecks.join(', '))),
+                    DataCell(Text(_weeklyScoreText(entries[index], 0))),
+                    DataCell(Text(_weeklyScoreText(entries[index], 1))),
+                    DataCell(Text(_weeklyScoreText(entries[index], 2))),
+                    DataCell(Text(_weeklyScoreText(entries[index], 3))),
                     DataCell(
                       Text(
                         '${entries[index].points}',
@@ -1359,12 +1363,134 @@ class _RankingTable extends StatelessWidget {
                         ),
                       ),
                     ),
+                    DataCell(Text('${entries[index].firstPlaces}')),
+                    DataCell(Text('${entries[index].secondPlaces}')),
+                    DataCell(Text('${entries[index].top4Finishes}')),
+                    DataCell(Text('${entries[index].games}')),
                   ],
                 ),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _MonthlyRankingRules extends StatelessWidget {
+  const _MonthlyRankingRules();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 820;
+            final children = [
+              _RuleBlock(
+                icon: Icons.table_chart_outlined,
+                title: 'Pontuacao',
+                lines: const [
+                  '1o 100 | 2o 80 | 3o 65 | 4o 55',
+                  '5o 45 | 6o 38 | 7o 32 | 8o 27',
+                  '9o 23 | 10o 20 | 11o+ 15',
+                ],
+              ),
+              _RuleBlock(
+                icon: Icons.groups_outlined,
+                title: 'Bonus',
+                lines: const [
+                  '+5 se jogar sexta e domingo',
+                  '+5 com 8 a 11 jogadores',
+                  '+10 com 12 a 15 | +15 com 16+',
+                ],
+              ),
+              _RuleBlock(
+                icon: Icons.balance_outlined,
+                title: 'Desempate',
+                lines: const [
+                  'Mais 1os lugares',
+                  'Mais 2os lugares',
+                  'Mais Top 4',
+                  'Melhor ultimo semanal do mes',
+                ],
+              ),
+            ];
+            if (compact) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: children
+                    .map(
+                      (child) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: child,
+                      ),
+                    )
+                    .toList(growable: false),
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var index = 0; index < children.length; index++) ...[
+                  Expanded(child: children[index]),
+                  if (index < children.length - 1) const SizedBox(width: 12),
+                ],
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _RuleBlock extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final List<String> lines;
+
+  const _RuleBlock({
+    required this.icon,
+    required this.title,
+    required this.lines,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          for (final line in lines)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 3),
+              child: Text(line, style: theme.textTheme.bodySmall),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -1391,7 +1517,7 @@ class _MonthlyTopThree extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Top 3 do mes',
+                    'Mural dos piratas mais procurados',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w900,
                     ),
@@ -1401,7 +1527,7 @@ class _MonthlyTopThree extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Ranking com a melhor pontuacao de cada jogador por semana.',
+              'Os tres maiores totais viram o trio do mes: capitao, primeiro imediato e comandante pirata.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -1462,6 +1588,16 @@ class _TopThreeCard extends StatelessWidget {
       2 => const Color(0xFF8A8F98),
       _ => const Color(0xFFB87333),
     };
+    final title = switch (position) {
+      1 => 'Capitao mais procurado',
+      2 => 'Primeiro imediato',
+      _ => 'Comandante pirata',
+    };
+    final bounty = switch (position) {
+      1 => '1.500.000.000',
+      2 => '900.000.000',
+      _ => '500.000.000',
+    };
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -1476,45 +1612,95 @@ class _TopThreeCard extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _RankingPosition(position: position),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  entry.playerDisplayName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleSmall?.copyWith(
+          Row(
+            children: [
+              _RankingPosition(position: position),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'WANTED',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: color,
                     fontWeight: FontWeight.w900,
+                    letterSpacing: 0,
                   ),
                 ),
-                Text(
-                  entry.playerNickname,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            height: 76,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface.withValues(alpha: 0.62),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: color.withValues(alpha: 0.32)),
+            ),
+            child: Icon(
+              Icons.person_pin_circle_outlined,
+              size: 42,
+              color: color,
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(height: 12),
+          Text(
+            title.toUpperCase(),
+            textAlign: TextAlign.center,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            entry.playerDisplayName,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          Text(
+            entry.playerNickname,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 10),
           Text(
             '${entry.points} pts',
+            textAlign: TextAlign.center,
             style: theme.textTheme.titleMedium?.copyWith(
               color: theme.colorScheme.primary,
               fontWeight: FontWeight.w900,
+            ),
+          ),
+          Text(
+            'Recompensa $bounty B',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
       ),
     );
   }
+}
+
+String _weeklyScoreText(MonthlyRankingEntry entry, int index) {
+  if (index >= entry.weeklyScores.length) return '-';
+  final score = entry.weeklyScores[index];
+  return score == 0 ? '-' : '$score';
 }
 
 class _TableShell extends StatelessWidget {
