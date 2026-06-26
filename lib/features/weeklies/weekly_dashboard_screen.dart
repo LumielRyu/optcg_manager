@@ -7,6 +7,84 @@ import '../../data/models/weekly_tournament.dart';
 import '../../data/repositories/weekly_tournament_repository.dart';
 
 const String _weeklyStoreName = 'STOP TCG';
+const Color _pirateInk = Color(0xFF061017);
+const Color _piratePanel = Color(0xFF0A1A20);
+const Color _piratePanelSoft = Color(0xFF10272D);
+const Color _pirateGold = Color(0xFFE6A935);
+const Color _pirateBronze = Color(0xFFB36C24);
+const Color _pirateParchment = Color(0xFFD7B574);
+const Color _pirateCream = Color(0xFFF4E6C6);
+const Color _pirateLine = Color(0xFF6B461E);
+const Color _pirateRuby = Color(0xFFD54C3F);
+const Color _piratePurple = Color(0xFFB46CFF);
+
+ThemeData _weeklyPirateTheme(BuildContext context) {
+  final base = ThemeData.dark(useMaterial3: true);
+  return base.copyWith(
+    scaffoldBackgroundColor: _pirateInk,
+    colorScheme: const ColorScheme.dark(
+      primary: _pirateGold,
+      onPrimary: Color(0xFF221403),
+      secondary: _pirateRuby,
+      onSecondary: Colors.white,
+      tertiary: _piratePurple,
+      surface: _piratePanel,
+      onSurface: _pirateCream,
+      surfaceContainerHighest: _piratePanelSoft,
+      onSurfaceVariant: Color(0xFFD5C3A0),
+      outline: _pirateLine,
+      outlineVariant: Color(0xFF8B642C),
+      error: Color(0xFFFF7D72),
+      onError: Color(0xFF290B08),
+    ),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Color(0xFF02070C),
+      foregroundColor: _pirateCream,
+      elevation: 0,
+      centerTitle: false,
+      surfaceTintColor: Colors.transparent,
+    ),
+    cardTheme: CardThemeData(
+      color: _piratePanel.withValues(alpha: 0.94),
+      elevation: 0,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: _pirateGold.withValues(alpha: 0.36)),
+      ),
+    ),
+    dividerColor: _pirateGold.withValues(alpha: 0.18),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        backgroundColor: _pirateGold,
+        foregroundColor: const Color(0xFF1D1002),
+        textStyle: const TextStyle(fontWeight: FontWeight.w900),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: _pirateGold,
+        side: BorderSide(color: _pirateGold.withValues(alpha: 0.55)),
+      ),
+    ),
+    chipTheme: base.chipTheme.copyWith(
+      backgroundColor: _piratePanelSoft,
+      side: BorderSide(color: _pirateGold.withValues(alpha: 0.28)),
+      labelStyle: const TextStyle(color: _pirateCream),
+    ),
+    dataTableTheme: DataTableThemeData(
+      headingTextStyle: const TextStyle(
+        color: _pirateCream,
+        fontWeight: FontWeight.w900,
+      ),
+      dataTextStyle: const TextStyle(color: _pirateCream),
+      dividerThickness: 0.7,
+      headingRowColor: WidgetStatePropertyAll(
+        _pirateGold.withValues(alpha: 0.13),
+      ),
+    ),
+  );
+}
 
 class WeeklyDashboardScreen extends ConsumerStatefulWidget {
   final String gameSlug;
@@ -79,78 +157,173 @@ class _WeeklyDashboardScreenState extends ConsumerState<WeeklyDashboardScreen> {
     final isAdmin = _repository.isAdmin;
     final title = _gameTitle(widget.gameSlug);
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          tooltip: 'Voltar',
-          onPressed: () => context.go(_hubRoute(widget.gameSlug)),
-          icon: const Icon(Icons.arrow_back),
-        ),
-        title: Text('Semanais $_weeklyStoreName - $title'),
-        actions: [
-          if (isAdmin)
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: FilledButton.icon(
-                onPressed: () {
-                  setState(() {
-                    _showAdminPanel = !_showAdminPanel;
-                  });
-                },
-                icon: Icon(
-                  _showAdminPanel
-                      ? Icons.leaderboard_outlined
-                      : Icons.admin_panel_settings_outlined,
-                ),
-                label: Text(
-                  _showAdminPanel ? 'Voltar ao ranking' : 'Gerenciar semanais',
+    return Theme(
+      data: _weeklyPirateTheme(context),
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            tooltip: 'Voltar',
+            onPressed: () => context.go(_hubRoute(widget.gameSlug)),
+            icon: const Icon(Icons.arrow_back),
+          ),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.flag_circle_outlined, color: _pirateGold, size: 26),
+              const SizedBox(width: 10),
+              Flexible(child: Text('$_weeklyStoreName - Semanal $title')),
+            ],
+          ),
+          actions: [
+            if (isAdmin)
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: FilledButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _showAdminPanel = !_showAdminPanel;
+                    });
+                  },
+                  icon: Icon(
+                    _showAdminPanel
+                        ? Icons.leaderboard_outlined
+                        : Icons.admin_panel_settings_outlined,
+                  ),
+                  label: Text(
+                    _showAdminPanel
+                        ? 'Voltar ao ranking'
+                        : 'Gerenciar semanais',
+                  ),
                 ),
               ),
-            ),
-        ],
-      ),
-      body: FutureBuilder<WeeklyDashboardData>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return _ErrorState(error: snapshot.error, onRetry: _refresh);
-          }
+          ],
+        ),
+        body: FutureBuilder<WeeklyDashboardData>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const _PirateBackdrop(
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            if (snapshot.hasError) {
+              return _PirateBackdrop(
+                child: _ErrorState(error: snapshot.error, onRetry: _refresh),
+              );
+            }
 
-          final data = snapshot.data;
-          if (data == null) {
-            return _ErrorState(
-              error: 'O servidor nao retornou os dados dos semanais.',
-              onRetry: _refresh,
+            final data = snapshot.data;
+            if (data == null) {
+              return _PirateBackdrop(
+                child: _ErrorState(
+                  error: 'O servidor nao retornou os dados dos semanais.',
+                  onRetry: _refresh,
+                ),
+              );
+            }
+
+            if (isAdmin && _showAdminPanel) {
+              return _PirateBackdrop(
+                child: _AdminPanel(
+                  data: data,
+                  gameSlug: widget.gameSlug,
+                  month: _month,
+                  repository: _repository,
+                  onChanged: _refresh,
+                ),
+              );
+            }
+
+            return _PirateBackdrop(
+              child: _PlayerPanel(
+                data: data,
+                gameSlug: widget.gameSlug,
+                currentUserId: _repository.currentUserId,
+                repository: _repository,
+                month: _month,
+                onPreviousMonth: () => _changeMonth(-1),
+                onNextMonth: () => _changeMonth(1),
+                onRefresh: _refresh,
+              ),
             );
-          }
-
-          if (isAdmin && _showAdminPanel) {
-            return _AdminPanel(
-              data: data,
-              gameSlug: widget.gameSlug,
-              month: _month,
-              repository: _repository,
-              onChanged: _refresh,
-            );
-          }
-
-          return _PlayerPanel(
-            data: data,
-            gameSlug: widget.gameSlug,
-            currentUserId: _repository.currentUserId,
-            repository: _repository,
-            month: _month,
-            onPreviousMonth: () => _changeMonth(-1),
-            onNextMonth: () => _changeMonth(1),
-            onRefresh: _refresh,
-          );
-        },
+          },
+        ),
       ),
     );
   }
+}
+
+class _PirateBackdrop extends StatelessWidget {
+  final Widget child;
+
+  const _PirateBackdrop({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: RadialGradient(
+          center: Alignment(-0.9, -0.7),
+          radius: 1.3,
+          colors: [Color(0xFF113543), _pirateInk, Color(0xFF02060A)],
+          stops: [0, 0.48, 1],
+        ),
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(child: CustomPaint(painter: _PirateSeaPainter())),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _PirateSeaPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = _pirateGold.withValues(alpha: 0.05)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    for (var y = size.height * 0.18; y < size.height; y += 58) {
+      final path = Path()..moveTo(0, y);
+      for (var x = 0.0; x <= size.width; x += 90) {
+        path.quadraticBezierTo(x + 45, y + 12, x + 90, y);
+      }
+      canvas.drawPath(path, paint);
+    }
+
+    final mastPaint = Paint()
+      ..color = Colors.black.withValues(alpha: 0.18)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    final baseX = size.width * 0.16;
+    final baseY = size.height * 0.34;
+    canvas.drawLine(
+      Offset(baseX, baseY - 110),
+      Offset(baseX, baseY),
+      mastPaint,
+    );
+    canvas.drawLine(
+      Offset(baseX - 46, baseY - 64),
+      Offset(baseX + 54, baseY - 64),
+      mastPaint,
+    );
+    canvas.drawLine(
+      Offset(baseX, baseY - 110),
+      Offset(baseX - 54, baseY - 22),
+      mastPaint,
+    );
+    canvas.drawLine(
+      Offset(baseX, baseY - 110),
+      Offset(baseX + 58, baseY - 18),
+      mastPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _PlayerPanel extends StatelessWidget {
@@ -212,15 +385,66 @@ class _PlayerPanel extends StatelessWidget {
                     onPreviousMonth: onPreviousMonth,
                     onNextMonth: onNextMonth,
                   ),
-                  if (openEvents.isNotEmpty) ...[
-                    const SizedBox(height: 28),
-                    const _SectionHeading(
-                      icon: Icons.how_to_reg_outlined,
-                      title: 'Inscricoes abertas',
-                      subtitle:
-                          'Entre nos semanais da STOP TCG, escolha seu lider e confirme sua participacao.',
-                    ),
-                    const SizedBox(height: 12),
+                  const SizedBox(height: 18),
+                  _PlayerRankingWorkspace(
+                    gameSlug: gameSlug,
+                    data: data,
+                    rankingEntry: myRanking,
+                    openEvents: openEvents,
+                    myParticipants: myParticipants,
+                    eventsById: eventsById,
+                    currentUserId: currentUserId,
+                    repository: repository,
+                    onRefresh: onRefresh,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlayerRankingWorkspace extends StatelessWidget {
+  final String gameSlug;
+  final WeeklyDashboardData data;
+  final MonthlyRankingEntry? rankingEntry;
+  final List<WeeklyEvent> openEvents;
+  final List<WeeklyParticipant> myParticipants;
+  final Map<String, WeeklyEvent> eventsById;
+  final String currentUserId;
+  final WeeklyTournamentRepository repository;
+  final Future<void> Function() onRefresh;
+
+  const _PlayerRankingWorkspace({
+    required this.gameSlug,
+    required this.data,
+    required this.rankingEntry,
+    required this.openEvents,
+    required this.myParticipants,
+    required this.eventsById,
+    required this.currentUserId,
+    required this.repository,
+    required this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final sideColumn = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _PirateWindow(
+          icon: Icons.how_to_reg_outlined,
+          title: 'Semanais abertos',
+          subtitle: 'Entre na proxima disputa e escolha seu lider.',
+          child: openEvents.isEmpty
+              ? const _CompactMessage(
+                  message: 'Nenhuma inscricao aberta no momento.',
+                )
+              : Column(
+                  children: [
                     for (final event in openEvents)
                       _OpenEnrollmentCard(
                         event: event,
@@ -239,22 +463,26 @@ class _PlayerPanel extends StatelessWidget {
                         },
                       ),
                   ],
-                  const SizedBox(height: 28),
-                  _PlayerDashboard(entry: myRanking),
-                  const SizedBox(height: 28),
-                  const _SectionHeading(
-                    icon: Icons.event_note_outlined,
-                    title: 'Meus semanais',
-                    subtitle:
-                        'Acompanhe seus encontros da STOP TCG, rodadas e confirmacoes de resultado.',
-                  ),
-                  const SizedBox(height: 12),
-                  if (myParticipants.isEmpty)
-                    const _EmptyCard(
-                      message:
-                          'Voce ainda nao participou de semanais neste mes.',
-                    )
-                  else
+                ),
+        ),
+        const SizedBox(height: 14),
+        _PirateWindow(
+          icon: Icons.insights_outlined,
+          title: 'Meu painel',
+          subtitle: 'Resumo pessoal do mes competitivo.',
+          child: _PlayerDashboard(entry: rankingEntry),
+        ),
+        const SizedBox(height: 14),
+        _PirateWindow(
+          icon: Icons.event_note_outlined,
+          title: 'Ranking semanal',
+          subtitle: 'Seus encontros, rodadas e confirmacoes.',
+          child: myParticipants.isEmpty
+              ? const _CompactMessage(
+                  message: 'Voce ainda nao participou de semanais neste mes.',
+                )
+              : Column(
+                  children: [
                     for (final participant in myParticipants)
                       _PlayerEventCard(
                         participant: participant,
@@ -265,26 +493,106 @@ class _PlayerPanel extends StatelessWidget {
                         repository: repository,
                         onChanged: onRefresh,
                       ),
-                  const SizedBox(height: 28),
-                  const _SectionHeading(
-                    icon: Icons.emoji_events_outlined,
-                    title: 'Ranking mensal',
-                    subtitle:
-                        'Trio de Piratas Mais Procurados. Sexta e domingo contam como uma semana: vale a melhor colocacao, com bonus de presenca.',
-                  ),
-                  const SizedBox(height: 12),
-                  if (data.ranking.isEmpty)
-                    const _EmptyCard(
-                      message:
-                          'O ranking deste mes sera exibido apos as inscricoes.',
-                    )
-                  else
-                    _RankingTable(entries: data.ranking),
-                ],
-              ),
-            ),
+                  ],
+                ),
+        ),
+      ],
+    );
+
+    final rankingColumn = _PirateWindow(
+      icon: Icons.emoji_events_outlined,
+      title: 'Ranking mensal',
+      subtitle:
+          'Trio de Piratas Mais Procurados. A melhor semana, bonus e desempates em um so mural.',
+      child: data.ranking.isEmpty
+          ? const _CompactMessage(
+              message: 'O ranking deste mes sera exibido apos as inscricoes.',
+            )
+          : _RankingTable(entries: data.ranking),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 1020) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [sideColumn, const SizedBox(height: 14), rankingColumn],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(width: 390, child: sideColumn),
+            const SizedBox(width: 16),
+            Expanded(child: rankingColumn),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _PirateWindow extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Widget child;
+
+  const _PirateWindow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _piratePanel.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _pirateGold.withValues(alpha: 0.34)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.26),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
           ),
         ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _SectionHeading(icon: icon, title: title, subtitle: subtitle),
+          const SizedBox(height: 12),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactMessage extends StatelessWidget {
+  final String message;
+
+  const _CompactMessage({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _pirateGold.withValues(alpha: 0.18)),
+      ),
+      child: Text(
+        message,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: _pirateCream.withValues(alpha: 0.82),
+        ),
       ),
     );
   }
@@ -587,83 +895,211 @@ class _WeeklyHero extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            theme.colorScheme.primaryContainer,
-            theme.colorScheme.surface,
+            _piratePanelSoft.withValues(alpha: 0.92),
+            _piratePanel.withValues(alpha: 0.94),
+            Colors.black.withValues(alpha: 0.46),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.55),
-        ),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _pirateGold.withValues(alpha: 0.42)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: 22,
+            offset: const Offset(0, 12),
+          ),
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 820;
+          final intro = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 54,
-                height: 54,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                alignment: Alignment.center,
-                child: Icon(
-                  Icons.emoji_events_outlined,
-                  color: theme.colorScheme.primary,
-                  size: 28,
+              Text(
+                'RANKING MENSAL',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: _pirateCream,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0,
                 ),
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(height: 8),
+              Text.rich(
+                TextSpan(
                   children: [
-                    Text(
-                      'Trio de Piratas Mais Procurados',
-                      style: theme.textTheme.headlineSmall?.copyWith(
+                    TextSpan(
+                      text: 'TRIO DE PIRATAS\n',
+                      style: theme.textTheme.displaySmall?.copyWith(
+                        color: _pirateCream,
                         fontWeight: FontWeight.w900,
+                        height: 1.06,
+                        letterSpacing: 0,
                       ),
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      'Some pontos nos semanais, jogue sexta e domingo para ganhar bonus e dispute o mural mensal da STOP TCG.',
-                      style: theme.textTheme.bodyMedium,
+                    TextSpan(
+                      text: 'MAIS PROCURADOS',
+                      style: theme.textTheme.displaySmall?.copyWith(
+                        color: _pirateGold,
+                        fontWeight: FontWeight.w900,
+                        height: 1.06,
+                        letterSpacing: 0,
+                      ),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(height: 12),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 450),
+                child: Text(
+                  'Participe dos semanais, acumule pontos e conquiste seu lugar entre os lendarios da loja.',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: _pirateCream.withValues(alpha: 0.86),
+                    height: 1.35,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: const [
+                  _WeeklyScheduleCard(
+                    eyebrow: 'Semanal sexta',
+                    title: 'Sexta-feira',
+                    time: '19:30',
+                    color: _piratePurple,
+                  ),
+                  _WeeklyScheduleCard(
+                    eyebrow: 'Semanal domingo',
+                    title: 'Domingo',
+                    time: '15:00',
+                    color: _pirateRuby,
+                  ),
+                ],
+              ),
+            ],
+          );
+          final status = Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _MonthSelector(
+                month: month,
+                onPrevious: onPreviousMonth,
+                onNext: onNextMonth,
+              ),
+              const SizedBox(height: 14),
+              _SummaryCard(entry: entry),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _InfoBadge(
+                    icon: Icons.event_available_outlined,
+                    label: '$participationCount participacoes no mes',
+                  ),
+                  _InfoBadge(
+                    icon: Icons.how_to_reg_outlined,
+                    label: '$openEvents inscricoes abertas',
+                  ),
+                  if (entry != null)
+                    _InfoBadge(
+                      icon: Icons.person_outline,
+                      label: 'Nick: ${entry!.playerNickname}',
+                    ),
+                ],
+              ),
+            ],
+          );
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [intro, const SizedBox(height: 22), status],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(flex: 5, child: intro),
+              const SizedBox(width: 28),
+              Expanded(flex: 4, child: status),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _WeeklyScheduleCard extends StatelessWidget {
+  final String eyebrow;
+  final String title;
+  final String time;
+  final Color color;
+
+  const _WeeklyScheduleCard({
+    required this.eyebrow,
+    required this.title,
+    required this.time,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: 168,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.28),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.72)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.flag_outlined, color: _pirateCream, size: 16),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  eyebrow.toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: _pirateCream,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 16),
-          _MonthSelector(
-            month: month,
-            onPrevious: onPreviousMonth,
-            onNext: onNextMonth,
-          ),
-          const SizedBox(height: 16),
-          _SummaryCard(entry: entry),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+          Text(
+            title.toUpperCase(),
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
             children: [
-              _InfoBadge(
-                icon: Icons.event_available_outlined,
-                label: '$participationCount participacoes no mes',
-              ),
-              _InfoBadge(
-                icon: Icons.how_to_reg_outlined,
-                label: '$openEvents inscricoes abertas',
-              ),
-              if (entry != null)
-                _InfoBadge(
-                  icon: Icons.person_outline,
-                  label: 'Nick: ${entry!.playerNickname}',
+              const Icon(Icons.schedule, color: _pirateCream, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                time,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: _pirateCream,
+                  fontWeight: FontWeight.w800,
                 ),
+              ),
             ],
           ),
         ],
@@ -689,7 +1125,17 @@ class _SectionHeading extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: theme.colorScheme.primary),
+        Container(
+          width: 38,
+          height: 38,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: _pirateGold.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: _pirateGold.withValues(alpha: 0.32)),
+          ),
+          child: Icon(icon, color: _pirateGold, size: 22),
+        ),
         const SizedBox(width: 10),
         Expanded(
           child: Column(
@@ -698,11 +1144,18 @@ class _SectionHeading extends StatelessWidget {
               Text(
                 title,
                 style: theme.textTheme.titleLarge?.copyWith(
+                  color: _pirateGold,
                   fontWeight: FontWeight.w900,
+                  letterSpacing: 0,
                 ),
               ),
               const SizedBox(height: 2),
-              Text(subtitle, style: theme.textTheme.bodyMedium),
+              Text(
+                subtitle,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: _pirateCream.withValues(alpha: 0.78),
+                ),
+              ),
             ],
           ),
         ),
@@ -724,6 +1177,7 @@ class _OpenEnrollmentCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: Container(
         decoration: BoxDecoration(
+          color: _piratePanel.withValues(alpha: 0.9),
           border: Border(
             left: BorderSide(color: theme.colorScheme.tertiary, width: 5),
           ),
@@ -736,13 +1190,16 @@ class _OpenEnrollmentCard extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.tertiaryContainer,
-                  borderRadius: BorderRadius.circular(15),
+                  color: theme.colorScheme.tertiary.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: theme.colorScheme.tertiary.withValues(alpha: 0.36),
+                  ),
                 ),
                 alignment: Alignment.center,
                 child: Icon(
                   Icons.event_available_outlined,
-                  color: theme.colorScheme.onTertiaryContainer,
+                  color: theme.colorScheme.tertiary,
                 ),
               ),
               const SizedBox(width: 14),
@@ -796,8 +1253,9 @@ class _MonthSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.74),
-        borderRadius: BorderRadius.circular(18),
+        color: Colors.black.withValues(alpha: 0.28),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _pirateGold.withValues(alpha: 0.34)),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -812,9 +1270,10 @@ class _MonthSelector extends StatelessWidget {
               child: Text(
                 weeklyMonthLabel(month),
                 textAlign: TextAlign.center,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: _pirateGold,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ),
             IconButton(
@@ -840,17 +1299,19 @@ class _SummaryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.74),
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.black.withValues(alpha: 0.24),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _pirateGold.withValues(alpha: 0.28)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Seu desempenho',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              color: _pirateGold,
+              fontWeight: FontWeight.w900,
+            ),
           ),
           const SizedBox(height: 14),
           Wrap(
@@ -903,8 +1364,9 @@ class _Stat extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 124),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.82),
-        borderRadius: BorderRadius.circular(16),
+        color: _piratePanelSoft.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _pirateGold.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -926,7 +1388,12 @@ class _Stat extends StatelessWidget {
               ),
             ],
           ),
-          Text(label),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: _pirateCream.withValues(alpha: 0.78),
+            ),
+          ),
         ],
       ),
     );
@@ -945,11 +1412,9 @@ class _InfoBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface.withValues(alpha: 0.68),
+        color: Colors.black.withValues(alpha: 0.28),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.55),
-        ),
+        border: Border.all(color: _pirateGold.withValues(alpha: 0.32)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1310,69 +1775,105 @@ class _RankingTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _MonthlyTopThree(entries: entries.take(3).toList(growable: false)),
-        const SizedBox(height: 12),
-        const _MonthlyRankingRules(),
-        const SizedBox(height: 12),
-        _TableShell(
-          child: DataTable(
-            headingRowColor: WidgetStatePropertyAll(
-              Theme.of(
-                context,
-              ).colorScheme.primaryContainer.withValues(alpha: 0.5),
-            ),
-            columns: const [
-              DataColumn(label: Text('#')),
-              DataColumn(label: Text('Nome')),
-              DataColumn(label: Text('Nick')),
-              DataColumn(label: Text('Semana 1')),
-              DataColumn(label: Text('Semana 2')),
-              DataColumn(label: Text('Semana 3')),
-              DataColumn(label: Text('Semana 4')),
-              DataColumn(label: Text('Total')),
-              DataColumn(label: Text('1os')),
-              DataColumn(label: Text('2os')),
-              DataColumn(label: Text('Top 4')),
-              DataColumn(label: Text('Partidas')),
+    final mural = _MonthlyTopThree(
+      entries: entries.take(3).toList(growable: false),
+    );
+    const rules = _MonthlyRankingRules();
+    final table = _MonthlyRankingDataTable(entries: entries);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 980;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (wide)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 7, child: mural),
+                  const SizedBox(width: 14),
+                  const Expanded(flex: 4, child: rules),
+                ],
+              )
+            else ...[
+              mural,
+              const SizedBox(height: 12),
+              rules,
             ],
-            rows: [
-              for (var index = 0; index < entries.length; index++)
-                DataRow(
-                  cells: [
-                    DataCell(_RankingPosition(position: index + 1)),
-                    DataCell(
-                      Text(
-                        entries[index].playerDisplayName,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                    DataCell(Text(entries[index].playerNickname)),
-                    DataCell(Text(_weeklyScoreText(entries[index], 0))),
-                    DataCell(Text(_weeklyScoreText(entries[index], 1))),
-                    DataCell(Text(_weeklyScoreText(entries[index], 2))),
-                    DataCell(Text(_weeklyScoreText(entries[index], 3))),
-                    DataCell(
-                      Text(
-                        '${entries[index].points}',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                    DataCell(Text('${entries[index].firstPlaces}')),
-                    DataCell(Text('${entries[index].secondPlaces}')),
-                    DataCell(Text('${entries[index].top4Finishes}')),
-                    DataCell(Text('${entries[index].games}')),
-                  ],
-                ),
-            ],
-          ),
+            const SizedBox(height: 12),
+            table,
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _MonthlyRankingDataTable extends StatelessWidget {
+  final List<MonthlyRankingEntry> entries;
+
+  const _MonthlyRankingDataTable({required this.entries});
+
+  @override
+  Widget build(BuildContext context) {
+    return _TableShell(
+      child: DataTable(
+        headingRowColor: WidgetStatePropertyAll(
+          _pirateGold.withValues(alpha: 0.15),
         ),
-      ],
+        dataRowColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.hovered)
+              ? _pirateGold.withValues(alpha: 0.08)
+              : Colors.transparent,
+        ),
+        columns: const [
+          DataColumn(label: Text('#')),
+          DataColumn(label: Text('Nome')),
+          DataColumn(label: Text('Nick')),
+          DataColumn(label: Text('Semana 1')),
+          DataColumn(label: Text('Semana 2')),
+          DataColumn(label: Text('Semana 3')),
+          DataColumn(label: Text('Semana 4')),
+          DataColumn(label: Text('Total')),
+          DataColumn(label: Text('1os')),
+          DataColumn(label: Text('2os')),
+          DataColumn(label: Text('Top 4')),
+          DataColumn(label: Text('Partidas')),
+        ],
+        rows: [
+          for (var index = 0; index < entries.length; index++)
+            DataRow(
+              cells: [
+                DataCell(_RankingPosition(position: index + 1)),
+                DataCell(
+                  Text(
+                    entries[index].playerDisplayName,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                DataCell(Text(entries[index].playerNickname)),
+                DataCell(Text(_weeklyScoreText(entries[index], 0))),
+                DataCell(Text(_weeklyScoreText(entries[index], 1))),
+                DataCell(Text(_weeklyScoreText(entries[index], 2))),
+                DataCell(Text(_weeklyScoreText(entries[index], 3))),
+                DataCell(
+                  Text(
+                    '${entries[index].points}',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                DataCell(Text('${entries[index].firstPlaces}')),
+                DataCell(Text('${entries[index].secondPlaces}')),
+                DataCell(Text('${entries[index].top4Finishes}')),
+                DataCell(Text('${entries[index].games}')),
+              ],
+            ),
+        ],
+      ),
     );
   }
 }
@@ -1384,6 +1885,11 @@ class _MonthlyRankingRules extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       elevation: 0,
+      color: _piratePanel.withValues(alpha: 0.92),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: _pirateGold.withValues(alpha: 0.38)),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: LayoutBuilder(
@@ -1465,8 +1971,9 @@ class _RuleBlock extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.black.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _pirateGold.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1478,6 +1985,7 @@ class _RuleBlock extends StatelessWidget {
               Text(
                 title,
                 style: theme.textTheme.titleSmall?.copyWith(
+                  color: _pirateGold,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -1487,7 +1995,12 @@ class _RuleBlock extends StatelessWidget {
           for (final line in lines)
             Padding(
               padding: const EdgeInsets.only(bottom: 3),
-              child: Text(line, style: theme.textTheme.bodySmall),
+              child: Text(
+                line,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: _pirateCream.withValues(alpha: 0.82),
+                ),
+              ),
             ),
         ],
       ),
@@ -1503,9 +2016,27 @@ class _MonthlyTopThree extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            _pirateParchment.withValues(alpha: 0.95),
+            _pirateBronze.withValues(alpha: 0.94),
+            const Color(0xFF6F451F).withValues(alpha: 0.96),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _pirateGold.withValues(alpha: 0.62)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.42),
+            blurRadius: 22,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -1513,13 +2044,29 @@ class _MonthlyTopThree extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.workspace_premium, color: theme.colorScheme.primary),
+                Container(
+                  width: 44,
+                  height: 34,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.72),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: _pirateGold),
+                  ),
+                  child: const Icon(
+                    Icons.workspace_premium,
+                    color: _pirateGold,
+                    size: 22,
+                  ),
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Mural dos piratas mais procurados',
+                    'MURAL DOS PIRATAS MAIS PROCURADOS',
                     style: theme.textTheme.titleMedium?.copyWith(
+                      color: _pirateInk,
                       fontWeight: FontWeight.w900,
+                      letterSpacing: 0,
                     ),
                   ),
                 ),
@@ -1529,7 +2076,8 @@ class _MonthlyTopThree extends StatelessWidget {
             Text(
               'Os tres maiores totais viram o trio do mes: capitao, primeiro imediato e comandante pirata.',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+                color: _pirateInk.withValues(alpha: 0.78),
+                fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 14),
@@ -1599,18 +2147,26 @@ class _TopThreeCard extends StatelessWidget {
       _ => '500.000.000',
     };
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: color.withValues(alpha: 0.55)),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: const Color(0xFF5B3516), width: 1.2),
         gradient: LinearGradient(
           colors: [
-            color.withValues(alpha: 0.20),
-            theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+            const Color(0xFFE2C083),
+            const Color(0xFFC79D5F),
+            const Color(0xFF9C6E3B),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.28),
+            blurRadius: 12,
+            offset: const Offset(0, 7),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1623,8 +2179,8 @@ class _TopThreeCard extends StatelessWidget {
                 child: Text(
                   'WANTED',
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    color: color,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    color: const Color(0xFF2A1708),
                     fontWeight: FontWeight.w900,
                     letterSpacing: 0,
                   ),
@@ -1634,17 +2190,21 @@ class _TopThreeCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Container(
-            height: 76,
+            height: 108,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: theme.colorScheme.surface.withValues(alpha: 0.62),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: color.withValues(alpha: 0.32)),
+              color: const Color(0xFF17383D).withValues(alpha: 0.76),
+              borderRadius: BorderRadius.circular(3),
+              border: Border.all(color: const Color(0xFF533113)),
             ),
-            child: Icon(
-              Icons.person_pin_circle_outlined,
-              size: 42,
-              color: color,
+            child: CircleAvatar(
+              radius: 34,
+              backgroundColor: color.withValues(alpha: 0.25),
+              child: Icon(
+                Icons.person_pin_circle_outlined,
+                size: 46,
+                color: _pirateCream,
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -1652,7 +2212,7 @@ class _TopThreeCard extends StatelessWidget {
             title.toUpperCase(),
             textAlign: TextAlign.center,
             style: theme.textTheme.labelMedium?.copyWith(
-              color: color,
+              color: const Color(0xFF2A1708),
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -1663,6 +2223,7 @@ class _TopThreeCard extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.titleSmall?.copyWith(
+              color: const Color(0xFF2A1708),
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -1672,7 +2233,8 @@ class _TopThreeCard extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+              color: const Color(0xFF4A2B12),
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 10),
@@ -1680,7 +2242,7 @@ class _TopThreeCard extends StatelessWidget {
             '${entry.points} pts',
             textAlign: TextAlign.center,
             style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.primary,
+              color: const Color(0xFF2A1708),
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -1688,6 +2250,7 @@ class _TopThreeCard extends StatelessWidget {
             'Recompensa $bounty B',
             textAlign: TextAlign.center,
             style: theme.textTheme.labelMedium?.copyWith(
+              color: const Color(0xFF2A1708),
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -1713,9 +2276,17 @@ class _TableShell extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       elevation: 0,
+      color: _piratePanel.withValues(alpha: 0.94),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: _pirateGold.withValues(alpha: 0.34)),
+      ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        child: child,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: child,
+        ),
       ),
     );
   }
