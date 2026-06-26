@@ -25,9 +25,9 @@ class SummaryStatCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface.withValues(alpha: surfaceAlpha),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+          color: theme.colorScheme.primary.withValues(alpha: 0.28),
         ),
       ),
       child: Row(
@@ -37,11 +37,14 @@ class SummaryStatCard extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(14),
+              color: theme.colorScheme.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: theme.colorScheme.primary.withValues(alpha: 0.28),
+              ),
             ),
             alignment: Alignment.center,
-            child: Icon(icon, color: theme.colorScheme.onPrimaryContainer),
+            child: Icon(icon, color: theme.colorScheme.primary),
           ),
           const SizedBox(width: 10),
           Column(

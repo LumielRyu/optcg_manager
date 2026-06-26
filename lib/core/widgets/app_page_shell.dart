@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 
+const Color _shellInk = Color(0xFF061017);
+const Color _shellPanel = Color(0xFF0A1A20);
+const Color _shellPanelSoft = Color(0xFF10272D);
+const Color _shellGold = Color(0xFFE6A935);
+
 class AppPageShell extends StatelessWidget {
   final Widget child;
   final double maxWidth;
@@ -16,35 +21,69 @@ class AppPageShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final compact = MediaQuery.sizeOf(context).width < 640;
+    final dark = theme.colorScheme.brightness == Brightness.dark;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        gradient: LinearGradient(
-          colors: [
-            theme.colorScheme.primaryContainer.withValues(alpha: 0.22),
-            theme.colorScheme.surface,
-            theme.colorScheme.tertiaryContainer.withValues(alpha: 0.12),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: dark
+            ? const RadialGradient(
+                center: Alignment(-0.9, -0.7),
+                radius: 1.35,
+                colors: [Color(0xFF113543), _shellInk, Color(0xFF02060A)],
+                stops: [0, 0.48, 1],
+              )
+            : LinearGradient(
+                colors: [
+                  const Color(0xFFF7DCA7),
+                  theme.colorScheme.surface,
+                  const Color(0xFFEAC47B),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
       ),
-      child: SingleChildScrollView(
-        padding:
-            padding ??
-            EdgeInsets.symmetric(
-              horizontal: compact ? 14 : 24,
-              vertical: compact ? 14 : 24,
+      child: Stack(
+        children: [
+          if (dark)
+            Positioned.fill(child: CustomPaint(painter: _ShellSeaPainter())),
+          SingleChildScrollView(
+            padding:
+                padding ??
+                EdgeInsets.symmetric(
+                  horizontal: compact ? 14 : 24,
+                  vertical: compact ? 14 : 24,
+                ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxWidth),
+                child: child,
+              ),
             ),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidth),
-            child: child,
           ),
-        ),
+        ],
       ),
     );
   }
+}
+
+class _ShellSeaPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = _shellGold.withValues(alpha: 0.045)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    for (var y = size.height * 0.18; y < size.height; y += 58) {
+      final path = Path()..moveTo(0, y);
+      for (var x = 0.0; x <= size.width; x += 90) {
+        path.quadraticBezierTo(x + 45, y + 12, x + 90, y);
+      }
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class AppHeroPanel extends StatelessWidget {
@@ -71,19 +110,33 @@ class AppHeroPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final color = accent ?? theme.colorScheme.primary;
+    final dark = theme.colorScheme.brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            color.withValues(alpha: 0.2),
-            theme.colorScheme.surface.withValues(alpha: 0.96),
-          ],
+          colors: dark
+              ? [
+                  _shellPanelSoft.withValues(alpha: 0.92),
+                  _shellPanel.withValues(alpha: 0.94),
+                  Colors.black.withValues(alpha: 0.46),
+                ]
+              : [
+                  color.withValues(alpha: 0.18),
+                  theme.colorScheme.surface.withValues(alpha: 0.96),
+                ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: dark ? 0.42 : 0.32)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: dark ? 0.35 : 0.12),
+            blurRadius: 22,
+            offset: const Offset(0, 12),
+          ),
+        ],
       ),
       child: Wrap(
         spacing: 18,
@@ -96,7 +149,8 @@ class AppHeroPanel extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(22),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: color.withValues(alpha: 0.28)),
             ),
             child: Icon(icon, color: color, size: 34),
           ),
@@ -160,14 +214,13 @@ class AppSectionHeading extends StatelessWidget {
           height: 40,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: theme.colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(14),
+            color: theme.colorScheme.primary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: theme.colorScheme.primary.withValues(alpha: 0.32),
+            ),
           ),
-          child: Icon(
-            icon,
-            size: 21,
-            color: theme.colorScheme.onPrimaryContainer,
-          ),
+          child: Icon(icon, size: 21, color: theme.colorScheme.primary),
         ),
         const SizedBox(width: 11),
         Expanded(
@@ -177,7 +230,9 @@ class AppSectionHeading extends StatelessWidget {
               Text(
                 title,
                 style: theme.textTheme.titleLarge?.copyWith(
+                  color: theme.colorScheme.primary,
                   fontWeight: FontWeight.w900,
+                  letterSpacing: 0,
                 ),
               ),
               const SizedBox(height: 2),
@@ -211,6 +266,7 @@ class AppBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.28)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -259,14 +315,13 @@ class AppAuthPanel extends StatelessWidget {
               height: 58,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(19),
+                color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                ),
               ),
-              child: Icon(
-                icon,
-                color: theme.colorScheme.onPrimaryContainer,
-                size: 29,
-              ),
+              child: Icon(icon, color: theme.colorScheme.primary, size: 29),
             ),
             const SizedBox(height: 18),
             Text(

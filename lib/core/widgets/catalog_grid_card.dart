@@ -37,7 +37,7 @@ class CatalogGridCard extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(8),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
@@ -68,7 +68,10 @@ class CatalogGridCard extends StatelessWidget {
                     color: theme.colorScheme.surfaceContainerHighest.withValues(
                       alpha: 0.42,
                     ),
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.14),
+                    ),
                   ),
                   padding: const EdgeInsets.all(8),
                   child: image,
