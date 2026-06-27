@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../core/widgets/app_page_shell.dart';
 import '../../core/widgets/home_navigation_button.dart';
 import '../../data/repositories/auth_repository.dart';
-import 'social_sign_in_buttons.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -139,8 +138,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 onPressed: _isBusy ? null : _goToRegister,
                 child: const Text('Criar conta'),
               ),
-              const SizedBox(height: 12),
-              const SocialSignInButtons(),
             ],
           ),
         ),

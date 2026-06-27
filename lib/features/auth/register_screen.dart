@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/widgets/app_page_shell.dart';
 import '../../core/widgets/home_navigation_button.dart';
 import '../../data/repositories/auth_repository.dart';
-import 'social_sign_in_buttons.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -140,8 +139,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       : const Text('Criar conta'),
                 ),
               ),
-              const SizedBox(height: 12),
-              const SocialSignInButtons(),
             ],
           ),
         ),
