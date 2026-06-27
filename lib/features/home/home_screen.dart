@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/providers/theme_mode_provider.dart';
+import '../../core/utils/auth_action_guard.dart';
 import '../../core/widgets/app_page_shell.dart';
 import '../../core/widgets/primary_bottom_navigation.dart';
 import '../../data/repositories/auth_repository.dart';
@@ -13,6 +14,8 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
+    ref.watch(authStateProvider);
+    final isLoggedIn = ref.watch(currentUserProvider) != null;
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -38,13 +41,27 @@ class HomeScreen extends ConsumerWidget {
             onPressed: () => context.go('/help'),
             icon: const Icon(Icons.help_outline),
           ),
-          IconButton(
-            tooltip: 'Sair',
-            onPressed: () async {
-              await ref.read(authRepositoryProvider).signOut();
-            },
-            icon: const Icon(Icons.logout),
-          ),
+          if (isLoggedIn)
+            IconButton(
+              tooltip: 'Sair',
+              onPressed: () async {
+                await ref.read(authRepositoryProvider).signOut();
+              },
+              icon: const Icon(Icons.logout),
+            )
+          else ...[
+            TextButton(
+              onPressed: () => context.go('/login'),
+              child: const Text('Entrar'),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: FilledButton(
+                onPressed: () => context.go('/register'),
+                child: const Text('Cadastrar'),
+              ),
+            ),
+          ],
         ],
       ),
       body: LayoutBuilder(
@@ -149,6 +166,7 @@ class HomeScreen extends ConsumerWidget {
                                 'Acesse cartas obtidas e decks montados, além das ferramentas de importação.',
                             buttonLabel: 'Abrir coleção',
                             route: '/collection',
+                            requiresAuth: true,
                           ),
                         ),
                         SizedBox(
@@ -160,6 +178,7 @@ class HomeScreen extends ConsumerWidget {
                                 'Gerencie sua área de vendas e copie o link da sua vitrine pública.',
                             buttonLabel: 'Abrir vendas',
                             route: '/sales',
+                            requiresAuth: true,
                           ),
                         ),
                         SizedBox(
@@ -171,6 +190,18 @@ class HomeScreen extends ConsumerWidget {
                                 'Veja todas as cartas públicas à venda dentro da plataforma e fale direto no WhatsApp com o vendedor.',
                             buttonLabel: 'Abrir marketplace',
                             route: '/marketplace',
+                          ),
+                        ),
+                        SizedBox(
+                          width: cardWidth,
+                          child: const _HomeFeatureCard(
+                            icon: Icons.travel_explore_outlined,
+                            title: 'Cartas procuradas',
+                            subtitle:
+                                'Cadastre cartas que voce procura e veja buscas de outros usuarios para oferecer pelo WhatsApp.',
+                            buttonLabel: 'Abrir buscas',
+                            route: '/wanted',
+                            requiresAuth: true,
                           ),
                         ),
                         SizedBox(
@@ -193,6 +224,7 @@ class HomeScreen extends ConsumerWidget {
                                 'Identifique cartas por foto usando camera, galeria ou uma imagem de exemplo.',
                             buttonLabel: 'Testar reconhecimento',
                             route: '/card-scan-test',
+                            requiresAuth: true,
                           ),
                         ),
                       ],
@@ -217,6 +249,7 @@ class _HomeFeatureCard extends StatelessWidget {
   final String subtitle;
   final String buttonLabel;
   final String route;
+  final bool requiresAuth;
 
   const _HomeFeatureCard({
     required this.icon,
@@ -224,6 +257,7 @@ class _HomeFeatureCard extends StatelessWidget {
     required this.subtitle,
     required this.buttonLabel,
     required this.route,
+    this.requiresAuth = false,
   });
 
   @override
@@ -246,7 +280,12 @@ class _HomeFeatureCard extends StatelessWidget {
         splashColor: theme.colorScheme.primary.withValues(alpha: 0.05),
         highlightColor: Colors.transparent,
         hoverColor: theme.colorScheme.primary.withValues(alpha: 0.04),
-        onTap: () => context.go(route),
+        onTap: () {
+          if (requiresAuth && !requireSignedIn(context)) {
+            return;
+          }
+          context.go(route);
+        },
         child: Padding(
           padding: EdgeInsets.all(compact ? 14 : 22),
           child: ConstrainedBox(
@@ -289,7 +328,12 @@ class _HomeFeatureCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 FilledButton.icon(
-                  onPressed: () => context.go(route),
+                  onPressed: () {
+                    if (requiresAuth && !requireSignedIn(context)) {
+                      return;
+                    }
+                    context.go(route);
+                  },
                   icon: const Icon(Icons.arrow_forward),
                   label: Text(
                     buttonLabel,

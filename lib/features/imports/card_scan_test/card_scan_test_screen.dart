@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 
+import '../../../core/utils/auth_action_guard.dart';
 import '../../../core/widgets/home_navigation_button.dart';
 import '../../../core/widgets/primary_bottom_navigation.dart';
 import 'card_scan_deduplicator.dart';
@@ -440,6 +441,10 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
   }
 
   void _openImportFlow() {
+    if (!requireSignedIn(context)) {
+      return;
+    }
+
     final extra = kIsWeb ? _imageBytes : _imagePath;
     if (extra == null) return;
     context.push('/image-import', extra: extra);

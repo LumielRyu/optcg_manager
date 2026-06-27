@@ -8,6 +8,7 @@ import '../core/constants/collection_types.dart';
 import '../data/models/op_card.dart';
 import '../features/auth/auth_gate.dart';
 import '../features/auth/complete_profile_screen.dart';
+import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
 import '../features/collection/collection_screen.dart';
 import '../features/collection/shared_sale_card_screen.dart';
@@ -31,6 +32,7 @@ import '../features/riftbound/riftbound_library_screen.dart';
 import '../features/sales/sales_screen.dart';
 import '../features/tcg/tcg_hub_screen.dart';
 import '../features/tcg/tcg_selector_screen.dart';
+import '../features/wanted/wanted_cards_screen.dart';
 import '../features/yugioh/yugioh_library_screen.dart';
 import '../features/weeklies/weekly_dashboard_screen.dart';
 import '../data/repositories/user_preferences_repository.dart';
@@ -63,6 +65,7 @@ final GoRouter appRouter = GoRouter(
     final loggedIn = user != null;
     final location = state.uri.path;
 
+    final isLoginRoute = location == '/login';
     final isRegisterRoute = location == '/register';
     final isCompleteProfileRoute = location == '/complete-profile';
     final isRootRoute = location == '/';
@@ -72,18 +75,20 @@ final GoRouter appRouter = GoRouter(
     final isSharedRoute =
         isSharedDeckRoute || isSharedSaleRoute || isSharedStoreRoute;
 
-    final isPublicRoute =
-        isRootRoute ||
-        isRegisterRoute ||
-        isSharedRoute ||
-        isCompleteProfileRoute;
-
     if (isSharedRoute) {
       return null;
     }
 
-    if (!loggedIn && !isPublicRoute) {
-      return '/';
+    if (!loggedIn) {
+      if (isRootRoute) {
+        return '/home';
+      }
+
+      if (isCompleteProfileRoute) {
+        return '/login';
+      }
+
+      return null;
     }
 
     if (loggedIn) {
@@ -102,7 +107,7 @@ final GoRouter appRouter = GoRouter(
         return '/home';
       }
 
-      if (isRootRoute || isRegisterRoute) {
+      if (isRootRoute || isLoginRoute || isRegisterRoute) {
         return needsCompletion ? '/complete-profile' : '/home';
       }
     }
@@ -111,6 +116,7 @@ final GoRouter appRouter = GoRouter(
   },
   routes: [
     GoRoute(path: '/', builder: (context, state) => const AuthGate()),
+    GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
     GoRoute(
       path: '/register',
       builder: (context, state) => const RegisterScreen(),
@@ -249,6 +255,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/marketplace',
       builder: (context, state) => const GlobalMarketplaceScreen(),
+    ),
+    GoRoute(
+      path: '/wanted',
+      builder: (context, state) => const WantedCardsScreen(),
     ),
     GoRoute(
       path: '/library/card/:cardCode',

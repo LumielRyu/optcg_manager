@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/providers/theme_mode_provider.dart';
+import '../../core/utils/auth_action_guard.dart';
 import '../../core/widgets/catalog_dropdown_field.dart';
 import '../../core/widgets/catalog_search_field.dart';
 import '../../core/widgets/catalog_grid_card.dart';
@@ -153,6 +154,10 @@ class _GlobalMarketplaceScreenState
   }
 
   Future<void> _openWhatsApp(MarketplaceListing item) async {
+    if (!requireSignedIn(context)) {
+      return;
+    }
+
     if (!item.hasWhatsAppContact) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -205,6 +210,10 @@ class _GlobalMarketplaceScreenState
   }
 
   void _setCartQuantity(MarketplaceListing item, int quantity) {
+    if (quantity > 0 && !requireSignedIn(context)) {
+      return;
+    }
+
     setState(() {
       if (quantity <= 0) {
         _cartQuantities.remove(item.id);
@@ -270,6 +279,10 @@ class _GlobalMarketplaceScreenState
   Future<void> _openSellerCartWhatsApp(
     List<MarketplaceListing> sellerItems,
   ) async {
+    if (!requireSignedIn(context)) {
+      return;
+    }
+
     if (sellerItems.isEmpty) return;
     final contactItem = sellerItems.firstWhere(
       (item) => item.hasWhatsAppContact,
@@ -280,9 +293,7 @@ class _GlobalMarketplaceScreenState
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Este vendedor não possui WhatsApp configurado.',
-          ),
+          content: Text('Este vendedor não possui WhatsApp configurado.'),
         ),
       );
       return;
@@ -306,14 +317,18 @@ class _GlobalMarketplaceScreenState
   }
 
   void _showCartSheet(List<MarketplaceListing> allItems) {
+    if (!requireSignedIn(context)) {
+      return;
+    }
+
     final selectedItems = allItems
         .where((item) => _selectedQuantityFor(item) > 0)
         .toList(growable: false);
 
     if (selectedItems.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Seu carrinho esta vazio.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Seu carrinho esta vazio.')));
       return;
     }
 
@@ -1005,17 +1020,11 @@ class _GlobalMarketplaceCardDetailsDialogState
                       ).textTheme.bodySmall?.copyWith(color: Colors.black54),
                     ),
                     const SizedBox(height: 16),
-                    _globalInfoRow(
-                      'Preço',
-                      card.formattedPrice,
-                    ),
+                    _globalInfoRow('Preço', card.formattedPrice),
                     if (card.hasSellerName)
                       _globalInfoRow('Vendedor', card.sellerName),
                     _globalInfoRow('Status', card.statusLabel),
-                    _globalInfoRow(
-                      'Condição',
-                      card.conditionLabel,
-                    ),
+                    _globalInfoRow('Condição', card.conditionLabel),
                     _globalInfoRow(
                       'Quantidade disponível',
                       '${card.quantity}x',
@@ -1026,10 +1035,7 @@ class _GlobalMarketplaceCardDetailsDialogState
                     _globalInfoRow('Tipo', card.type),
                     _globalInfoRow('Atributo', card.attribute),
                     if (card.hasNotes)
-                      _globalInfoRow(
-                        'Observações',
-                        card.notes,
-                      ),
+                      _globalInfoRow('Observações', card.notes),
                     if (card.text.trim().isNotEmpty)
                       _globalInfoRow('Texto da carta', card.text),
                     const SizedBox(height: 8),

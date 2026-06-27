@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/collection_types.dart';
+import '../../../core/utils/auth_action_guard.dart';
 import '../../../core/widgets/home_navigation_button.dart';
 import 'code_import_controller.dart';
 
@@ -189,16 +190,18 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
                         candidate: state.candidates[index],
                         colorOptions: _manualColorOptions,
                         onRemove: () => notifier.removeCandidate(index),
-                        onNameChanged: (value) => notifier.updateManualCandidate(
-                          index,
-                          name: value,
-                          color: state.candidates[index].color,
-                        ),
-                        onColorChanged: (value) => notifier.updateManualCandidate(
-                          index,
-                          name: state.candidates[index].name,
-                          color: value,
-                        ),
+                        onNameChanged: (value) =>
+                            notifier.updateManualCandidate(
+                              index,
+                              name: value,
+                              color: state.candidates[index].color,
+                            ),
+                        onColorChanged: (value) =>
+                            notifier.updateManualCandidate(
+                              index,
+                              name: state.candidates[index].name,
+                              color: value,
+                            ),
                       );
                     },
                   ),
@@ -212,6 +215,10 @@ class _CodeImportScreenState extends ConsumerState<CodeImportScreen> {
             onPressed: state.isBusy || state.candidates.isEmpty
                 ? null
                 : () async {
+                    if (!requireSignedIn(context)) {
+                      return;
+                    }
+
                     final invalidManual = state.candidates.any(
                       (item) => !item.found && !item.canImport,
                     );

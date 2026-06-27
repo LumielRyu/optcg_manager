@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/utils/auth_action_guard.dart';
 import '../../data/models/weekly_tournament.dart';
 import '../../data/repositories/weekly_tournament_repository.dart';
 
@@ -1143,6 +1144,14 @@ class _PlayerRankingWorkspace extends StatelessWidget {
                       _OpenEnrollmentCard(
                         event: event,
                         onJoin: () async {
+                          if (!requireSignedIn(
+                            context,
+                            message:
+                                'Entre ou cadastre-se para participar dos semanais.',
+                          )) {
+                            return;
+                          }
+
                           final joined = await showDialog<bool>(
                             context: context,
                             builder: (_) => _JoinWeeklyDialog(

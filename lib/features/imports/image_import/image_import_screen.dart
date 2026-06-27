@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/collection_types.dart';
+import '../../../core/utils/auth_action_guard.dart';
 import '../../../core/widgets/home_navigation_button.dart';
 import 'image_import_controller.dart';
 
@@ -270,6 +271,10 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
             onPressed: state.isBusy || state.candidates.isEmpty
                 ? null
                 : () async {
+                    if (!requireSignedIn(context)) {
+                      return;
+                    }
+
                     final invalidManual = state.candidates.any(
                       (item) => !item.found && !item.canImport,
                     );

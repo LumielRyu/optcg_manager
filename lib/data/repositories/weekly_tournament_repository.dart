@@ -103,6 +103,10 @@ class WeeklyTournamentRepository {
   }
 
   Future<WeeklyGameProfile?> _loadCurrentGameProfile(String gameSlug) async {
+    if (currentUserId.isEmpty) {
+      return null;
+    }
+
     try {
       final row = await _client
           .from('weekly_game_profiles')
@@ -212,6 +216,10 @@ class WeeklyTournamentRepository {
     String leaderCode = '',
     String leaderName = '',
   }) async {
+    if (currentUserId.isEmpty) {
+      throw Exception('Entre ou cadastre-se para participar dos semanais.');
+    }
+
     await _client.from('weekly_game_profiles').upsert({
       'user_id': currentUserId,
       'game_slug': gameSlug,

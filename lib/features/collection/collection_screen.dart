@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/constants/collection_types.dart';
 import '../../core/providers/collection_view_mode_provider.dart';
 import '../../core/providers/theme_mode_provider.dart';
+import '../../core/utils/auth_action_guard.dart';
 import '../../core/widgets/catalog_dropdown_field.dart';
 import '../../core/widgets/catalog_search_field.dart';
 import '../../core/widgets/catalog_grid_card.dart';
@@ -225,22 +226,42 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
   }
 
   void _openCameraImport(String destination) {
+    if (!requireSignedIn(context)) {
+      return;
+    }
+
     context.push('/camera-import?destination=$destination');
   }
 
   void _openImageImport(String destination) {
+    if (!requireSignedIn(context)) {
+      return;
+    }
+
     context.push('/image-import?destination=$destination');
   }
 
   void _openCodeImport(String destination) {
+    if (!requireSignedIn(context)) {
+      return;
+    }
+
     context.push('/code-import?destination=$destination');
   }
 
   Future<void> _openManualAddDialog() async {
+    if (!requireSignedIn(context)) {
+      return;
+    }
+
     await showDialog(context: context, builder: (_) => const ManualAddDialog());
   }
 
   Future<void> _openAddCardsSheet(String destination) async {
+    if (!requireSignedIn(context)) {
+      return;
+    }
+
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,

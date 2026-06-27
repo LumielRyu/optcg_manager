@@ -12,6 +12,9 @@ class TcgSelectorScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
+    ref.watch(authStateProvider);
+    final isLoggedIn = ref.watch(currentUserProvider) != null;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('TCG Manager'),
@@ -25,13 +28,27 @@ class TcgSelectorScreen extends ConsumerWidget {
               isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
             ),
           ),
-          IconButton(
-            tooltip: 'Sair',
-            onPressed: () async {
-              await ref.read(authRepositoryProvider).signOut();
-            },
-            icon: const Icon(Icons.logout),
-          ),
+          if (isLoggedIn)
+            IconButton(
+              tooltip: 'Sair',
+              onPressed: () async {
+                await ref.read(authRepositoryProvider).signOut();
+              },
+              icon: const Icon(Icons.logout),
+            )
+          else ...[
+            TextButton(
+              onPressed: () => context.go('/login'),
+              child: const Text('Entrar'),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: FilledButton(
+                onPressed: () => context.go('/register'),
+                child: const Text('Cadastrar'),
+              ),
+            ),
+          ],
         ],
       ),
       body: LayoutBuilder(

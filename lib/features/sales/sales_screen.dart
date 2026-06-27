@@ -10,6 +10,7 @@ import '../../core/providers/theme_mode_provider.dart';
 import '../../core/widgets/catalog_search_field.dart';
 import '../../core/widgets/dashboard_header_panel.dart';
 import '../../core/widgets/store_share_actions.dart';
+import '../../core/utils/auth_action_guard.dart';
 import '../../core/utils/share_link_helper.dart';
 import '../../core/widgets/catalog_grid_card.dart';
 import '../../core/widgets/catalog_list_card.dart';
@@ -72,19 +73,26 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 
     _cachedSourceItems = allItems;
     _cachedQuery = _query;
-    _cachedFilteredItems = allItems.where((card) {
-      if (_query.isEmpty) return true;
+    _cachedFilteredItems = allItems
+        .where((card) {
+          if (_query.isEmpty) return true;
 
-      return card.name.toLowerCase().contains(_query) ||
-          card.cardCode.toLowerCase().contains(_query) ||
-          card.setName.toLowerCase().contains(_query);
-    }).toList(growable: false);
-    _cachedTotalUnique = _cachedFilteredItems.map((e) => e.cardCode).toSet().length;
+          return card.name.toLowerCase().contains(_query) ||
+              card.cardCode.toLowerCase().contains(_query) ||
+              card.setName.toLowerCase().contains(_query);
+        })
+        .toList(growable: false);
+    _cachedTotalUnique = _cachedFilteredItems
+        .map((e) => e.cardCode)
+        .toSet()
+        .length;
     _cachedTotalCards = _cachedFilteredItems.fold<int>(
       0,
       (sum, item) => sum + item.quantity,
     );
-    _cachedPricedItems = _cachedFilteredItems.where((item) => item.hasPrice).length;
+    _cachedPricedItems = _cachedFilteredItems
+        .where((item) => item.hasPrice)
+        .length;
   }
 
   void _reloadListings() {
@@ -135,6 +143,10 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   }
 
   Future<void> _copyStoreLink() async {
+    if (!requireSignedIn(context)) {
+      return;
+    }
+
     setState(() {
       _isSharingBusy = true;
     });
@@ -188,6 +200,10 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   }
 
   Future<void> _disableStoreLink() async {
+    if (!requireSignedIn(context)) {
+      return;
+    }
+
     setState(() {
       _isSharingBusy = true;
     });
@@ -239,6 +255,10 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
           IconButton(
             tooltip: 'Importar por c\u00F3digo',
             onPressed: () async {
+              if (!requireSignedIn(context)) {
+                return;
+              }
+
               await context.push('/code-import?destination=forSale');
               _reloadListings();
             },
@@ -247,6 +267,10 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
           IconButton(
             tooltip: 'Adicionar carta',
             onPressed: () async {
+              if (!requireSignedIn(context)) {
+                return;
+              }
+
               await showDialog(
                 context: context,
                 builder: (_) => const ManualAddDialog(
@@ -315,6 +339,10 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
+          if (!requireSignedIn(context)) {
+            return;
+          }
+
           await showDialog(
             context: context,
             builder: (_) => const ManualAddDialog(
@@ -1134,8 +1162,7 @@ class _SalesCardDetailsDialogState
                     _infoRow('Atributo', card.attribute),
                     if (card.hasContactInfo)
                       _infoRow('WhatsApp do cadastro', card.contactInfo),
-                    if (card.hasNotes)
-                      _infoRow('Observações', card.notes),
+                    if (card.hasNotes) _infoRow('Observações', card.notes),
                     if (card.hasWhatsAppContact) ...[
                       const SizedBox(height: 8),
                       FilledButton.icon(
