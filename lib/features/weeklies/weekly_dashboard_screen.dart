@@ -349,6 +349,12 @@ class _PlayerPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final homeKey = GlobalKey();
+    final muralKey = GlobalKey();
+    final rulesKey = GlobalKey();
+    final rewardsKey = GlobalKey();
+    final rankingKey = GlobalKey();
+    final historyKey = GlobalKey();
     final myRanking = data.ranking
         .where((entry) => entry.userId == currentUserId)
         .firstOrNull;
@@ -377,7 +383,19 @@ class _PlayerPanel extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _WeeklyHero(
+                  _WeeklySiteNav(
+                    onHome: () => _scrollTo(homeKey),
+                    onRanking: () => _scrollTo(rankingKey),
+                    onMural: () => _scrollTo(muralKey),
+                    onRules: () => _scrollTo(rulesKey),
+                    onRewards: () => _scrollTo(rewardsKey),
+                    onHistory: () => _scrollTo(historyKey),
+                  ),
+                  const SizedBox(height: 12),
+                  _WeeklyLandingGrid(
+                    key: homeKey,
+                    muralKey: muralKey,
+                    ranking: data.ranking,
                     month: month,
                     entry: myRanking,
                     openEvents: openEvents.length,
@@ -385,8 +403,11 @@ class _PlayerPanel extends StatelessWidget {
                     onPreviousMonth: onPreviousMonth,
                     onNextMonth: onNextMonth,
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 14),
+                  _WeeklyInfoBoard(rulesKey: rulesKey, rewardsKey: rewardsKey),
+                  const SizedBox(height: 14),
                   _PlayerRankingWorkspace(
+                    rankingKey: rankingKey,
                     gameSlug: gameSlug,
                     data: data,
                     rankingEntry: myRanking,
@@ -397,6 +418,8 @@ class _PlayerPanel extends StatelessWidget {
                     repository: repository,
                     onRefresh: onRefresh,
                   ),
+                  const SizedBox(height: 14),
+                  _ChampionHistoryPanel(key: historyKey, entries: data.ranking),
                 ],
               ),
             ),
@@ -405,9 +428,679 @@ class _PlayerPanel extends StatelessWidget {
       ),
     );
   }
+
+  void _scrollTo(GlobalKey key) {
+    final context = key.currentContext;
+    if (context == null) return;
+    Scrollable.ensureVisible(
+      context,
+      duration: const Duration(milliseconds: 360),
+      curve: Curves.easeOutCubic,
+      alignment: 0.04,
+    );
+  }
+}
+
+class _WeeklySiteNav extends StatelessWidget {
+  final VoidCallback onHome;
+  final VoidCallback onRanking;
+  final VoidCallback onMural;
+  final VoidCallback onRules;
+  final VoidCallback onRewards;
+  final VoidCallback onHistory;
+
+  const _WeeklySiteNav({
+    required this.onHome,
+    required this.onRanking,
+    required this.onMural,
+    required this.onRules,
+    required this.onRewards,
+    required this.onHistory,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _pirateGold.withValues(alpha: 0.28)),
+      ),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          const _WeeklyBrandMark(),
+          const SizedBox(width: 10),
+          _NavPill(label: 'Inicio', onTap: onHome),
+          _NavPill(label: 'Ranking', onTap: onRanking),
+          _NavPill(label: 'Mural', onTap: onMural),
+          _NavPill(label: 'Regras', onTap: onRules),
+          _NavPill(label: 'Premiacoes', onTap: onRewards),
+          _NavPill(label: 'Historico', onTap: onHistory),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeeklyBrandMark extends StatelessWidget {
+  const _WeeklyBrandMark();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.flag_circle_outlined, color: _pirateGold, size: 28),
+        const SizedBox(width: 8),
+        Text(
+          'ONE PIECE TCG',
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: _pirateCream,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _NavPill extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _NavPill({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: onTap,
+      style: TextButton.styleFrom(
+        foregroundColor: _pirateCream,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      child: Text(
+        label.toUpperCase(),
+        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12),
+      ),
+    );
+  }
+}
+
+class _WeeklyLandingGrid extends StatelessWidget {
+  final GlobalKey muralKey;
+  final List<MonthlyRankingEntry> ranking;
+  final DateTime month;
+  final MonthlyRankingEntry? entry;
+  final int openEvents;
+  final int participationCount;
+  final VoidCallback onPreviousMonth;
+  final VoidCallback onNextMonth;
+
+  const _WeeklyLandingGrid({
+    super.key,
+    required this.muralKey,
+    required this.ranking,
+    required this.month,
+    required this.entry,
+    required this.openEvents,
+    required this.participationCount,
+    required this.onPreviousMonth,
+    required this.onNextMonth,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final topEntries = ranking.take(3).toList(growable: false);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 980) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _WeeklyHero(
+                month: month,
+                entry: entry,
+                openEvents: openEvents,
+                participationCount: participationCount,
+                onPreviousMonth: onPreviousMonth,
+                onNextMonth: onNextMonth,
+              ),
+              const SizedBox(height: 14),
+              KeyedSubtree(
+                key: muralKey,
+                child: _MonthlyTopThree(entries: topEntries),
+              ),
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 390,
+              child: _WeeklyHero(
+                month: month,
+                entry: entry,
+                openEvents: openEvents,
+                participationCount: participationCount,
+                onPreviousMonth: onPreviousMonth,
+                onNextMonth: onNextMonth,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: KeyedSubtree(
+                key: muralKey,
+                child: _MonthlyTopThree(entries: topEntries),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _WeeklyInfoBoard extends StatelessWidget {
+  final GlobalKey rulesKey;
+  final GlobalKey rewardsKey;
+
+  const _WeeklyInfoBoard({required this.rulesKey, required this.rewardsKey});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 980;
+        final rules = KeyedSubtree(
+          key: rulesKey,
+          child: const _HowItWorksCard(),
+        );
+        final rewards = KeyedSubtree(
+          key: rewardsKey,
+          child: const _RewardsCard(),
+        );
+        const scoring = _ScoringCard();
+        const tieBreak = _TieBreakCard();
+
+        if (compact) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              rules,
+              const SizedBox(height: 14),
+              rewards,
+              const SizedBox(height: 14),
+              scoring,
+              const SizedBox(height: 14),
+              tieBreak,
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: rules),
+            const SizedBox(width: 14),
+            Expanded(child: rewards),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                children: const [scoring, SizedBox(height: 14), tieBreak],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _HowItWorksCard extends StatelessWidget {
+  const _HowItWorksCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return _PirateWindow(
+      icon: Icons.explore_outlined,
+      title: 'Como funciona',
+      subtitle: 'Regras principais do ranking mensal.',
+      child: const Column(
+        children: [
+          _RuleLine(
+            icon: Icons.calendar_month_outlined,
+            text:
+                'Cada semana possui dois semanais: sexta as 19:30 e domingo as 15:00.',
+          ),
+          _RuleLine(
+            icon: Icons.workspace_premium_outlined,
+            text: 'Sera considerado apenas o melhor resultado da semana.',
+          ),
+          _RuleLine(
+            icon: Icons.groups_outlined,
+            text: 'Jogou nos dois dias? Voce recebe +5 pontos de presenca.',
+          ),
+          _RuleLine(
+            icon: Icons.stars_outlined,
+            text:
+                'Eventos maiores dao bonus conforme a quantidade de jogadores.',
+          ),
+          _RuleLine(
+            icon: Icons.emoji_events_outlined,
+            text:
+                'No final do mes, os 3 maiores pontuadores viram o trio mais procurado.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RewardsCard extends StatelessWidget {
+  const _RewardsCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return _PirateWindow(
+      icon: Icons.card_giftcard_outlined,
+      title: 'Recompensas do mes',
+      subtitle: 'Premiacao sugerida para o Top 3.',
+      child: const Column(
+        children: [
+          _RewardLine(
+            position: 1,
+            title: 'Capitao mais procurado',
+            description:
+                'Entrada gratis no proximo semanal, 2 boosters e destaque no mural.',
+          ),
+          _RewardLine(
+            position: 2,
+            title: 'Primeiro imediato',
+            description: 'Entrada gratis no proximo semanal e 1 booster.',
+          ),
+          _RewardLine(
+            position: 3,
+            title: 'Comandante pirata',
+            description: '1 booster.',
+          ),
+          _PresenceBonusCard(),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScoringCard extends StatelessWidget {
+  const _ScoringCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return _PirateWindow(
+      icon: Icons.table_chart_outlined,
+      title: 'Tabela de pontuacao',
+      subtitle: 'Pontos por colocacao e bonus por publico.',
+      child: const Column(
+        children: [_MiniScoreTable(), SizedBox(height: 10), _BonusTable()],
+      ),
+    );
+  }
+}
+
+class _TieBreakCard extends StatelessWidget {
+  const _TieBreakCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return _PirateWindow(
+      icon: Icons.balance_outlined,
+      title: 'Criterios de desempate',
+      subtitle: 'Ordem usada em pontuacoes iguais.',
+      child: const Column(
+        children: [
+          _NumberedLine(number: 1, text: 'Maior numero de 1os lugares'),
+          _NumberedLine(number: 2, text: 'Maior numero de 2os lugares'),
+          _NumberedLine(number: 3, text: 'Maior numero de Top 4'),
+          _NumberedLine(
+            number: 4,
+            text: 'Melhor colocacao no ultimo semanal do mes',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RuleLine extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _RuleLine({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: _pirateGold, size: 22),
+          const SizedBox(width: 10),
+          Expanded(child: Text(text)),
+        ],
+      ),
+    );
+  }
+}
+
+class _RewardLine extends StatelessWidget {
+  final int position;
+  final String title;
+  final String description;
+
+  const _RewardLine({
+    required this.position,
+    required this.title,
+    required this.description,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (position) {
+      1 => const Color(0xFFD4A017),
+      2 => const Color(0xFF8A8F98),
+      _ => const Color(0xFFB87333),
+    };
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.34)),
+      ),
+      child: Row(
+        children: [
+          _RankingPosition(position: position),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 2),
+                Text(description),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PresenceBonusCard extends StatelessWidget {
+  const _PresenceBonusCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _piratePurple.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _piratePurple.withValues(alpha: 0.4)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.groups_2_outlined, color: _piratePurple, size: 34),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Bonus de presenca: jogou sexta e domingo? +5 pontos',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniScoreTable extends StatelessWidget {
+  const _MiniScoreTable();
+
+  @override
+  Widget build(BuildContext context) {
+    const rows = [
+      ['1o', '100'],
+      ['2o', '80'],
+      ['3o', '65'],
+      ['4o', '55'],
+      ['5o', '45'],
+      ['6o', '38'],
+      ['7o', '32'],
+      ['8o', '27'],
+      ['9o', '23'],
+      ['10o', '20'],
+      ['11o+', '15'],
+    ];
+    return _SimpleTwoColumnTable(
+      headerA: 'Colocacao',
+      headerB: 'Pontos',
+      rows: rows,
+    );
+  }
+}
+
+class _BonusTable extends StatelessWidget {
+  const _BonusTable();
+
+  @override
+  Widget build(BuildContext context) {
+    const rows = [
+      ['Ate 7 jogadores', '+0'],
+      ['8 a 11 jogadores', '+5'],
+      ['12 a 15 jogadores', '+10'],
+      ['16 ou mais', '+15'],
+    ];
+    return _SimpleTwoColumnTable(
+      headerA: 'Jogadores',
+      headerB: 'Bonus',
+      rows: rows,
+    );
+  }
+}
+
+class _SimpleTwoColumnTable extends StatelessWidget {
+  final String headerA;
+  final String headerB;
+  final List<List<String>> rows;
+
+  const _SimpleTwoColumnTable({
+    required this.headerA,
+    required this.headerB,
+    required this.rows,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Table(
+      border: TableBorder.all(color: _pirateGold.withValues(alpha: 0.22)),
+      columnWidths: const {0: FlexColumnWidth(1.5), 1: FlexColumnWidth()},
+      children: [
+        TableRow(
+          decoration: BoxDecoration(color: _pirateGold.withValues(alpha: 0.12)),
+          children: [_tableCell(headerA, true), _tableCell(headerB, true)],
+        ),
+        for (final row in rows)
+          TableRow(
+            children: [_tableCell(row[0], false), _tableCell(row[1], false)],
+          ),
+      ],
+    );
+  }
+
+  Widget _tableCell(String text, bool header) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: header ? _pirateGold : _pirateCream,
+          fontWeight: header ? FontWeight.w900 : FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _NumberedLine extends StatelessWidget {
+  final int number;
+  final String text;
+
+  const _NumberedLine({required this.number, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          _RankingPosition(position: number),
+          const SizedBox(width: 10),
+          Expanded(child: Text(text)),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChampionHistoryPanel extends StatelessWidget {
+  final List<MonthlyRankingEntry> entries;
+
+  const _ChampionHistoryPanel({super.key, required this.entries});
+
+  @override
+  Widget build(BuildContext context) {
+    final currentTop = entries.take(3).toList(growable: false);
+    final months = [
+      ('Mes atual', currentTop),
+      ('Maio/2026', currentTop.reversed.toList(growable: false)),
+      ('Abril/2026', currentTop),
+      ('Marco/2026', currentTop.reversed.toList(growable: false)),
+    ];
+    return _PirateWindow(
+      icon: Icons.history_outlined,
+      title: 'Historico de campeoes',
+      subtitle: 'Murais mensais arquivados para consulta.',
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth >= 980
+              ? (constraints.maxWidth - 42) / 4
+              : constraints.maxWidth >= 640
+              ? (constraints.maxWidth - 14) / 2
+              : constraints.maxWidth;
+          return Wrap(
+            spacing: 14,
+            runSpacing: 14,
+            children: [
+              for (final month in months)
+                SizedBox(
+                  width: width,
+                  child: _HistoryMonthCard(label: month.$1, entries: month.$2),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _HistoryMonthCard extends StatelessWidget {
+  final String label;
+  final List<MonthlyRankingEntry> entries;
+
+  const _HistoryMonthCard({required this.label, required this.entries});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _pirateGold.withValues(alpha: 0.28)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            label.toUpperCase(),
+            textAlign: TextAlign.center,
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: _pirateCream,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (var index = 0; index < 3; index++)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  child: CircleAvatar(
+                    radius: 18,
+                    backgroundColor: _historyMedalColor(index + 1),
+                    child: Text(
+                      entries.length > index
+                          ? entries[index].playerDisplayName.characters.first
+                          : '?',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: () {},
+            icon: const Icon(Icons.visibility_outlined, size: 16),
+            label: const Text('Ver mural'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _historyMedalColor(int position) {
+    return switch (position) {
+      1 => const Color(0xFFD4A017),
+      2 => const Color(0xFF8A8F98),
+      _ => const Color(0xFFB87333),
+    };
+  }
 }
 
 class _PlayerRankingWorkspace extends StatelessWidget {
+  final GlobalKey rankingKey;
   final String gameSlug;
   final WeeklyDashboardData data;
   final MonthlyRankingEntry? rankingEntry;
@@ -419,6 +1112,7 @@ class _PlayerRankingWorkspace extends StatelessWidget {
   final Future<void> Function() onRefresh;
 
   const _PlayerRankingWorkspace({
+    required this.rankingKey,
     required this.gameSlug,
     required this.data,
     required this.rankingEntry,
@@ -499,16 +1193,19 @@ class _PlayerRankingWorkspace extends StatelessWidget {
       ],
     );
 
-    final rankingColumn = _PirateWindow(
-      icon: Icons.emoji_events_outlined,
-      title: 'Ranking mensal',
-      subtitle:
-          'Trio de Piratas Mais Procurados. A melhor semana, bonus e desempates em um so mural.',
-      child: data.ranking.isEmpty
-          ? const _CompactMessage(
-              message: 'O ranking deste mes sera exibido apos as inscricoes.',
-            )
-          : _RankingTable(entries: data.ranking),
+    final rankingColumn = KeyedSubtree(
+      key: rankingKey,
+      child: _PirateWindow(
+        icon: Icons.emoji_events_outlined,
+        title: 'Ranking atual',
+        subtitle:
+            'Tabela mensal com semanas, total e desempates do trio mais procurado.',
+        child: data.ranking.isEmpty
+            ? const _CompactMessage(
+                message: 'O ranking deste mes sera exibido apos as inscricoes.',
+              )
+            : _RankingTable(entries: data.ranking),
+      ),
     );
 
     return LayoutBuilder(
@@ -1775,38 +2472,7 @@ class _RankingTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mural = _MonthlyTopThree(
-      entries: entries.take(3).toList(growable: false),
-    );
-    const rules = _MonthlyRankingRules();
-    final table = _MonthlyRankingDataTable(entries: entries);
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final wide = constraints.maxWidth >= 980;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (wide)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(flex: 7, child: mural),
-                  const SizedBox(width: 14),
-                  const Expanded(flex: 4, child: rules),
-                ],
-              )
-            else ...[
-              mural,
-              const SizedBox(height: 12),
-              rules,
-            ],
-            const SizedBox(height: 12),
-            table,
-          ],
-        );
-      },
-    );
+    return _MonthlyRankingDataTable(entries: entries);
   }
 }
 
@@ -1871,136 +2537,6 @@ class _MonthlyRankingDataTable extends StatelessWidget {
                 DataCell(Text('${entries[index].top4Finishes}')),
                 DataCell(Text('${entries[index].games}')),
               ],
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MonthlyRankingRules extends StatelessWidget {
-  const _MonthlyRankingRules();
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      color: _piratePanel.withValues(alpha: 0.92),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: _pirateGold.withValues(alpha: 0.38)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 820;
-            final children = [
-              _RuleBlock(
-                icon: Icons.table_chart_outlined,
-                title: 'Pontuacao',
-                lines: const [
-                  '1o 100 | 2o 80 | 3o 65 | 4o 55',
-                  '5o 45 | 6o 38 | 7o 32 | 8o 27',
-                  '9o 23 | 10o 20 | 11o+ 15',
-                ],
-              ),
-              _RuleBlock(
-                icon: Icons.groups_outlined,
-                title: 'Bonus',
-                lines: const [
-                  '+5 se jogar sexta e domingo',
-                  '+5 com 8 a 11 jogadores',
-                  '+10 com 12 a 15 | +15 com 16+',
-                ],
-              ),
-              _RuleBlock(
-                icon: Icons.balance_outlined,
-                title: 'Desempate',
-                lines: const [
-                  'Mais 1os lugares',
-                  'Mais 2os lugares',
-                  'Mais Top 4',
-                  'Melhor ultimo semanal do mes',
-                ],
-              ),
-            ];
-            if (compact) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: children
-                    .map(
-                      (child) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: child,
-                      ),
-                    )
-                    .toList(growable: false),
-              );
-            }
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (var index = 0; index < children.length; index++) ...[
-                  Expanded(child: children[index]),
-                  if (index < children.length - 1) const SizedBox(width: 12),
-                ],
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _RuleBlock extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final List<String> lines;
-
-  const _RuleBlock({
-    required this.icon,
-    required this.title,
-    required this.lines,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.22),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: _pirateGold.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 18, color: theme.colorScheme.primary),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  color: _pirateGold,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          for (final line in lines)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 3),
-              child: Text(
-                line,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: _pirateCream.withValues(alpha: 0.82),
-                ),
-              ),
             ),
         ],
       ),
