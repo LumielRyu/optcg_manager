@@ -276,6 +276,17 @@ class _WantedCardsScreenState extends ConsumerState<WantedCardsScreen> {
             onPressed: _showAddWantedDialog,
             icon: const Icon(Icons.add),
           ),
+          IconButton(
+            tooltip: 'Gerar link das minhas buscas',
+            onPressed: _isSharingBusy ? null : _shareWantedViaWhatsApp,
+            icon: _isSharingBusy
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.link_outlined),
+          ),
         ],
       ),
       body: FutureBuilder<List<WantedCardListing>>(
@@ -490,17 +501,20 @@ class _WantedHeader extends StatelessWidget {
                       icon: const Icon(Icons.add),
                       label: const Text('Cadastrar'),
                     ),
-                    const SizedBox(width: 8),
-                    IconButton.filledTonal(
-                      tooltip: 'Compartilhar no WhatsApp',
-                      onPressed: isSharingBusy ? null : onShareWanted,
-                      icon: isSharingBusy
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.ios_share_outlined),
+                    Expanded(
+                      child: FilledButton.tonalIcon(
+                        onPressed: isSharingBusy ? null : onShareWanted,
+                        icon: isSharingBusy
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.link_outlined),
+                        label: const Text('Gerar link'),
+                      ),
                     ),
                   ],
                 ),
@@ -535,8 +549,8 @@ class _WantedHeader extends StatelessWidget {
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(Icons.ios_share_outlined),
-                  label: const Text('WhatsApp'),
+                      : const Icon(Icons.link_outlined),
+                  label: const Text('Gerar link das minhas buscas'),
                 ),
               ],
             ),

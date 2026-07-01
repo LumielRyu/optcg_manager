@@ -7,6 +7,8 @@ import '../../data/repositories/auth_repository.dart';
 class SocialSignInButtons extends ConsumerStatefulWidget {
   const SocialSignInButtons({super.key});
 
+  static const bool isVisible = false;
+
   @override
   ConsumerState<SocialSignInButtons> createState() =>
       _SocialSignInButtonsState();
@@ -48,6 +50,10 @@ class _SocialSignInButtonsState extends ConsumerState<SocialSignInButtons> {
 
   @override
   Widget build(BuildContext context) {
+    if (!SocialSignInButtons.isVisible) {
+      return const SizedBox.shrink();
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
