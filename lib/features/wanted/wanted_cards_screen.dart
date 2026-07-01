@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/providers/theme_mode_provider.dart';
 import '../../core/utils/auth_action_guard.dart';
-import '../../core/utils/share_link_helper.dart';
 import '../../core/widgets/catalog_grid_card.dart';
 import '../../core/widgets/catalog_search_field.dart';
 import '../../core/widgets/dashboard_header_panel.dart';
@@ -149,24 +149,88 @@ class _WantedCardsScreenState extends ConsumerState<WantedCardsScreen> {
     return '$origin/shared/wanted/$userId';
   }
 
-  Future<void> _showShareLinkDialog(String link) async {
+  Future<void> _copyWantedLink(String link) async {
+    await Clipboard.setData(ClipboardData(text: link));
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Link das suas buscas copiado.')),
+    );
+  }
+
+  Future<void> _openWantedPublicPage(String link) async {
+    final launched = await launchUrl(
+      Uri.parse(link),
+      mode: LaunchMode.externalApplication,
+    );
+
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nao foi possivel abrir a pagina.')),
+      );
+    }
+  }
+
+  Future<void> _sendWantedLinkViaWhatsApp(String link) async {
+    final message = [
+      'Estas sao as cartas que estou procurando no OPTCG Manager:',
+      link,
+    ].join('\n\n');
+    final uri = Uri.parse(
+      'https://wa.me/?text=${Uri.encodeComponent(message)}',
+    );
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nao foi possivel abrir o WhatsApp.')),
+      );
+    }
+  }
+
+  Future<void> _showWantedLinkDialog(String link) async {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Link das cartas procuradas'),
+          title: const Text('Sua pagina de cartas procuradas'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Nao foi possivel abrir o compartilhamento automaticamente. Use o link abaixo:',
+                'Este link mostra todas as suas buscas ativas e publicas.',
               ),
               const SizedBox(height: 12),
-              SelectableText(link),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: SelectableText(link),
+              ),
             ],
           ),
           actions: [
+            TextButton.icon(
+              onPressed: () => _copyWantedLink(link),
+              icon: const Icon(Icons.copy_outlined),
+              label: const Text('Copiar link'),
+            ),
+            TextButton.icon(
+              onPressed: () => _openWantedPublicPage(link),
+              icon: const Icon(Icons.open_in_new),
+              label: const Text('Abrir pagina'),
+            ),
+            FilledButton.icon(
+              onPressed: () => _sendWantedLinkViaWhatsApp(link),
+              icon: const Icon(Icons.chat_outlined),
+              label: const Text('WhatsApp'),
+            ),
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
               child: const Text('Fechar'),
@@ -177,7 +241,7 @@ class _WantedCardsScreenState extends ConsumerState<WantedCardsScreen> {
     );
   }
 
-  Future<void> _shareWantedViaWhatsApp() async {
+  Future<void> _showMyWantedPublicLink() async {
     if (!requireSignedIn(context)) {
       return;
     }
@@ -193,43 +257,7 @@ class _WantedCardsScreenState extends ConsumerState<WantedCardsScreen> {
       }
 
       final link = _buildPublicWantedLink(user.id);
-      final message = [
-        'Estas sao as cartas que estou procurando no OPTCG Manager:',
-        link,
-      ].join('\n\n');
-      final uri = Uri.parse(
-        'https://wa.me/?text=${Uri.encodeComponent(message)}',
-      );
-      final launched = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
-
-      if (!launched) {
-        final action = await shareOrCopyText(
-          link,
-          subject: 'Cartas procuradas no OPTCG Manager',
-        );
-
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              action == 'shared'
-                  ? 'Link das cartas procuradas aberto para compartilhamento.'
-                  : 'Link das cartas procuradas copiado:\n$link',
-            ),
-          ),
-        );
-        return;
-      }
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('WhatsApp aberto com o link das cartas procuradas.'),
-        ),
-      );
+      await _showWantedLinkDialog(link);
     } catch (e) {
       if (!mounted) return;
       final user = Supabase.instance.client.auth.currentUser;
@@ -238,7 +266,7 @@ class _WantedCardsScreenState extends ConsumerState<WantedCardsScreen> {
           : _buildPublicWantedLink(user.id);
 
       if (fallbackLink != null) {
-        await _showShareLinkDialog(fallbackLink);
+        await _showWantedLinkDialog(fallbackLink);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erro ao compartilhar link: $e')),
@@ -278,7 +306,7 @@ class _WantedCardsScreenState extends ConsumerState<WantedCardsScreen> {
           ),
           IconButton(
             tooltip: 'Gerar link das minhas buscas',
-            onPressed: _isSharingBusy ? null : _shareWantedViaWhatsApp,
+            onPressed: _isSharingBusy ? null : _showMyWantedPublicLink,
             icon: _isSharingBusy
                 ? const SizedBox(
                     width: 18,
@@ -344,7 +372,7 @@ class _WantedCardsScreenState extends ConsumerState<WantedCardsScreen> {
                     });
                   },
                   onAddWanted: _showAddWantedDialog,
-                  onShareWanted: _shareWantedViaWhatsApp,
+                  onShareWanted: _showMyWantedPublicLink,
                 ),
               ),
               if (filteredItems.isEmpty)
