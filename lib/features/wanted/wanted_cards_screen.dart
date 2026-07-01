@@ -100,7 +100,38 @@ class _WantedCardsScreenState extends ConsumerState<WantedCardsScreen> {
       return;
     }
 
+    String contactInfo = item.contactInfo;
     if (!item.hasWhatsAppContact) {
+      try {
+        contactInfo = await ref
+            .read(wantedCardsRepositoryProvider)
+            .getPublicWantedCardContact(item.id);
+      } catch (_) {
+        contactInfo = '';
+      }
+    }
+    final contactItem = WantedCardListing(
+      id: item.id,
+      ownerUserId: item.ownerUserId,
+      seekerName: item.seekerName,
+      cardCode: item.cardCode,
+      name: item.name,
+      imageUrl: item.imageUrl,
+      createdAtUtc: item.createdAtUtc,
+      setName: item.setName,
+      rarity: item.rarity,
+      color: item.color,
+      type: item.type,
+      text: item.text,
+      attribute: item.attribute,
+      quantity: item.quantity,
+      isPublic: item.isPublic,
+      isActive: item.isActive,
+      contactInfo: contactInfo,
+      notes: item.notes,
+    );
+
+    if (!contactItem.hasWhatsAppContact) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -111,7 +142,7 @@ class _WantedCardsScreenState extends ConsumerState<WantedCardsScreen> {
     }
 
     final uri = Uri.parse(
-      'https://wa.me/${item.normalizedWhatsAppNumber}?text=${Uri.encodeComponent(_buildOfferMessage(item))}',
+      'https://wa.me/${contactItem.normalizedWhatsAppNumber}?text=${Uri.encodeComponent(_buildOfferMessage(item))}',
     );
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
 

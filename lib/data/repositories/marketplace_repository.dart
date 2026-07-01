@@ -23,6 +23,10 @@ class MarketplaceRepository {
       'created_at, image_url, name, set_name, rarity, color, type, text, '
       'attribute, sale_price_cents, sale_contact_info, sale_notes, '
       'sale_status, card_condition';
+  static const String _publicListingColumns =
+      'id, user_id, card_code, quantity, is_favorite, is_public, share_code, '
+      'created_at, image_url, name, set_name, rarity, color, type, text, '
+      'attribute, sale_price_cents, sale_notes, sale_status, card_condition';
   final Map<String, OpCard?> _apiCardCache = {};
   final Map<String, String> _sellerNameCache = {};
 
@@ -38,11 +42,29 @@ class MarketplaceRepository {
   }
 
   Future<List<MarketplaceListing>> getPublicListingsByUser(String userId) {
-    return _fetchListings(userId: userId, onlyPublic: true);
+    return _fetchListings(
+      userId: userId,
+      onlyPublic: true,
+      includeContactInfo: true,
+    );
   }
 
   Future<List<MarketplaceListing>> getGlobalPublicListings() {
-    return _fetchListings(onlyPublic: true);
+    return _fetchListings(onlyPublic: true, includeContactInfo: false);
+  }
+
+  Future<String> getPublicListingContact(String listingId) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw Exception('Usuario nao autenticado.');
+    }
+
+    final response = await _client.rpc(
+      'get_public_marketplace_listing_contact',
+      params: {'listing_id': listingId},
+    );
+
+    return (response ?? '').toString();
   }
 
   Future<MarketplaceListing?> getPublicListingByShareCode(
@@ -140,12 +162,13 @@ class MarketplaceRepository {
   Future<List<MarketplaceListing>> _fetchListings({
     String? userId,
     required bool onlyPublic,
+    bool includeContactInfo = true,
   }) async {
     await _opApi.preload();
 
     var query = _client
         .from('collection_items')
-        .select(_listingColumns)
+        .select(includeContactInfo ? _listingColumns : _publicListingColumns)
         .eq('collection_type', 'forSale');
 
     if (userId != null) {

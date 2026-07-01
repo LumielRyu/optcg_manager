@@ -23,6 +23,10 @@ class WantedCardsRepository {
       'id, user_id, card_code, quantity, is_public, is_active, contact_info, '
       'notes, created_at, image_url, name, set_name, rarity, color, type, '
       'text, attribute';
+  static const String _publicColumns =
+      'id, user_id, card_code, quantity, is_public, is_active, notes, '
+      'created_at, image_url, name, set_name, rarity, color, type, text, '
+      'attribute';
 
   final Map<String, OpCard?> _apiCardCache = {};
   final Map<String, String> _seekerNameCache = {};
@@ -30,7 +34,7 @@ class WantedCardsRepository {
   WantedCardsRepository(this._client, this._opApi, this._prefs);
 
   Future<List<WantedCardListing>> getGlobalWantedCards() {
-    return _fetchWantedCards(onlyPublic: true);
+    return _fetchWantedCards(onlyPublic: true, includeContactInfo: false);
   }
 
   Future<List<WantedCardListing>> getMyWantedCards() async {
@@ -40,7 +44,25 @@ class WantedCardsRepository {
   }
 
   Future<List<WantedCardListing>> getPublicWantedCardsByUser(String userId) {
-    return _fetchWantedCards(userId: userId, onlyPublic: true);
+    return _fetchWantedCards(
+      userId: userId,
+      onlyPublic: true,
+      includeContactInfo: true,
+    );
+  }
+
+  Future<String> getPublicWantedCardContact(String wantedCardId) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw Exception('Usuario nao autenticado.');
+    }
+
+    final response = await _client.rpc(
+      'get_public_wanted_card_contact',
+      params: {'wanted_card_id': wantedCardId},
+    );
+
+    return (response ?? '').toString();
   }
 
   Future<void> addWantedCard({
@@ -111,10 +133,13 @@ class WantedCardsRepository {
   Future<List<WantedCardListing>> _fetchWantedCards({
     String? userId,
     required bool onlyPublic,
+    bool includeContactInfo = true,
   }) async {
     await _opApi.preload();
 
-    var query = _client.from('wanted_cards').select(_columns);
+    var query = _client
+        .from('wanted_cards')
+        .select(includeContactInfo ? _columns : _publicColumns);
 
     if (userId != null) {
       query = query.eq('user_id', userId);

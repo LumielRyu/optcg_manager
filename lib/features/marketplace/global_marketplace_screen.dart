@@ -158,7 +158,19 @@ class _GlobalMarketplaceScreenState
       return;
     }
 
+    String contactInfo = item.contactInfo;
     if (!item.hasWhatsAppContact) {
+      try {
+        contactInfo = await ref
+            .read(marketplaceRepositoryProvider)
+            .getPublicListingContact(item.id);
+      } catch (_) {
+        contactInfo = '';
+      }
+    }
+    final contactItem = item.copyWith(contactInfo: contactInfo);
+
+    if (!contactItem.hasWhatsAppContact) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -172,7 +184,7 @@ class _GlobalMarketplaceScreenState
 
     final message = _buildInterestMessage(item);
     final uri = Uri.parse(
-      'https://wa.me/${item.normalizedWhatsAppNumber}?text=${Uri.encodeComponent(message)}',
+      'https://wa.me/${contactItem.normalizedWhatsAppNumber}?text=${Uri.encodeComponent(message)}',
     );
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
 
@@ -284,10 +296,20 @@ class _GlobalMarketplaceScreenState
     }
 
     if (sellerItems.isEmpty) return;
-    final contactItem = sellerItems.firstWhere(
+    var contactItem = sellerItems.firstWhere(
       (item) => item.hasWhatsAppContact,
       orElse: () => sellerItems.first,
     );
+
+    if (!contactItem.hasWhatsAppContact) {
+      var contactInfo = '';
+      try {
+        contactInfo = await ref
+            .read(marketplaceRepositoryProvider)
+            .getPublicListingContact(contactItem.id);
+      } catch (_) {}
+      contactItem = contactItem.copyWith(contactInfo: contactInfo);
+    }
 
     if (!contactItem.hasWhatsAppContact) {
       if (!mounted) return;

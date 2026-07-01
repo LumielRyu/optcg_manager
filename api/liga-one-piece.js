@@ -1,7 +1,13 @@
 const LIGA_BASE_URL = 'https://www.ligaonepiece.com.br/';
+const ALLOWED_HOSTS = new Set(['www.ligaonepiece.com.br', 'ligaonepiece.com.br']);
+const DEFAULT_ALLOWED_ORIGINS = new Set([
+  'https://optcgmanager.vercel.app',
+  'https://optcgmanager-lumielryus-projects.vercel.app',
+  'https://optcgmanager-lumielryu-lumielryus-projects.vercel.app',
+]);
 
 module.exports = async (req, res) => {
-  setCorsHeaders(res);
+  setCorsHeaders(res, req);
 
   if (req.method === 'OPTIONS') {
     return res.status(204).end();
@@ -53,25 +59,46 @@ module.exports = async (req, res) => {
   } catch (error) {
     const statusCode =
       typeof error?.statusCode === 'number' ? error.statusCode : 500;
+    const publicMessage =
+      statusCode >= 500 ? 'Unable to fetch LigaOnePiece data' : error.message;
 
     return res.status(statusCode).json({
-      error: error instanceof Error ? error.message : String(error),
-      sourceUrl: error?.sourceUrl || null,
+      error: publicMessage,
     });
   }
 };
 
-function setCorsHeaders(res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+function setCorsHeaders(res, req) {
+  const origin = req?.headers?.origin || '';
+  const configuredOrigins = String(process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const allowedOrigins = new Set([
+    ...DEFAULT_ALLOWED_ORIGINS,
+    ...configuredOrigins,
+  ]);
+  if (isAllowedOrigin(origin, allowedOrigins)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+  }
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=3600');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+}
+
+function isAllowedOrigin(origin, allowedOrigins) {
+  if (allowedOrigins.has(origin)) return true;
+  return /^https:\/\/optcgmanager-[a-z0-9-]+-lumielryus-projects\.vercel\.app$/i.test(
+    origin,
+  );
 }
 
 async function resolveSource(query) {
   const rawUrl = stringValue(query.url);
   const candidates = rawUrl
-    ? [rawUrl]
+    ? [validateLigaUrl(rawUrl)]
     : buildCandidateUrls(
         stringValue(query.cardName),
         stringValue(query.cardCode).toUpperCase(),
@@ -112,6 +139,25 @@ async function resolveSource(query) {
   error.statusCode = lastStatus === 200 ? 422 : lastStatus;
   error.sourceUrl = lastUrl;
   throw error;
+}
+
+function validateLigaUrl(rawUrl) {
+  let parsed;
+  try {
+    parsed = new URL(rawUrl);
+  } catch (_) {
+    const error = new Error('Invalid url query param');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (parsed.protocol !== 'https:' || !ALLOWED_HOSTS.has(parsed.hostname)) {
+    const error = new Error('URL host is not allowed');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return parsed.toString();
 }
 
 function buildCandidateUrls(cardName, cardCode) {
