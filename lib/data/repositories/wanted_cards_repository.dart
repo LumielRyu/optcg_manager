@@ -39,6 +39,10 @@ class WantedCardsRepository {
     return _fetchWantedCards(userId: user.id, onlyPublic: false);
   }
 
+  Future<List<WantedCardListing>> getPublicWantedCardsByUser(String userId) {
+    return _fetchWantedCards(userId: userId, onlyPublic: true);
+  }
+
   Future<void> addWantedCard({
     required String rawCardCode,
     required int quantity,

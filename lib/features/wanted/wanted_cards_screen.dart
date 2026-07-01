@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/providers/theme_mode_provider.dart';
 import '../../core/utils/auth_action_guard.dart';
+import '../../core/utils/share_link_helper.dart';
 import '../../core/widgets/catalog_grid_card.dart';
 import '../../core/widgets/catalog_search_field.dart';
 import '../../core/widgets/dashboard_header_panel.dart';
@@ -30,6 +31,7 @@ class _WantedCardsScreenState extends ConsumerState<WantedCardsScreen> {
   late Future<List<WantedCardListing>> _wantedFuture;
   String _query = '';
   bool _showMineOnly = false;
+  bool _isSharingBusy = false;
 
   @override
   void initState() {
@@ -135,6 +137,122 @@ class _WantedCardsScreenState extends ConsumerState<WantedCardsScreen> {
     ].join('\n');
   }
 
+  String _buildPublicWantedLink(String userId) {
+    final base = Uri.base;
+    final origin = '${base.scheme}://${base.authority}';
+    final usesHashRouting = base.hasFragment && base.fragment.startsWith('/');
+
+    if (usesHashRouting) {
+      return '$origin/#/shared/wanted/$userId';
+    }
+
+    return '$origin/shared/wanted/$userId';
+  }
+
+  Future<void> _showShareLinkDialog(String link) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Link das cartas procuradas'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Nao foi possivel abrir o compartilhamento automaticamente. Use o link abaixo:',
+              ),
+              const SizedBox(height: 12),
+              SelectableText(link),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Fechar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _shareWantedViaWhatsApp() async {
+    if (!requireSignedIn(context)) {
+      return;
+    }
+
+    setState(() {
+      _isSharingBusy = true;
+    });
+
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        throw Exception('Usuario nao autenticado.');
+      }
+
+      final link = _buildPublicWantedLink(user.id);
+      final message = [
+        'Estas sao as cartas que estou procurando no OPTCG Manager:',
+        link,
+      ].join('\n\n');
+      final uri = Uri.parse(
+        'https://wa.me/?text=${Uri.encodeComponent(message)}',
+      );
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!launched) {
+        final action = await shareOrCopyText(
+          link,
+          subject: 'Cartas procuradas no OPTCG Manager',
+        );
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              action == 'shared'
+                  ? 'Link das cartas procuradas aberto para compartilhamento.'
+                  : 'Link das cartas procuradas copiado:\n$link',
+            ),
+          ),
+        );
+        return;
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('WhatsApp aberto com o link das cartas procuradas.'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final user = Supabase.instance.client.auth.currentUser;
+      final fallbackLink = user == null
+          ? null
+          : _buildPublicWantedLink(user.id);
+
+      if (fallbackLink != null) {
+        await _showShareLinkDialog(fallbackLink);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao compartilhar link: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSharingBusy = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
@@ -203,6 +321,7 @@ class _WantedCardsScreenState extends ConsumerState<WantedCardsScreen> {
                   activeItems: activeItems,
                   searchController: _searchController,
                   showMineOnly: _showMineOnly,
+                  isSharingBusy: _isSharingBusy,
                   onToggleMineOnly: () {
                     if (!requireSignedIn(context)) {
                       return;
@@ -214,6 +333,7 @@ class _WantedCardsScreenState extends ConsumerState<WantedCardsScreen> {
                     });
                   },
                   onAddWanted: _showAddWantedDialog,
+                  onShareWanted: _shareWantedViaWhatsApp,
                 ),
               ),
               if (filteredItems.isEmpty)
@@ -291,8 +411,10 @@ class _WantedHeader extends StatelessWidget {
   final int activeItems;
   final TextEditingController searchController;
   final bool showMineOnly;
+  final bool isSharingBusy;
   final VoidCallback onToggleMineOnly;
   final VoidCallback onAddWanted;
+  final VoidCallback onShareWanted;
 
   const _WantedHeader({
     required this.totalListings,
@@ -301,8 +423,10 @@ class _WantedHeader extends StatelessWidget {
     required this.activeItems,
     required this.searchController,
     required this.showMineOnly,
+    required this.isSharingBusy,
     required this.onToggleMineOnly,
     required this.onAddWanted,
+    required this.onShareWanted,
   });
 
   @override
@@ -366,6 +490,18 @@ class _WantedHeader extends StatelessWidget {
                       icon: const Icon(Icons.add),
                       label: const Text('Cadastrar'),
                     ),
+                    const SizedBox(width: 8),
+                    IconButton.filledTonal(
+                      tooltip: 'Compartilhar no WhatsApp',
+                      onPressed: isSharingBusy ? null : onShareWanted,
+                      icon: isSharingBusy
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.ios_share_outlined),
+                    ),
                   ],
                 ),
               ],
@@ -389,6 +525,18 @@ class _WantedHeader extends StatelessWidget {
                   onPressed: onAddWanted,
                   icon: const Icon(Icons.add),
                   label: const Text('Cadastrar busca'),
+                ),
+                const SizedBox(width: 8),
+                FilledButton.tonalIcon(
+                  onPressed: isSharingBusy ? null : onShareWanted,
+                  icon: isSharingBusy
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.ios_share_outlined),
+                  label: const Text('WhatsApp'),
                 ),
               ],
             ),

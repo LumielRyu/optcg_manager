@@ -33,6 +33,7 @@ import '../features/sales/sales_screen.dart';
 import '../features/tcg/tcg_hub_screen.dart';
 import '../features/tcg/tcg_selector_screen.dart';
 import '../features/wanted/wanted_cards_screen.dart';
+import '../features/wanted/shared_wanted_cards_screen.dart';
 import '../features/yugioh/yugioh_library_screen.dart';
 import '../features/weeklies/weekly_dashboard_screen.dart';
 import '../data/repositories/user_preferences_repository.dart';
@@ -72,8 +73,12 @@ final GoRouter appRouter = GoRouter(
     final isSharedDeckRoute = location.startsWith('/shared/deck/');
     final isSharedSaleRoute = location.startsWith('/shared/sale/');
     final isSharedStoreRoute = location.startsWith('/shared/store/');
+    final isSharedWantedRoute = location.startsWith('/shared/wanted/');
     final isSharedRoute =
-        isSharedDeckRoute || isSharedSaleRoute || isSharedStoreRoute;
+        isSharedDeckRoute ||
+        isSharedSaleRoute ||
+        isSharedStoreRoute ||
+        isSharedWantedRoute;
 
     if (isSharedRoute) {
       return null;
@@ -144,6 +149,13 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final userId = state.pathParameters['userId'] ?? '';
         return SharedStoreScreen(userId: userId);
+      },
+    ),
+    GoRoute(
+      path: '/shared/wanted/:userId',
+      builder: (context, state) {
+        final userId = state.pathParameters['userId'] ?? '';
+        return SharedWantedCardsScreen(userId: userId);
       },
     ),
     GoRoute(

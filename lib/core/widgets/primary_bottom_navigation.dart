@@ -10,6 +10,7 @@ class PrimaryBottomNavigation extends StatelessWidget {
     '/home/one-piece',
     '/collection',
     '/sales',
+    '/wanted',
     '/library',
     '/card-scan-test',
   ];
@@ -53,6 +54,11 @@ class PrimaryBottomNavigation extends StatelessWidget {
           icon: Icon(Icons.storefront_outlined),
           selectedIcon: Icon(Icons.storefront),
           label: 'Vendas',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.travel_explore_outlined),
+          selectedIcon: Icon(Icons.travel_explore),
+          label: 'Buscas',
         ),
         NavigationDestination(
           icon: Icon(Icons.auto_stories_outlined),
