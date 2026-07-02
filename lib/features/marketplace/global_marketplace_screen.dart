@@ -13,6 +13,7 @@ import '../../core/widgets/home_navigation_button.dart';
 import '../../core/widgets/summary_stat_card.dart';
 import '../../data/models/marketplace_listing.dart';
 import '../../data/repositories/marketplace_repository.dart';
+import '../../data/services/liga_one_piece_service.dart';
 
 class GlobalMarketplaceScreen extends ConsumerStatefulWidget {
   const GlobalMarketplaceScreen({super.key});
@@ -39,6 +40,8 @@ class _GlobalMarketplaceScreenState
   String _selectedSort = 'Mais recentes';
   int _visibleCount = _pageSize;
   final Map<String, int> _cartQuantities = {};
+  final Map<String, String?> _ligaPriceLabels = {};
+  final Set<String> _ligaPriceLoadingCodes = {};
   List<MarketplaceListing> _loadedPublicItems = const [];
   late Future<List<MarketplaceListing>> _publicListingsFuture;
   List<MarketplaceListing> _cachedSourceItems = const [];
@@ -74,6 +77,62 @@ class _GlobalMarketplaceScreenState
 
   Future<List<MarketplaceListing>> _loadPublicListings() {
     return ref.read(marketplaceRepositoryProvider).getGlobalPublicListings();
+  }
+
+  String? _ligaPriceLabelFor(MarketplaceListing item) {
+    final normalizedCode = item.cardCode.trim().toUpperCase();
+    if (normalizedCode.isEmpty) {
+      return null;
+    }
+
+    if (!_ligaPriceLabels.containsKey(normalizedCode) &&
+        _ligaPriceLoadingCodes.add(normalizedCode)) {
+      _loadLigaPriceLabel(normalizedCode);
+    }
+
+    return _ligaPriceLabels[normalizedCode];
+  }
+
+  Future<void> _loadLigaPriceLabel(String normalizedCode) async {
+    try {
+      final snapshot = await ref
+          .read(ligaOnePieceServiceProvider)
+          .fetchCachedPublicCardSnapshotForCardCode(normalizedCode);
+      final price = snapshot?.minimumPrice ?? snapshot?.lowestListing?.price;
+      final label = price == null || price <= 0
+          ? null
+          : 'Liga: ${_formatMarketplaceCurrency(price)}';
+
+      if (!mounted) return;
+      setState(() {
+        _ligaPriceLabels[normalizedCode] = label;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _ligaPriceLabels[normalizedCode] = null;
+      });
+    } finally {
+      _ligaPriceLoadingCodes.remove(normalizedCode);
+    }
+  }
+
+  String _formatMarketplaceCurrency(double value) {
+    final cents = (value * 100).round();
+    final reais = cents ~/ 100;
+    final centavos = (cents % 100).toString().padLeft(2, '0');
+    final whole = reais.toString();
+    final buffer = StringBuffer();
+
+    for (int i = 0; i < whole.length; i++) {
+      final indexFromEnd = whole.length - i;
+      buffer.write(whole[i]);
+      if (indexFromEnd > 1 && indexFromEnd % 3 == 1) {
+        buffer.write('.');
+      }
+    }
+
+    return 'R\$ ${buffer.toString()},$centavos';
   }
 
   void _updateMarketplaceDerivedData(List<MarketplaceListing> allItems) {
@@ -705,6 +764,7 @@ class _GlobalMarketplaceScreenState
                             }
 
                             final item = visibleItems[index];
+                            final ligaPriceLabel = _ligaPriceLabelFor(item);
 
                             return CatalogGridCard(
                               key: ValueKey(
@@ -715,10 +775,12 @@ class _GlobalMarketplaceScreenState
                               metadata: [
                                 if (item.hasSellerName)
                                   'Vendedor: ${item.sellerName}',
-                                item.formattedPrice,
+                                'Oferta: ${item.formattedPrice}',
+                                ?ligaPriceLabel,
                                 '${item.statusLabel} - ${item.conditionLabel}',
                                 'Quantidade: ${item.quantity}x',
                               ],
+                              maxMetadataItems: 5,
                               footer: Row(
                                 children: [
                                   SizedBox(

@@ -179,6 +179,40 @@ class LigaOnePieceService {
     }
   }
 
+  Future<LigaOnePieceCardSnapshot?> fetchCachedPublicCardSnapshotForCardCode(
+    String cardCode,
+  ) async {
+    final normalizedCode = cardCode.trim().toUpperCase();
+    if (normalizedCode.isEmpty) {
+      return null;
+    }
+
+    final memoryCached = _memorySnapshotForCardCode(normalizedCode);
+    if (memoryCached != null) {
+      return memoryCached;
+    }
+
+    final persistedCached = _persistedSnapshotForCardCode(normalizedCode);
+    if (persistedCached != null) {
+      _storeInMemoryCache(normalizedCode, persistedCached);
+      return persistedCached;
+    }
+
+    final remoteCached = await _remoteSnapshotForCardCode(normalizedCode);
+    if (remoteCached != null) {
+      _saveSnapshotForCardCode(normalizedCode, remoteCached);
+      return remoteCached;
+    }
+
+    final assetCached = await _assetSnapshotForCardCode(normalizedCode);
+    if (assetCached != null) {
+      _saveSnapshotForCardCode(normalizedCode, assetCached);
+      return assetCached;
+    }
+
+    return null;
+  }
+
   Future<String?> _resolvePublicCardUrlForCard({
     required String cardName,
     required String cardCode,
