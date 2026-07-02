@@ -41,9 +41,9 @@ class YugiohCard {
       attribute: (json['attribute'] ?? '').toString().trim(),
       archetype: (json['archetype'] ?? '').toString().trim(),
       description: (json['desc'] ?? '').toString().trim(),
-      imageUrl: (imageData['image_url_cropped'] ??
+      imageUrl: (imageData['image_url'] ??
               imageData['image_url_small'] ??
-              imageData['image_url'] ??
+              imageData['image_url_cropped'] ??
               '')
           .toString()
           .trim(),
