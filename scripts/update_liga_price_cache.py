@@ -1,4 +1,6 @@
+import argparse
 import json
+import os
 import re
 import sys
 import time
@@ -21,6 +23,22 @@ LIGA_BASE_URL = "https://www.ligaonepiece.com.br/?"
 USER_AGENT = "Mozilla/5.0 OPTCG-Manager Cache Builder"
 
 
+def load_env():
+    env = dict(os.environ)
+    env_path = ROOT / ".env"
+    if not env_path.exists():
+        return env
+
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        match = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$", line.strip())
+        if not match:
+            continue
+        key, value = match.groups()
+        value = value.strip().strip('"').strip("'")
+        env.setdefault(key, value)
+    return env
+
+
 def fetch_json(url: str):
     request = urllib.request.Request(
         url,
@@ -37,8 +55,16 @@ def fetch_text(url: str) -> str:
     request = urllib.request.Request(
         url,
         headers={
-            "User-Agent": USER_AGENT,
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/126.0.0.0 Safari/537.36"
+            ),
+            "Accept": (
+                "text/html,application/xhtml+xml,application/xml;q=0.9,"
+                "image/avif,image/webp,image/apng,*/*;q=0.8"
+            ),
+            "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
         },
     )
     with urllib.request.urlopen(request, timeout=30) as response:
@@ -65,7 +91,11 @@ def infer_edition(code: str) -> str:
     match = re.match(r"^([A-Z]{1,4})(\d{2})-\d{3}(?:-[A-Z0-9]+)?$", code)
     if not match:
         return ""
-    return f"{match.group(1)}-{match.group(2)}"
+    prefix = match.group(1)
+    number = match.group(2)
+    if prefix == "EB":
+        return f"{prefix}{number}"
+    return f"{prefix}-{number}"
 
 
 def build_current_descriptor(name: str, code: str) -> str:
@@ -124,7 +154,26 @@ def fetch_autocomplete_suggestions(query: str, code: str):
 def build_candidate_urls(name: str, code: str):
     descriptors = build_candidate_descriptors(name, code)
     edition = infer_edition(code)
-    urls = []
+    card_urls = []
+    search_urls = []
+
+    direct_descriptors = [
+        build_current_descriptor(name, code),
+        f"{clean_name(name, code)} ({code})",
+        clean_name(name, code),
+    ]
+
+    if edition:
+        for descriptor in direct_descriptors + descriptors:
+            card_url = LIGA_BASE_URL + urllib.parse.urlencode(
+                {
+                    "view": "cards/card",
+                    "card": descriptor,
+                    "ed": edition,
+                    "num": code,
+                }
+            )
+            card_urls.append((descriptor, card_url))
 
     for descriptor in descriptors:
         search_url = LIGA_BASE_URL + urllib.parse.urlencode(
@@ -134,23 +183,11 @@ def build_candidate_urls(name: str, code: str):
                 "tipo": "1",
             }
         )
-        urls.append((descriptor, search_url))
-
-    if edition:
-        for descriptor in descriptors:
-            card_url = LIGA_BASE_URL + urllib.parse.urlencode(
-                {
-                    "view": "cards/card",
-                    "card": descriptor,
-                    "ed": edition,
-                    "num": code,
-                }
-            )
-            urls.append((descriptor, card_url))
+        search_urls.append((descriptor, search_url))
 
     deduped = []
     seen = set()
-    for descriptor, url in urls:
+    for descriptor, url in card_urls + search_urls:
         if url in seen:
             continue
         seen.add(url)
@@ -173,7 +210,7 @@ def parse_money(value):
     raw = str(value).strip()
     if not raw:
         return None
-    normalized = raw.replace(".", "").replace(",", ".")
+    normalized = raw.replace(".", "").replace(",", ".") if "," in raw else raw
     try:
         return float(normalized)
     except ValueError:
@@ -189,6 +226,15 @@ def normalize_asset_url(raw: str) -> str:
     if raw.startswith("//"):
         return f"https:{raw}"
     return raw
+
+
+def extract_card_name(html: str):
+    match = re.search(
+        r'<div class="item-name">\s*([^<]+)\s*</div>',
+        html,
+        re.MULTILINE,
+    )
+    return match.group(1).strip() if match else None
 
 
 def parse_snapshot(html: str, source_url: str, lookup_code: str):
@@ -211,8 +257,10 @@ def parse_snapshot(html: str, source_url: str, lookup_code: str):
 
     edition = editions[0]
     raw_price = edition.get("price") or {}
-    if isinstance(raw_price, dict):
-        price_map = raw_price.get("0") or raw_price
+    if isinstance(raw_price, list):
+        price_map = raw_price[0] if raw_price else {}
+    elif isinstance(raw_price, dict):
+        price_map = raw_price.get("0") or raw_price.get("2") or raw_price
     else:
         price_map = {}
 
@@ -246,7 +294,7 @@ def parse_snapshot(html: str, source_url: str, lookup_code: str):
     return {
         "lookupCode": lookup_code,
         "sourceUrl": source_url,
-        "cardName": str(edition.get("name") or "").strip(),
+        "cardName": extract_card_name(html) or str(edition.get("name") or "").strip(),
         "cardCode": str(edition.get("num") or lookup_code).strip().upper(),
         "editionCode": str(edition.get("code") or "").strip(),
         "imageUrl": normalize_asset_url(str(edition.get("img") or "").strip()),
@@ -257,6 +305,65 @@ def parse_snapshot(html: str, source_url: str, lookup_code: str):
         "lowestListing": lowest_listing,
         "lowestStore": lowest_store,
     }
+
+
+def snapshot_to_supabase_row(snapshot):
+    return {
+        "lookup_code": normalize_code(str(snapshot.get("lookupCode") or "")),
+        "source_url": snapshot.get("sourceUrl"),
+        "card_name": snapshot.get("cardName"),
+        "card_code": normalize_code(str(snapshot.get("cardCode") or "")),
+        "edition_code": snapshot.get("editionCode"),
+        "image_url": snapshot.get("imageUrl"),
+        "minimum_price": snapshot.get("minimumPrice"),
+        "average_price": snapshot.get("averagePrice"),
+        "maximum_price": snapshot.get("maximumPrice"),
+        "listing_count": snapshot.get("listingCount") or 0,
+        "lowest_listing": snapshot.get("lowestListing"),
+        "lowest_store": snapshot.get("lowestStore"),
+        "used_verified_fallback": False,
+        "note": "Coletado localmente pelo script update_liga_price_cache.py.",
+        "resolved_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+
+
+def upsert_supabase_snapshots(snapshots):
+    env = load_env()
+    supabase_url = (env.get("SUPABASE_URL") or "").rstrip("/")
+    service_key = env.get("SUPABASE_SERVICE_ROLE_KEY") or ""
+    if not supabase_url or not service_key:
+        raise RuntimeError(
+            "SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY precisam existir no .env."
+        )
+
+    rows = [
+        snapshot_to_supabase_row(snapshot)
+        for snapshot in snapshots
+        if normalize_code(str(snapshot.get("lookupCode") or ""))
+    ]
+    if not rows:
+        return 0
+
+    url = (
+        f"{supabase_url}/rest/v1/liga_card_price_cache?"
+        "on_conflict=lookup_code"
+    )
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(rows, ensure_ascii=False).encode("utf-8"),
+        method="POST",
+        headers={
+            "apikey": service_key,
+            "authorization": f"Bearer {service_key}",
+            "content-type": "application/json",
+            "prefer": "resolution=merge-duplicates",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        response.read()
+        if response.status not in (200, 201, 204):
+            raise RuntimeError(f"Supabase retornou HTTP {response.status}.")
+    return len(rows)
 
 
 def fetch_snapshot_for_card(name: str, code: str):
@@ -314,13 +421,63 @@ def save_cache(cards):
     )
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Atualiza o cache de preços da LigaOnePiece."
+    )
+    parser.add_argument(
+        "legacy_limit",
+        nargs="?",
+        type=int,
+        help="Compatibilidade: limite de cartas para gerar o JSON local.",
+    )
+    parser.add_argument("--limit", type=int, help="Limite de cartas para processar.")
+    parser.add_argument("--code", help="Codigo de uma carta especifica, ex: EB01-001.")
+    parser.add_argument("--name", help="Nome da carta especifica.")
+    parser.add_argument(
+        "--supabase",
+        action="store_true",
+        help="Grava os resultados em liga_card_price_cache no Supabase.",
+    )
+    parser.add_argument(
+        "--no-asset",
+        action="store_true",
+        help="Nao atualiza assets/liga_one_piece_price_cache.json.",
+    )
+    return parser.parse_args()
+
+
 def main():
-    limit = None
-    if len(sys.argv) > 1:
-        try:
-            limit = int(sys.argv[1])
-        except ValueError:
-            limit = None
+    args = parse_args()
+    limit = args.limit if args.limit is not None else args.legacy_limit
+
+    if args.code:
+        code = normalize_code(args.code)
+        name = args.name or code
+        snapshot = fetch_snapshot_for_card(name, code)
+        if snapshot is None:
+            raise RuntimeError(f"Nao foi possivel resolver {code} na LigaOnePiece.")
+
+        print(
+            json.dumps(
+                {
+                    "lookupCode": snapshot["lookupCode"],
+                    "cardName": snapshot["cardName"],
+                    "minimumPrice": snapshot["minimumPrice"],
+                    "listingCount": snapshot["listingCount"],
+                    "lowestListing": snapshot["lowestListing"],
+                    "lowestStore": snapshot["lowestStore"],
+                    "resolvedWith": snapshot.get("resolvedWith"),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+
+        if args.supabase:
+            count = upsert_supabase_snapshots([snapshot])
+            print(f"Supabase atualizado com {count} carta.")
+        return
 
     all_cards = load_cards()
     if limit is not None:
@@ -353,9 +510,15 @@ def main():
 
         if index % 25 == 0 or index == len(all_cards):
             print(f"[{index}/{len(all_cards)}] resolvidas: {success}")
-            save_cache(resolved)
+            if not args.no_asset:
+                save_cache(resolved)
 
-    print(f"Cache final salvo com {success} cartas.")
+    if args.supabase:
+        count = upsert_supabase_snapshots(resolved)
+        print(f"Supabase atualizado com {count} cartas.")
+
+    if not args.no_asset:
+        print(f"Cache final salvo com {success} cartas.")
 
 
 if __name__ == "__main__":
