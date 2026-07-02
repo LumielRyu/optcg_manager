@@ -513,6 +513,11 @@ class LigaOnePieceService {
     String url = defaultCardUrl,
   }) async {
     if (kIsWeb) {
+      final knownFallback = _verifiedFallbackForKnownUrl(url);
+      if (knownFallback != null) {
+        return knownFallback;
+      }
+
       try {
         final snapshot = await _fetchUrlViaProxy(url);
         final normalizedCode = _normalizeLookupCode(snapshot.cardCode);
@@ -764,6 +769,10 @@ class LigaOnePieceService {
       return null;
     }
 
+    return _verifiedFallbackForKnownUrl(url);
+  }
+
+  LigaOnePieceCardSnapshot? _verifiedFallbackForKnownUrl(String url) {
     final uri = Uri.tryParse(url);
     if (uri == null) {
       if (url.trim().toLowerCase() == defaultCardUrl.toLowerCase()) {
