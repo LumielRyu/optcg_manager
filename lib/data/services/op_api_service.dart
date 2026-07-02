@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 
@@ -19,6 +21,8 @@ class OpApiService {
       'https://www.optcgapi.com/api/allSTCards/?format=json';
   static const String _promosUrl =
       'https://www.optcgapi.com/api/allPromos/?format=json';
+  static const String _webProxyUrl = '/api/optcg-cards';
+  static const String _assetCachePath = 'assets/one_piece_cards_cache.json';
   static const String _cachedCardsKey = 'all_cards_v2';
   static const String _cachedAtKey = 'all_cards_cached_at';
   static const Duration _cacheMaxAge = Duration(hours: 12);
@@ -127,23 +131,39 @@ class OpApiService {
       return;
     }
 
-    await _refreshFromApi();
+    try {
+      await _refreshFromApi();
+    } catch (_) {
+      final assetCards = await _loadCardsFromAsset();
+      if (assetCards.isEmpty) {
+        rethrow;
+      }
+
+      _setMemoryCache(assetCards);
+      await _saveCardsToDisk(assetCards);
+    }
   }
 
   void _refreshInBackground() {
     if (_backgroundRefreshFuture != null) return;
 
-    _backgroundRefreshFuture = _refreshFromApi().whenComplete(() {
-      _backgroundRefreshFuture = null;
-    });
+    _backgroundRefreshFuture = _refreshFromApi()
+        .catchError((_) {})
+        .whenComplete(() {
+          _backgroundRefreshFuture = null;
+        });
   }
 
   Future<void> _refreshFromApi() async {
-    final responses = await Future.wait([
-      _getJson(_mainSetUrl),
-      _getJson(_starterDeckUrl),
-      _getJson(_promosUrl),
-    ]);
+    final responses = kIsWeb
+        ? [
+            await _getJson(_webProxyUrl),
+          ]
+        : await Future.wait([
+            _getJson(_mainSetUrl),
+            _getJson(_starterDeckUrl),
+            _getJson(_promosUrl),
+          ]);
 
     final allCards = <OpCard>[];
 
@@ -395,8 +415,11 @@ class OpApiService {
   }
 
   Future<List<Map<String, dynamic>>> _getJson(String url) async {
+    final uri = Uri.parse(url).hasScheme
+        ? Uri.parse(url)
+        : Uri.base.resolve(url);
     final response = await http.get(
-      Uri.parse(url),
+      uri,
       headers: const {'Accept': 'application/json'},
     );
 
@@ -414,6 +437,23 @@ class OpApiService {
         .whereType<Map>()
         .map((e) => Map<String, dynamic>.from(e))
         .toList(growable: false);
+  }
+
+  Future<List<OpCard>> _loadCardsFromAsset() async {
+    try {
+      final rawJson = await rootBundle.loadString(_assetCachePath);
+      final decoded = jsonDecode(rawJson);
+      if (decoded is! List) {
+        return const <OpCard>[];
+      }
+
+      return decoded
+          .whereType<Map>()
+          .map((entry) => OpCard.fromJson(Map<String, dynamic>.from(entry)))
+          .toList(growable: false);
+    } catch (_) {
+      return const <OpCard>[];
+    }
   }
 
   String normalizeCode(String input) => _normalizeCode(input);
