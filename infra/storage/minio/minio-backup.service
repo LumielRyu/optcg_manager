@@ -1,0 +1,10 @@
+[Unit]
+Description=Backup OPTCG MinIO data
+
+[Service]
+Type=oneshot
+Environment=BACKUP_ROOT=/srv/optcg/minio/backups
+Environment=DATA_DIR=/srv/optcg/minio/data
+Environment=RETENTION_DAYS=14
+ExecStart=/srv/optcg/minio/backup_minio.sh
+

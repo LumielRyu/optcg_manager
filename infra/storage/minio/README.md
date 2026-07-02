@@ -21,37 +21,59 @@ Recommended baseline:
 - UPS if possible.
 - Nightly off-server backups.
 
-Install Docker:
+Run the bootstrap script on the server:
 
 ```bash
-sudo apt update
-sudo apt install -y ca-certificates curl
-curl -fsSL https://get.docker.com | sudo sh
-sudo usermod -aG docker "$USER"
+sudo bash bootstrap.sh
 ```
 
-Create storage directories:
-
-```bash
-sudo mkdir -p /srv/optcg/minio/data
-sudo chown -R "$USER:$USER" /srv/optcg
-```
-
-Copy `.env.example` to `.env` and set long random values:
+Prepare the environment file:
 
 ```bash
 cp .env.example .env
+nano .env
+```
+
+Then copy the runtime files into the server app directory:
+
+```bash
+sudo cp docker-compose.yml .env /srv/optcg/minio/
+sudo cp backup_minio.sh /srv/optcg/minio/
+sudo cp minio-backup.service minio-backup.timer /srv/optcg/minio/
+sudo chmod +x /srv/optcg/minio/backup_minio.sh
 ```
 
 Start MinIO:
 
 ```bash
+cd /srv/optcg/minio
 docker compose up -d
 ```
 
 After the first successful pull on the server, pin `quay.io/minio/minio:latest` in `docker-compose.yml` to the exact release digest/tag you validated.
 
 The compose file binds MinIO to `127.0.0.1` only. Expose it through a reverse proxy or Cloudflare Tunnel rather than opening the admin/API ports directly to the internet.
+
+## Cloudflare Tunnel
+
+Cloudflare Tunnel is the recommended first option because it avoids opening inbound ports on your home network.
+
+1. Install `cloudflared` on the server.
+2. Create a tunnel in Cloudflare Zero Trust.
+3. Copy `cloudflared.example.yml` to `/etc/cloudflared/config.yml`.
+4. Replace:
+   - `assets.example.com` with your public image domain.
+   - `minio-admin.example.com` with an admin-only hostname protected by Cloudflare Access.
+   - `credentials-file` with the path Cloudflare generated.
+
+Run:
+
+```bash
+sudo cloudflared service install
+sudo systemctl enable --now cloudflared
+```
+
+Protect `minio-admin.example.com` with Cloudflare Access. Do not leave the MinIO console open to the public internet.
 
 ## Bucket Setup
 
@@ -67,6 +89,30 @@ docker run --rm --network host quay.io/minio/mc anonymous set download local/car
 ```
 
 Keep the root credentials private. For regular syncs, create a restricted access key that can write only to `card-images`.
+
+## Backups
+
+Install backup dependencies:
+
+```bash
+sudo apt-get install -y zstd
+```
+
+Run a manual backup:
+
+```bash
+sudo /srv/optcg/minio/backup_minio.sh
+```
+
+Enable the daily systemd timer:
+
+```bash
+sudo cp minio-backup.service minio-backup.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now minio-backup.timer
+```
+
+The local backup is not enough. Mirror `/srv/optcg/minio/backups` to another disk or cloud location. A storage server without off-server backup is still a single point of failure.
 
 ## Sync Images
 
@@ -97,5 +143,14 @@ Commit the updated `assets/visual_card_fingerprints.json` only after validating 
 5. Regenerate `assets/visual_card_fingerprints.json` using the new public URL.
 6. Deploy the app.
 7. After verification, remove old objects from Supabase Storage.
+
+## Useful Checks
+
+```bash
+docker compose ps
+docker compose logs --tail=100 minio
+curl -I https://assets.optcgmanager.com/card-images/one-piece/
+systemctl list-timers | grep minio-backup
+```
 
 Do not move Supabase Postgres/Auth to the home server until backups, monitoring, dynamic DNS/static IP, restore drills, and uptime expectations are settled.

@@ -1,0 +1,10 @@
+[Unit]
+Description=Run OPTCG MinIO backup daily
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+

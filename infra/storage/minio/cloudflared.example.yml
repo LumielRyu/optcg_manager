@@ -1,0 +1,10 @@
+tunnel: optcg-assets
+credentials-file: /etc/cloudflared/optcg-assets.json
+
+ingress:
+  - hostname: assets.example.com
+    service: http://127.0.0.1:9000
+  - hostname: minio-admin.example.com
+    service: http://127.0.0.1:9001
+  - service: http_status:404
+
