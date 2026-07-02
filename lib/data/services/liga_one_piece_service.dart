@@ -512,6 +512,23 @@ class LigaOnePieceService {
   Future<LigaOnePieceCardSnapshot> fetchPublicCardSnapshot({
     String url = defaultCardUrl,
   }) async {
+    if (kIsWeb) {
+      try {
+        final snapshot = await _fetchUrlViaProxy(url);
+        final normalizedCode = _normalizeLookupCode(snapshot.cardCode);
+        if (normalizedCode.isNotEmpty) {
+          _saveSnapshotForCardCode(normalizedCode, snapshot);
+        }
+        return snapshot;
+      } catch (error) {
+        final fallback = _verifiedFallbackFor(url, error);
+        if (fallback != null) {
+          return fallback;
+        }
+        throw Exception(_buildReadableError(error));
+      }
+    }
+
     try {
       final response = await http.get(
         Uri.parse(url),
@@ -598,6 +615,32 @@ class LigaOnePieceService {
 
       throw Exception(_buildReadableError(error));
     }
+  }
+
+  Future<LigaOnePieceCardSnapshot> _fetchUrlViaProxy(String url) async {
+    final proxyUri = Uri.base.resolve('/api/liga-one-piece').replace(
+      queryParameters: {
+        'url': url,
+      },
+    );
+
+    final response = await http.get(
+      proxyUri,
+      headers: const {'Accept': 'application/json'},
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Proxy LigaOnePiece retornou ${response.statusCode}: ${response.body}',
+      );
+    }
+
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map) {
+      throw Exception('Resposta inesperada do proxy da LigaOnePiece.');
+    }
+
+    return LigaOnePieceCardSnapshot.fromJson(Map<String, dynamic>.from(decoded));
   }
 
   Future<LigaOnePieceCardSnapshot> _fetchViaProxy({
