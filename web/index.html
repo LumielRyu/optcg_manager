@@ -148,6 +148,45 @@
   </script>
 
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-  <script src="flutter_bootstrap.js" async></script>
+  <script>
+    (function () {
+      const cacheResetVersion = '2026-07-02-csp-v2';
+
+      function loadFlutter() {
+        const bootstrap = document.createElement('script');
+        bootstrap.src = 'flutter_bootstrap.js';
+        bootstrap.async = true;
+        document.body.appendChild(bootstrap);
+      }
+
+      async function resetStaleCaches() {
+        try {
+          if (window.localStorage.getItem('optcg_cache_reset_version') === cacheResetVersion) {
+            return;
+          }
+
+          if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(registrations.map(function (registration) {
+              return registration.unregister();
+            }));
+          }
+
+          if ('caches' in window) {
+            const cacheNames = await window.caches.keys();
+            await Promise.all(cacheNames.map(function (cacheName) {
+              return window.caches.delete(cacheName);
+            }));
+          }
+
+          window.localStorage.setItem('optcg_cache_reset_version', cacheResetVersion);
+        } catch (error) {
+          console.warn('Unable to reset stale app caches.', error);
+        }
+      }
+
+      resetStaleCaches().finally(loadFlutter);
+    }());
+  </script>
 </body>
 </html>
