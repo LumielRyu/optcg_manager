@@ -267,6 +267,9 @@ function specialSuffixesForName(cardName) {
   if (normalized.includes('alternate art') || normalized.includes('alt art')) {
     suffixes.push({ label: 'Alternate Art', suffix: 'AA' });
   }
+  if (normalized.includes('parallel')) {
+    suffixes.push({ label: 'Parallel', suffix: 'PA' });
+  }
   return suffixes;
 }
 
