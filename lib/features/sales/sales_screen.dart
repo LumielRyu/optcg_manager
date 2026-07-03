@@ -368,6 +368,7 @@ class _PricingPanel extends StatelessWidget {
   final String pricingMode;
   final String ligaRounding;
   final LigaOnePieceCardSnapshot? ligaSnapshot;
+  final bool isLoadingLigaPrice;
   final ValueChanged<String> onPricingModeChanged;
   final ValueChanged<String> onRoundingChanged;
 
@@ -377,6 +378,7 @@ class _PricingPanel extends StatelessWidget {
     required this.pricingMode,
     required this.ligaRounding,
     required this.ligaSnapshot,
+    required this.isLoadingLigaPrice,
     required this.onPricingModeChanged,
     required this.onRoundingChanged,
   });
@@ -440,7 +442,10 @@ class _PricingPanel extends StatelessWidget {
             onSelectionChanged: (values) => onPricingModeChanged(values.first),
           ),
           const SizedBox(height: 12),
-          _LigaPriceSummary(basePrice: basePrice, snapshot: ligaSnapshot),
+          _LigaPriceSummary(
+            basePrice: basePrice,
+            isLoading: isLoadingLigaPrice,
+          ),
           const SizedBox(height: 12),
           if (pricingMode == MarketplaceListing.manualPricingMode)
             TextField(
@@ -492,13 +497,15 @@ class _PricingPanel extends StatelessWidget {
 
 class _LigaPriceSummary extends StatelessWidget {
   final double? basePrice;
-  final LigaOnePieceCardSnapshot? snapshot;
+  final bool isLoading;
 
-  const _LigaPriceSummary({required this.basePrice, required this.snapshot});
+  const _LigaPriceSummary({required this.basePrice, required this.isLoading});
 
   @override
   Widget build(BuildContext context) {
-    final label = basePrice == null
+    final label = isLoading
+        ? 'Liga: consultando...'
+        : basePrice == null
         ? 'Liga: sem preço disponível'
         : 'Menor Liga: ${_formatCurrencyFromDouble(basePrice!)}';
 
@@ -518,6 +525,12 @@ class _LigaPriceSummary extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
+          if (isLoading)
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
         ],
       ),
     );
@@ -1482,6 +1495,9 @@ class _SalesCardDetailsDialogState
                           pricingMode: _pricingMode,
                           ligaRounding: _ligaRounding,
                           ligaSnapshot: snapshot.data,
+                          isLoadingLigaPrice:
+                              snapshot.connectionState ==
+                              ConnectionState.waiting,
                           onPricingModeChanged: (value) {
                             setState(() {
                               _pricingMode = value;

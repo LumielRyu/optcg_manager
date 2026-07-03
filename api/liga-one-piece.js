@@ -200,6 +200,7 @@ function buildCandidateUrls(cardName, cardCode) {
     : cardCode;
   const numberMatch = ligaCode.match(/-(\d{3})/);
   const numberLabel = numberMatch ? numberMatch[1] : '';
+  const edition = inferEdition(cardCode);
   const descriptors = [];
 
   const pushDescriptor = (value) => {
@@ -223,13 +224,34 @@ function buildCandidateUrls(cardName, cardCode) {
   pushDescriptor(`${normalizedOriginalName} (${ligaCode})`);
   pushDescriptor(normalizedOriginalName);
 
-  return descriptors.map((descriptor) => {
-    const url = new URL(LIGA_BASE_URL);
-    url.searchParams.set('view', 'cards/card');
-    url.searchParams.set('card', descriptor);
-    url.searchParams.set('tipo', '1');
-    return url.toString();
-  });
+  const cardUrls = [];
+  const searchUrls = [];
+
+  for (const descriptor of descriptors) {
+    if (edition) {
+      const cardUrl = new URL(LIGA_BASE_URL);
+      cardUrl.searchParams.set('view', 'cards/card');
+      cardUrl.searchParams.set('card', descriptor);
+      cardUrl.searchParams.set('ed', edition);
+      cardUrl.searchParams.set('num', cardCode);
+      cardUrls.push(cardUrl.toString());
+    }
+
+    const searchUrl = new URL(LIGA_BASE_URL);
+    searchUrl.searchParams.set('view', 'cards/search');
+    searchUrl.searchParams.set('card', descriptor);
+    searchUrl.searchParams.set('tipo', '1');
+    searchUrls.push(searchUrl.toString());
+  }
+
+  return [...new Set([...cardUrls, ...searchUrls])];
+}
+
+function inferEdition(cardCode) {
+  const match = stringValue(cardCode).match(/^([A-Z]{1,4})(\d{2})-\d{3}/);
+  if (!match) return '';
+  const [, prefix, number] = match;
+  return prefix === 'EB' ? `${prefix}${number}` : `${prefix}-${number}`;
 }
 
 function specialSuffixesForName(cardName) {
