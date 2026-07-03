@@ -10,14 +10,23 @@ DEFAULT_BUCKET = "card-images"
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Upload cached visual card catalog images to an S3-compatible bucket."
+        description=(
+            "Upload cached visual card catalog images to Cloudflare R2 or another "
+            "S3-compatible bucket."
+        )
     )
     parser.add_argument("--image-dir", type=pathlib.Path, default=DEFAULT_IMAGE_DIR)
-    parser.add_argument("--bucket", default=DEFAULT_BUCKET)
+    parser.add_argument(
+        "--bucket",
+        default=os.environ.get("R2_BUCKET") or os.environ.get("S3_BUCKET", DEFAULT_BUCKET),
+    )
     parser.add_argument(
         "--endpoint-url",
-        default=os.environ.get("S3_ENDPOINT_URL", ""),
-        help="S3-compatible endpoint, e.g. https://assets.optcgmanager.com.",
+        default=os.environ.get("R2_ENDPOINT_URL") or os.environ.get("S3_ENDPOINT_URL", ""),
+        help=(
+            "S3-compatible endpoint. For Cloudflare R2 use "
+            "https://<account-id>.r2.cloudflarestorage.com."
+        ),
     )
     parser.add_argument(
         "--public-base-url",
@@ -26,15 +35,21 @@ def parse_args():
     )
     parser.add_argument(
         "--access-key-id",
-        default=os.environ.get("S3_ACCESS_KEY_ID", ""),
-        help="S3 access key id. Defaults to S3_ACCESS_KEY_ID.",
+        default=os.environ.get("R2_ACCESS_KEY_ID") or os.environ.get("S3_ACCESS_KEY_ID", ""),
+        help="S3/R2 access key id. Defaults to R2_ACCESS_KEY_ID or S3_ACCESS_KEY_ID.",
     )
     parser.add_argument(
         "--secret-access-key",
-        default=os.environ.get("S3_SECRET_ACCESS_KEY", ""),
-        help="S3 secret access key. Defaults to S3_SECRET_ACCESS_KEY.",
+        default=os.environ.get("R2_SECRET_ACCESS_KEY") or os.environ.get("S3_SECRET_ACCESS_KEY", ""),
+        help=(
+            "S3/R2 secret access key. Defaults to R2_SECRET_ACCESS_KEY or "
+            "S3_SECRET_ACCESS_KEY."
+        ),
     )
-    parser.add_argument("--region", default=os.environ.get("S3_REGION", "us-east-1"))
+    parser.add_argument(
+        "--region",
+        default=os.environ.get("R2_REGION") or os.environ.get("S3_REGION", "auto"),
+    )
     parser.add_argument("--force", action="store_true")
     parser.add_argument(
         "--limit",
@@ -74,9 +89,12 @@ def main():
             f"{args.image_dir} does not exist. Run generate_visual_fingerprints.py first."
         )
     if not args.endpoint_url:
-        raise SystemExit("Set --endpoint-url or S3_ENDPOINT_URL.")
+        raise SystemExit("Set --endpoint-url, R2_ENDPOINT_URL, or S3_ENDPOINT_URL.")
     if not args.access_key_id or not args.secret_access_key:
-        raise SystemExit("Set S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY.")
+        raise SystemExit(
+            "Set R2_ACCESS_KEY_ID/R2_SECRET_ACCESS_KEY or "
+            "S3_ACCESS_KEY_ID/S3_SECRET_ACCESS_KEY."
+        )
 
     boto3, client_error_type = load_boto3()
     client = boto3.client(
@@ -133,4 +151,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
