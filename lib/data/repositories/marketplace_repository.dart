@@ -309,7 +309,10 @@ class MarketplaceRepository {
     if (cardCode.isEmpty) return false;
 
     final snapshot =
-        await _liga.fetchCachedPublicCardSnapshotForCardCode(cardCode) ??
+        await _liga.fetchCachedPublicCardSnapshotForCard(
+          cardName: cardName.isEmpty ? cardCode : cardName,
+          cardCode: cardCode,
+        ) ??
         await _liga.fetchPublicCardSnapshotForCard(
           cardName: cardName.isEmpty ? cardCode : cardName,
           cardCode: cardCode,

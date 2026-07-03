@@ -97,7 +97,10 @@ def load_marketplace_cards(limit: int | None, *, public_only: bool):
         if not code:
             continue
         cards.setdefault(code, name)
-    return [{"code": code, "name": name} for code, name in cards.items()]
+    return [
+        {"code": code, "name": name, "lookup": liga.lookup_code_for_card(name, code)}
+        for code, name in cards.items()
+    ]
 
 
 def load_existing_cache(codes: list[str]):
@@ -141,14 +144,15 @@ def main():
         code = liga.normalize_code(args.code)
         if not code:
             raise RuntimeError("--code invalido.")
-        cards = [{"code": code, "name": (args.name or code).strip()}]
+        name = (args.name or code).strip()
+        cards = [{"code": code, "name": name, "lookup": liga.lookup_code_for_card(name, code)}]
     else:
         cards = load_marketplace_cards(args.limit, public_only=args.public_only)
-    existing = load_existing_cache([card["code"] for card in cards])
+    existing = load_existing_cache([card["lookup"] for card in cards])
     targets = [
         card
         for card in cards
-        if is_stale(existing.get(card["code"]), args.refresh_days)
+        if is_stale(existing.get(card["lookup"]), args.refresh_days)
     ]
 
     scope_label = "publicas ativas no marketplace" if args.public_only else "ativas em vendas"

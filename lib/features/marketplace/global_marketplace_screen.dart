@@ -84,24 +84,33 @@ class _GlobalMarketplaceScreenState
     if (normalizedCode.isEmpty) {
       return 'Liga: sem codigo';
     }
+    final lookupCode = ref
+        .read(ligaOnePieceServiceProvider)
+        .lookupCodeForCard(cardName: item.name, cardCode: normalizedCode);
 
-    if (_ligaPriceLabels.containsKey(normalizedCode)) {
-      return _ligaPriceLabels[normalizedCode] ?? 'Liga: sem cache';
+    if (_ligaPriceLabels.containsKey(lookupCode)) {
+      return _ligaPriceLabels[lookupCode] ?? 'Liga: sem cache';
     }
 
-    if (!_ligaPriceLabels.containsKey(normalizedCode) &&
-        _ligaPriceLoadingCodes.add(normalizedCode)) {
-      _loadLigaPriceLabel(normalizedCode);
+    if (!_ligaPriceLabels.containsKey(lookupCode) &&
+        _ligaPriceLoadingCodes.add(lookupCode)) {
+      _loadLigaPriceLabel(item);
     }
 
     return 'Liga: consultando...';
   }
 
-  Future<void> _loadLigaPriceLabel(String normalizedCode) async {
+  Future<void> _loadLigaPriceLabel(MarketplaceListing item) async {
+    final service = ref.read(ligaOnePieceServiceProvider);
+    final lookupCode = service.lookupCodeForCard(
+      cardName: item.name,
+      cardCode: item.cardCode,
+    );
     try {
-      final snapshot = await ref
-          .read(ligaOnePieceServiceProvider)
-          .fetchCachedPublicCardSnapshotForCardCode(normalizedCode);
+      final snapshot = await service.fetchCachedPublicCardSnapshotForCard(
+        cardName: item.name,
+        cardCode: item.cardCode,
+      );
       final price = snapshot?.minimumPrice ?? snapshot?.lowestListing?.price;
       final label = price == null || price <= 0
           ? null
@@ -109,15 +118,15 @@ class _GlobalMarketplaceScreenState
 
       if (!mounted) return;
       setState(() {
-        _ligaPriceLabels[normalizedCode] = label;
+        _ligaPriceLabels[lookupCode] = label;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _ligaPriceLabels[normalizedCode] = null;
+        _ligaPriceLabels[lookupCode] = null;
       });
     } finally {
-      _ligaPriceLoadingCodes.remove(normalizedCode);
+      _ligaPriceLoadingCodes.remove(lookupCode);
     }
   }
 

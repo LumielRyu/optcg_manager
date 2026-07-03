@@ -132,6 +132,14 @@ def special_suffixes_for_name(name: str):
     return suffixes
 
 
+def lookup_code_for_card(name: str, code: str) -> str:
+    normalized_code = normalize_code(code)
+    suffixes = special_suffixes_for_name(name)
+    if suffixes and normalized_code:
+        return f"{normalized_code}-{suffixes[0][1]}"
+    return normalized_code
+
+
 def is_special_descriptor(descriptor: str, code: str) -> bool:
     normalized = descriptor.lower()
     return (
@@ -377,7 +385,7 @@ def parse_snapshot(html: str, source_url: str, lookup_code: str, card_name: str 
         }
 
     return {
-        "lookupCode": lookup_code,
+        "lookupCode": lookup_code_for_card(card_name, lookup_code),
         "sourceUrl": source_url,
         "cardName": extract_card_name(html) or str(edition.get("name") or "").strip(),
         "cardCode": str(edition.get("num") or lookup_code).strip().upper(),

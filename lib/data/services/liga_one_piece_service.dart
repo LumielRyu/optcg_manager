@@ -36,6 +36,26 @@ class LigaOnePieceService {
 
   LigaOnePieceService(this._supabase);
 
+  String lookupCodeForCard({
+    required String cardName,
+    required String cardCode,
+  }) {
+    final normalizedCode = cardCode.trim().toUpperCase();
+    final normalizedName = cardName
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+        .trim();
+    final tokens = normalizedName.split(RegExp(r'\s+')).toSet();
+
+    if (tokens.contains('sp')) return '$normalizedCode-SP';
+    if (normalizedName.contains('alternate art') ||
+        normalizedName.contains('alt art')) {
+      return '$normalizedCode-AA';
+    }
+    if (normalizedName.contains('parallel')) return '$normalizedCode-PA';
+    return normalizedCode;
+  }
+
   String buildPublicCardUrl({
     required String cardName,
     required String cardCode,
@@ -47,19 +67,13 @@ class LigaOnePieceService {
     );
 
     final uri = Uri.parse(_baseCardPageUrl).replace(
-      queryParameters: {
-        'view': 'cards/card',
-        'card': descriptor,
-        'tipo': '1',
-      },
+      queryParameters: {'view': 'cards/card', 'card': descriptor, 'tipo': '1'},
     );
 
     return uri.toString();
   }
 
-  String buildCodeSearchUrl({
-    required String cardCode,
-  }) {
+  String buildCodeSearchUrl({required String cardCode}) {
     final normalizedCode = _normalizeLookupCode(cardCode);
     final uri = Uri.parse(_baseCardPageUrl).replace(
       queryParameters: {
@@ -88,27 +102,31 @@ class LigaOnePieceService {
     required String cardCode,
   }) async {
     final normalizedCode = cardCode.trim().toUpperCase();
+    final lookupCode = lookupCodeForCard(
+      cardName: cardName,
+      cardCode: normalizedCode,
+    );
 
-    final remoteCached = await _remoteSnapshotForCardCode(normalizedCode);
+    final remoteCached = await _remoteSnapshotForCardCode(lookupCode);
     if (remoteCached != null) {
-      _saveSnapshotForCardCode(normalizedCode, remoteCached);
+      _saveSnapshotForCardCode(lookupCode, remoteCached);
       return remoteCached;
     }
 
-    final memoryCached = _memorySnapshotForCardCode(normalizedCode);
+    final memoryCached = _memorySnapshotForCardCode(lookupCode);
     if (memoryCached != null) {
       return memoryCached;
     }
 
-    final persistedCached = _persistedSnapshotForCardCode(normalizedCode);
+    final persistedCached = _persistedSnapshotForCardCode(lookupCode);
     if (persistedCached != null) {
-      _storeInMemoryCache(normalizedCode, persistedCached);
+      _storeInMemoryCache(lookupCode, persistedCached);
       return persistedCached;
     }
 
-    final cached = await _assetSnapshotForCardCode(normalizedCode);
+    final cached = await _assetSnapshotForCardCode(lookupCode);
     if (cached != null) {
-      _saveSnapshotForCardCode(normalizedCode, cached);
+      _saveSnapshotForCardCode(lookupCode, cached);
       return cached;
     }
 
@@ -123,11 +141,11 @@ class LigaOnePieceService {
           cardName: cardName,
           cardCode: normalizedCode,
         );
-        _saveSnapshotForCardCode(normalizedCode, snapshot);
+        _saveSnapshotForCardCode(lookupCode, snapshot);
         return snapshot;
       } catch (_) {
         if (verified != null) {
-          _saveSnapshotForCardCode(normalizedCode, verified);
+          _saveSnapshotForCardCode(lookupCode, verified);
           return verified;
         }
       }
@@ -138,14 +156,11 @@ class LigaOnePieceService {
           cardName: cardName,
           cardCode: normalizedCode,
         ) ??
-        buildPublicCardUrl(
-          cardName: cardName,
-          cardCode: normalizedCode,
-        );
+        buildPublicCardUrl(cardName: cardName, cardCode: normalizedCode);
 
     try {
       final snapshot = await fetchPublicCardSnapshot(url: resolvedUrl);
-      _saveSnapshotForCardCode(normalizedCode, snapshot);
+      _saveSnapshotForCardCode(lookupCode, snapshot);
       return snapshot;
     } catch (_) {
       if (resolvedUrl !=
@@ -156,7 +171,7 @@ class LigaOnePieceService {
             cardCode: normalizedCode,
           );
           final snapshot = await fetchPublicCardSnapshot(url: fallbackUrl);
-          _saveSnapshotForCardCode(normalizedCode, snapshot);
+          _saveSnapshotForCardCode(lookupCode, snapshot);
           return snapshot;
         } catch (_) {}
       }
@@ -169,11 +184,11 @@ class LigaOnePieceService {
 
     try {
       final snapshot = await fetchPublicCardSnapshot(url: url);
-      _saveSnapshotForCardCode(normalizedCode, snapshot);
+      _saveSnapshotForCardCode(lookupCode, snapshot);
       return snapshot;
     } catch (_) {
       if (verified != null) {
-        _saveSnapshotForCardCode(normalizedCode, verified);
+        _saveSnapshotForCardCode(lookupCode, verified);
         return verified;
       }
       rethrow;
@@ -214,6 +229,44 @@ class LigaOnePieceService {
     return null;
   }
 
+  Future<LigaOnePieceCardSnapshot?> fetchCachedPublicCardSnapshotForCard({
+    required String cardName,
+    required String cardCode,
+  }) async {
+    final lookupCode = lookupCodeForCard(
+      cardName: cardName,
+      cardCode: cardCode,
+    );
+    if (lookupCode.isEmpty) {
+      return null;
+    }
+
+    final remoteCached = await _remoteSnapshotForCardCode(lookupCode);
+    if (remoteCached != null) {
+      _saveSnapshotForCardCode(lookupCode, remoteCached);
+      return remoteCached;
+    }
+
+    final memoryCached = _memorySnapshotForCardCode(lookupCode);
+    if (memoryCached != null) {
+      return memoryCached;
+    }
+
+    final persistedCached = _persistedSnapshotForCardCode(lookupCode);
+    if (persistedCached != null) {
+      _storeInMemoryCache(lookupCode, persistedCached);
+      return persistedCached;
+    }
+
+    final assetCached = await _assetSnapshotForCardCode(lookupCode);
+    if (assetCached != null) {
+      _saveSnapshotForCardCode(lookupCode, assetCached);
+      return assetCached;
+    }
+
+    return null;
+  }
+
   Future<LigaOnePieceCardSnapshot?> requestLigaCacheRefreshForCard({
     required String cardName,
     required String cardCode,
@@ -221,6 +274,10 @@ class LigaOnePieceService {
     if (!kIsWeb) return null;
 
     final normalizedCode = cardCode.trim().toUpperCase();
+    final lookupCode = lookupCodeForCard(
+      cardName: cardName,
+      cardCode: normalizedCode,
+    );
     if (normalizedCode.isEmpty) return null;
 
     try {
@@ -228,10 +285,7 @@ class LigaOnePieceService {
       await http.post(
         uri,
         headers: const {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'cardName': cardName,
-          'cardCode': normalizedCode,
-        }),
+        body: jsonEncode({'cardName': cardName, 'cardCode': normalizedCode}),
       );
     } catch (_) {
       return null;
@@ -247,9 +301,9 @@ class LigaOnePieceService {
 
     for (final wait in waits) {
       await Future<void>.delayed(wait);
-      final snapshot = await _remoteSnapshotForCardCode(normalizedCode);
+      final snapshot = await _remoteSnapshotForCardCode(lookupCode);
       if (snapshot != null) {
-        _saveSnapshotForCardCode(normalizedCode, snapshot);
+        _saveSnapshotForCardCode(lookupCode, snapshot);
         return snapshot;
       }
     }
@@ -270,11 +324,7 @@ class LigaOnePieceService {
     }
 
     final uri = Uri.parse(_baseCardPageUrl).replace(
-      queryParameters: {
-        'view': 'cards/card',
-        'card': descriptor,
-        'tipo': '1',
-      },
+      queryParameters: {'view': 'cards/card', 'card': descriptor, 'tipo': '1'},
     );
     return uri.toString();
   }
@@ -334,7 +384,8 @@ class LigaOnePieceService {
 
   LigaOnePieceCardSnapshot? _memorySnapshotForCardCode(String cardCode) {
     final normalizedCode = _normalizeLookupCode(cardCode);
-    return _memorySnapshotCache[cardCode] ?? _memorySnapshotCache[normalizedCode];
+    return _memorySnapshotCache[cardCode] ??
+        _memorySnapshotCache[normalizedCode];
   }
 
   LigaOnePieceCardSnapshot? _persistedSnapshotForCardCode(String cardCode) {
@@ -380,35 +431,32 @@ class LigaOnePieceService {
   ) async {
     try {
       final normalizedCode = _normalizeLookupCode(cardCode);
-      final row =
-          await _supabase
-              .from(_remoteCacheTable)
-              .select()
-              .eq('lookup_code', normalizedCode)
-              .maybeSingle();
+      final row = await _supabase
+          .from(_remoteCacheTable)
+          .select()
+          .eq('lookup_code', normalizedCode)
+          .maybeSingle();
 
       if (row == null) {
         return null;
       }
 
-      final snapshot = LigaOnePieceCardSnapshot.fromJson(
-        {
-          'sourceUrl': row['source_url'],
-          'cardName': row['card_name'],
-          'cardCode': row['card_code'],
-          'editionCode': row['edition_code'],
-          'imageUrl': row['image_url'],
-          'minimumPrice': row['minimum_price'],
-          'averagePrice': row['average_price'],
-          'maximumPrice': row['maximum_price'],
-          'listingCount': row['listing_count'],
-          'lowestListing': row['lowest_listing'],
-          'lowestStore': row['lowest_store'],
-          'historyEndpointRequiresLogin': true,
-          'usedVerifiedFallback': row['used_verified_fallback'] == true,
-          'note': row['note'],
-        },
-      );
+      final snapshot = LigaOnePieceCardSnapshot.fromJson({
+        'sourceUrl': row['source_url'],
+        'cardName': row['card_name'],
+        'cardCode': row['card_code'],
+        'editionCode': row['edition_code'],
+        'imageUrl': row['image_url'],
+        'minimumPrice': row['minimum_price'],
+        'averagePrice': row['average_price'],
+        'maximumPrice': row['maximum_price'],
+        'listingCount': row['listing_count'],
+        'lowestListing': row['lowest_listing'],
+        'lowestStore': row['lowest_store'],
+        'historyEndpointRequiresLogin': true,
+        'usedVerifiedFallback': row['used_verified_fallback'] == true,
+        'note': row['note'],
+      });
 
       return snapshot.copyWith(
         note:
@@ -459,10 +507,7 @@ class LigaOnePieceService {
     unawaited(_saveSnapshotToRemoteCache(normalizedCode, snapshot));
   }
 
-  void _storeInMemoryCache(
-    String cardCode,
-    LigaOnePieceCardSnapshot snapshot,
-  ) {
+  void _storeInMemoryCache(String cardCode, LigaOnePieceCardSnapshot snapshot) {
     final keys = <String>{
       cardCode,
       _normalizeLookupCode(cardCode),
@@ -633,14 +678,8 @@ class LigaOnePieceService {
         html,
         variableName: 'cards_editions',
       );
-      final stock = _decodeInlineJsonList(
-        html,
-        variableName: 'cards_stock',
-      );
-      final stores = _decodeInlineJsonMap(
-        html,
-        variableName: 'cards_stores',
-      );
+      final stock = _decodeInlineJsonList(html, variableName: 'cards_stock');
+      final stores = _decodeInlineJsonMap(html, variableName: 'cards_stores');
 
       if (editions.isEmpty) {
         throw Exception(
@@ -675,12 +714,11 @@ class LigaOnePieceService {
             ..sort((a, b) => a.price.compareTo(b.price));
 
       final lowestListing = listings.isEmpty ? null : listings.first;
-      final lowestStore =
-          lowestListing == null
-              ? null
-              : LigaOnePieceStore.fromJson(
-                _mapValue(stores[lowestListing.storeId.toString()]),
-              );
+      final lowestStore = lowestListing == null
+          ? null
+          : LigaOnePieceStore.fromJson(
+              _mapValue(stores[lowestListing.storeId.toString()]),
+            );
 
       return LigaOnePieceCardSnapshot(
         sourceUrl: url,
@@ -709,11 +747,9 @@ class LigaOnePieceService {
   }
 
   Future<LigaOnePieceCardSnapshot> _fetchUrlViaProxy(String url) async {
-    final proxyUri = Uri.base.resolve('/api/liga-one-piece').replace(
-      queryParameters: {
-        'url': url,
-      },
-    );
+    final proxyUri = Uri.base
+        .resolve('/api/liga-one-piece')
+        .replace(queryParameters: {'url': url});
 
     final response = await http.get(
       proxyUri,
@@ -731,19 +767,18 @@ class LigaOnePieceService {
       throw Exception('Resposta inesperada do proxy da LigaOnePiece.');
     }
 
-    return LigaOnePieceCardSnapshot.fromJson(Map<String, dynamic>.from(decoded));
+    return LigaOnePieceCardSnapshot.fromJson(
+      Map<String, dynamic>.from(decoded),
+    );
   }
 
   Future<LigaOnePieceCardSnapshot> _fetchViaProxy({
     required String cardName,
     required String cardCode,
   }) async {
-    final proxyUri = Uri.base.resolve('/api/liga-one-piece').replace(
-      queryParameters: {
-        'cardName': cardName,
-        'cardCode': cardCode,
-      },
-    );
+    final proxyUri = Uri.base
+        .resolve('/api/liga-one-piece')
+        .replace(queryParameters: {'cardName': cardName, 'cardCode': cardCode});
 
     final response = await http.get(
       proxyUri,
@@ -761,7 +796,9 @@ class LigaOnePieceService {
       throw Exception('Resposta inesperada do proxy da LigaOnePiece.');
     }
 
-    return LigaOnePieceCardSnapshot.fromJson(Map<String, dynamic>.from(decoded));
+    return LigaOnePieceCardSnapshot.fromJson(
+      Map<String, dynamic>.from(decoded),
+    );
   }
 
   List<Map<String, dynamic>> _decodeInlineJsonList(
@@ -828,11 +865,10 @@ class LigaOnePieceService {
   }
 
   bool _wantsFoilPrice(String cardName) {
-    final normalized =
-        cardName
-            .toLowerCase()
-            .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
-            .trim();
+    final normalized = cardName
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+        .trim();
     if (normalized.isEmpty) return false;
 
     final tokens = normalized.split(RegExp(r'\s+')).toSet();
@@ -915,11 +951,7 @@ class LigaOnePieceService {
     final edition = (uri.queryParameters['ed'] ?? '').trim().toUpperCase();
     final card = (uri.queryParameters['card'] ?? '').toLowerCase();
 
-    return _verifiedFallbackFromParts(
-      card: card,
-      num: num,
-      edition: edition,
-    );
+    return _verifiedFallbackFromParts(card: card, num: num, edition: edition);
   }
 
   bool _looksLikeCorsOrFetchBlock(Object error) {
@@ -947,12 +979,13 @@ class LigaOnePieceService {
     final normalizedCode = _normalizeLookupCode(cardCode);
     final normalizedName = _normalizeTextForMatching(_cleanCardName(cardName));
     final wantsReprint = _looksLikeReprint(cardName, cardCode);
-    final wantsAlternate = _normalizeTextForMatching(cardName).contains(
-      'alternate art',
-    );
-    final wantsSp = RegExp(r'(^|[\s(])sp([\s)])', caseSensitive: false).hasMatch(
+    final wantsAlternate = _normalizeTextForMatching(
       cardName,
-    );
+    ).contains('alternate art');
+    final wantsSp = RegExp(
+      r'(^|[\s(])sp([\s)])',
+      caseSensitive: false,
+    ).hasMatch(cardName);
 
     String? bestSuggestion;
     var bestScore = -1 << 30;
@@ -992,11 +1025,10 @@ class LigaOnePieceService {
         score += 600;
       }
 
-      final nameWords =
-          normalizedName
-              .split(' ')
-              .where((word) => word.length >= 3)
-              .toList(growable: false);
+      final nameWords = normalizedName
+          .split(' ')
+          .where((word) => word.length >= 3)
+          .toList(growable: false);
       for (final word in nameWords) {
         if (normalizedSuggestion.contains(word)) {
           score += 80;
@@ -1025,8 +1057,9 @@ class LigaOnePieceService {
   }) {
     final cleanName = _cleanCardName(cardName);
     final isReprint = _looksLikeReprint(cardName, cardCode);
-    final ligaCode =
-        isReprint && !cardCode.endsWith('-RE') ? '$cardCode-RE' : cardCode;
+    final ligaCode = isReprint && !cardCode.endsWith('-RE')
+        ? '$cardCode-RE'
+        : cardCode;
     final numberLabel = _extractNumberLabel(ligaCode);
 
     final parts = <String>[cleanName];
@@ -1122,8 +1155,9 @@ class LigaOnePieceService {
   }
 
   String _inferEditionCode(String cardCode) {
-    final match = RegExp(r'^([A-Z]{1,4})(\d{2})-\d{3}(?:-[A-Z0-9]+)?$')
-        .firstMatch(cardCode);
+    final match = RegExp(
+      r'^([A-Z]{1,4})(\d{2})-\d{3}(?:-[A-Z0-9]+)?$',
+    ).firstMatch(cardCode);
     if (match == null) return '';
     return '${match.group(1)}-${match.group(2)}';
   }
@@ -1271,18 +1305,16 @@ class LigaOnePieceCardSnapshot {
       averagePrice: _doubleOrNull(json['averagePrice']),
       maximumPrice: _doubleOrNull(json['maximumPrice']),
       listingCount: int.tryParse(json['listingCount']?.toString() ?? '') ?? 0,
-      lowestListing:
-          json['lowestListing'] is Map
-              ? LigaOnePieceListing.fromJson(
-                Map<String, dynamic>.from(json['lowestListing'] as Map),
-              )
-              : null,
-      lowestStore:
-          json['lowestStore'] is Map
-              ? LigaOnePieceStore.fromJson(
-                Map<String, dynamic>.from(json['lowestStore'] as Map),
-              )
-              : null,
+      lowestListing: json['lowestListing'] is Map
+          ? LigaOnePieceListing.fromJson(
+              Map<String, dynamic>.from(json['lowestListing'] as Map),
+            )
+          : null,
+      lowestStore: json['lowestStore'] is Map
+          ? LigaOnePieceStore.fromJson(
+              Map<String, dynamic>.from(json['lowestStore'] as Map),
+            )
+          : null,
       historyEndpointRequiresLogin:
           json['historyEndpointRequiresLogin'] == true,
       usedVerifiedFallback: json['usedVerifiedFallback'] == true,
@@ -1369,9 +1401,7 @@ class LigaOnePieceListing {
     return LigaOnePieceListing(
       id: int.tryParse(json['id']?.toString() ?? '') ?? 0,
       quantity:
-          int.tryParse(
-            (json['quantity'] ?? json['quant'])?.toString() ?? '',
-          ) ??
+          int.tryParse((json['quantity'] ?? json['quant'])?.toString() ?? '') ??
           0,
       price: _parseListingPrice(json),
       storeId:
@@ -1430,11 +1460,6 @@ class LigaOnePieceStore {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'name': name,
-      'city': city,
-      'state': state,
-      'phone': phone,
-    };
+    return {'name': name, 'city': city, 'state': state, 'phone': phone};
   }
 }
