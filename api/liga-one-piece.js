@@ -264,6 +264,9 @@ function specialSuffixesForName(cardName) {
   if (tokens.has('sp')) {
     suffixes.push({ label: 'SP', suffix: 'SP' });
   }
+  if (normalized.includes('alternate art') || normalized.includes('alt art')) {
+    suffixes.push({ label: 'Alternate Art', suffix: 'AA' });
+  }
   return suffixes;
 }
 

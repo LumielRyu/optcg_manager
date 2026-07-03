@@ -125,6 +125,8 @@ def special_suffixes_for_name(name: str):
     suffixes = []
     if "sp" in normalized.split():
         suffixes.append(("SP", "SP"))
+    if "alternate art" in normalized or "alt art" in normalized:
+        suffixes.append(("Alternate Art", "AA"))
     return suffixes
 
 
@@ -132,7 +134,9 @@ def is_special_descriptor(descriptor: str, code: str) -> bool:
     normalized = descriptor.lower()
     return (
         f"{code.lower()}-sp" in normalized
+        or f"{code.lower()}-aa" in normalized
         or "(sp)" in normalized
+        or "alternate art" in normalized
     )
 
 
