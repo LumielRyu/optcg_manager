@@ -83,6 +83,12 @@ def clean_name(name: str, code: str) -> str:
         value,
     )
     value = value.replace("(Reprint)", "")
+    value = re.sub(
+        r"\s*\((?:Alternate Art|Alt Art|SP|Parallel|Manga|Special|Treasure|Wanted)\)",
+        "",
+        value,
+        flags=re.IGNORECASE,
+    )
     value = re.sub(r"\s+", " ", value).strip()
     return value
 
@@ -220,6 +226,51 @@ def parse_money(value):
             return None
 
 
+def wants_foil_price(card_name: str) -> bool:
+    normalized = re.sub(r"[^a-z0-9]+", " ", (card_name or "").lower()).strip()
+    special_markers = (
+        "alternate art",
+        "alt art",
+        "parallel",
+        "manga",
+        "special",
+        "treasure",
+        "wanted",
+        "sp",
+    )
+    return any(marker in normalized.split() for marker in ("sp",)) or any(
+        marker in normalized for marker in special_markers if marker != "sp"
+    )
+
+
+def select_price_map(raw_price, prefer_foil: bool):
+    if isinstance(raw_price, list):
+        if not raw_price:
+            return {}
+        foil_index = 2 if len(raw_price) > 2 else 1
+        index = foil_index if prefer_foil else 0
+        return raw_price[index] if index < len(raw_price) else raw_price[0]
+
+    if not isinstance(raw_price, dict):
+        return {}
+
+    if prefer_foil:
+        for key in ("2", "1"):
+            price_map = raw_price.get(key)
+            if isinstance(price_map, dict):
+                return price_map
+
+    price_map = raw_price.get("0")
+    if isinstance(price_map, dict):
+        return price_map
+
+    for value in raw_price.values():
+        if isinstance(value, dict):
+            return value
+
+    return raw_price
+
+
 def normalize_asset_url(raw: str) -> str:
     if not raw:
         return ""
@@ -237,7 +288,7 @@ def extract_card_name(html: str):
     return match.group(1).strip() if match else None
 
 
-def parse_snapshot(html: str, source_url: str, lookup_code: str):
+def parse_snapshot(html: str, source_url: str, lookup_code: str, card_name: str = ""):
     editions_raw = extract_assignment(html, "cards_editions")
     stock_raw = extract_assignment(html, "cards_stock")
     stores_raw = extract_assignment(html, "cards_stores")
@@ -257,15 +308,18 @@ def parse_snapshot(html: str, source_url: str, lookup_code: str):
 
     edition = editions[0]
     raw_price = edition.get("price") or {}
-    if isinstance(raw_price, list):
-        price_map = raw_price[0] if raw_price else {}
-    elif isinstance(raw_price, dict):
-        price_map = raw_price.get("0") or raw_price.get("2") or raw_price
-    else:
-        price_map = {}
+    prefer_foil = wants_foil_price(card_name)
+    price_map = select_price_map(raw_price, prefer_foil)
+    desired_extra = 2 if prefer_foil else 0
 
     listings = []
     for item in stock:
+        if item.get("extras") is not None:
+            try:
+                if int(item.get("extras") or 0) != desired_extra:
+                    continue
+            except (TypeError, ValueError):
+                pass
         price = parse_money(item.get("precoFinal"))
         if price is None:
             continue
@@ -374,7 +428,7 @@ def fetch_snapshot_for_card(name: str, code: str):
             time.sleep(0.15)
             continue
 
-        snapshot = parse_snapshot(html, url, code)
+        snapshot = parse_snapshot(html, url, code, name)
         if snapshot is not None:
             snapshot["resolvedWith"] = descriptor
             return snapshot

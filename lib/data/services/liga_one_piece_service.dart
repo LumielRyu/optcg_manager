@@ -609,8 +609,11 @@ class LigaOnePieceService {
       final cardCode = _stringValue(edition['num']);
       final editionCode = _stringValue(edition['code']);
       final imageUrl = _normalizeAssetUrl(_stringValue(edition['img']));
-      final priceMap = _mapValue(edition['price']);
-      final publicPrices = _mapValue(priceMap['0']);
+      final requestedDescriptor =
+          Uri.tryParse(url)?.queryParameters['card'] ?? cardName;
+      final preferFoil = _wantsFoilPrice(requestedDescriptor);
+      final publicPrices = _selectPriceMap(edition['price'], preferFoil);
+      final desiredExtra = preferFoil ? 2 : 0;
 
       final minimumPrice = _parseMoney(publicPrices['p']);
       final averagePrice = _parseMoney(publicPrices['m']);
@@ -618,6 +621,11 @@ class LigaOnePieceService {
 
       final listings =
           stock
+              .where((item) {
+                if (item['extras'] == null) return true;
+                return int.tryParse(_stringValue(item['extras'])) ==
+                    desiredExtra;
+              })
               .map(LigaOnePieceListing.fromJson)
               .toList(growable: false)
             ..sort((a, b) => a.price.compareTo(b.price));
@@ -773,6 +781,50 @@ class LigaOnePieceService {
     }
 
     return const <String, dynamic>{};
+  }
+
+  bool _wantsFoilPrice(String cardName) {
+    final normalized =
+        cardName
+            .toLowerCase()
+            .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+            .trim();
+    if (normalized.isEmpty) return false;
+
+    final tokens = normalized.split(RegExp(r'\s+')).toSet();
+    return tokens.contains('sp') ||
+        normalized.contains('alternate art') ||
+        normalized.contains('alt art') ||
+        normalized.contains('parallel') ||
+        normalized.contains('manga') ||
+        normalized.contains('special') ||
+        normalized.contains('treasure') ||
+        normalized.contains('wanted');
+  }
+
+  Map<String, dynamic> _selectPriceMap(dynamic rawPrice, bool preferFoil) {
+    if (rawPrice is List) {
+      if (rawPrice.isEmpty) return const <String, dynamic>{};
+      final foilIndex = rawPrice.length > 2 ? 2 : 1;
+      final index = preferFoil ? foilIndex : 0;
+      return _mapValue(index < rawPrice.length ? rawPrice[index] : rawPrice[0]);
+    }
+
+    final priceMap = _mapValue(rawPrice);
+    if (preferFoil) {
+      final foilPrice = _mapValue(priceMap['2'] ?? priceMap['1']);
+      if (foilPrice.isNotEmpty) return foilPrice;
+    }
+
+    final normalPrice = _mapValue(priceMap['0']);
+    if (normalPrice.isNotEmpty) return normalPrice;
+
+    for (final value in priceMap.values) {
+      final nested = _mapValue(value);
+      if (nested.isNotEmpty) return nested;
+    }
+
+    return priceMap;
   }
 
   String _stringValue(dynamic value) {
@@ -951,6 +1003,13 @@ class LigaOnePieceService {
       '',
     );
     name = name.replaceAll('(Reprint)', '');
+    name = name.replaceAll(
+      RegExp(
+        r'\s*\((?:Alternate Art|Alt Art|SP|Parallel|Manga|Special|Treasure|Wanted)\)',
+        caseSensitive: false,
+      ),
+      '',
+    );
     name = name.replaceAll(RegExp(r'\s+'), ' ').trim();
     return name;
   }

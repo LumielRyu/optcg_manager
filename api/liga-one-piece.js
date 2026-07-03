@@ -23,9 +23,16 @@ module.exports = async (req, res) => {
     const stock = decodeInlineJsonList(html, 'cards_stock');
     const stores = decodeInlineJsonMap(html, 'cards_stores');
 
+    const requestedCardName = stringValue(req.query.cardName);
     const edition = editions[0] || {};
-    const price = mapValue(edition.price)?.['0'] || {};
+    const preferFoil = wantsFoilPrice(requestedCardName);
+    const price = selectPriceMap(edition.price, preferFoil);
+    const desiredExtra = preferFoil ? 2 : 0;
     const listings = stock
+      .filter((item) => {
+        if (item.extras == null) return true;
+        return parseInteger(item.extras) === desiredExtra;
+      })
       .map((item) => ({
         id: parseInteger(item.id),
         quantity: parseInteger(item.quant),
@@ -226,6 +233,10 @@ function cleanCardName(cardName) {
     .trim()
     .replace(/\s*-\s*[A-Z]{1,4}\d{2}-\d{3}(?:-[A-Z0-9]+)?/g, '')
     .replace(/\(Reprint\)/g, '')
+    .replace(
+      /\s*\((?:Alternate Art|Alt Art|SP|Parallel|Manga|Special|Treasure|Wanted)\)/gi,
+      '',
+    )
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -278,6 +289,49 @@ function parseMoney(value) {
     : raw;
   const parsed = Number(normalized);
   return Number.isNaN(parsed) ? null : parsed;
+}
+
+function wantsFoilPrice(cardName) {
+  const normalized = stringValue(cardName)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+  if (!normalized) return false;
+  const tokens = new Set(normalized.split(/\s+/));
+  return (
+    tokens.has('sp') ||
+    normalized.includes('alternate art') ||
+    normalized.includes('alt art') ||
+    normalized.includes('parallel') ||
+    normalized.includes('manga') ||
+    normalized.includes('special') ||
+    normalized.includes('treasure') ||
+    normalized.includes('wanted')
+  );
+}
+
+function selectPriceMap(rawPrice, preferFoil) {
+  if (Array.isArray(rawPrice)) {
+    if (!rawPrice.length) return {};
+    const foilIndex = rawPrice.length > 2 ? 2 : 1;
+    const index = preferFoil ? foilIndex : 0;
+    return mapValue(rawPrice[index] || rawPrice[0]);
+  }
+
+  const price = mapValue(rawPrice);
+
+  if (preferFoil) {
+    const foilPrice = mapValue(price['2'] || price['1']);
+    if (Object.keys(foilPrice).length) return foilPrice;
+  }
+
+  const normalPrice = mapValue(price['0']);
+  if (Object.keys(normalPrice).length) return normalPrice;
+
+  const firstNestedPrice = Object.values(price).find(
+    (value) => value && typeof value === 'object',
+  );
+  return mapValue(firstNestedPrice || price);
 }
 
 function parseInteger(value) {
