@@ -1386,6 +1386,7 @@ class _SalesCardDetailsDialogState
       messenger.showSnackBar(
         const SnackBar(content: Text('Dados do an\u00FAncio atualizados.')),
       );
+      Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
