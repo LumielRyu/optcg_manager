@@ -17,6 +17,7 @@ import '../../core/widgets/catalog_list_card.dart';
 import '../../core/widgets/summary_stat_card.dart';
 import '../../data/models/marketplace_listing.dart';
 import '../../data/repositories/marketplace_repository.dart';
+import '../../data/services/liga_one_piece_service.dart';
 import '../../data/services/op_api_service.dart';
 import '../../data/services/translation_service.dart';
 import '../collection/manual_add_dialog.dart';
@@ -359,6 +360,213 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       ),
     );
   }
+}
+
+class _PricingPanel extends StatelessWidget {
+  final TextEditingController priceController;
+  final TextEditingController percentageController;
+  final String pricingMode;
+  final String ligaRounding;
+  final LigaOnePieceCardSnapshot? ligaSnapshot;
+  final ValueChanged<String> onPricingModeChanged;
+  final ValueChanged<String> onRoundingChanged;
+
+  const _PricingPanel({
+    required this.priceController,
+    required this.percentageController,
+    required this.pricingMode,
+    required this.ligaRounding,
+    required this.ligaSnapshot,
+    required this.onPricingModeChanged,
+    required this.onRoundingChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final basePrice =
+        ligaSnapshot?.minimumPrice ?? ligaSnapshot?.lowestListing?.price;
+    final percentage = double.tryParse(
+      percentageController.text.trim().replaceAll(',', '.'),
+    );
+    final calculatedPrice = basePrice == null || percentage == null
+        ? null
+        : MarketplaceRepository.calculateLigaPercentagePriceInCents(
+            basePrice: basePrice,
+            percentage: percentage,
+            rounding: ligaRounding,
+          );
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(
+          context,
+        ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.price_change_outlined),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Precificação',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(
+                value: MarketplaceListing.manualPricingMode,
+                icon: Icon(Icons.edit_outlined),
+                label: Text('Manual'),
+              ),
+              ButtonSegment(
+                value: MarketplaceListing.ligaPercentagePricingMode,
+                icon: Icon(Icons.trending_down_outlined),
+                label: Text('Liga %'),
+              ),
+            ],
+            selected: {pricingMode},
+            onSelectionChanged: (values) => onPricingModeChanged(values.first),
+          ),
+          const SizedBox(height: 12),
+          _LigaPriceSummary(basePrice: basePrice, snapshot: ligaSnapshot),
+          const SizedBox(height: 12),
+          if (pricingMode == MarketplaceListing.manualPricingMode)
+            TextField(
+              controller: priceController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'Preço manual',
+                prefixText: 'R\$ ',
+              ),
+            )
+          else ...[
+            TextField(
+              controller: percentageController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+                signed: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'Percentual sobre a Liga',
+                suffixText: '%',
+              ),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              initialValue: ligaRounding,
+              decoration: const InputDecoration(labelText: 'Arredondamento'),
+              items: MarketplaceListing.ligaRoundingModes.map((mode) {
+                final label = switch (mode) {
+                  MarketplaceListing.roundUp => 'Para cima',
+                  MarketplaceListing.roundDown => 'Para baixo',
+                  _ => 'Sem arredondar',
+                };
+                return DropdownMenuItem(value: mode, child: Text(label));
+              }).toList(),
+              onChanged: (value) {
+                if (value != null) onRoundingChanged(value);
+              },
+            ),
+            const SizedBox(height: 12),
+            _CalculatedPricePreview(priceInCents: calculatedPrice),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _LigaPriceSummary extends StatelessWidget {
+  final double? basePrice;
+  final LigaOnePieceCardSnapshot? snapshot;
+
+  const _LigaPriceSummary({required this.basePrice, required this.snapshot});
+
+  @override
+  Widget build(BuildContext context) {
+    final label = basePrice == null
+        ? 'Liga: sem preço disponível'
+        : 'Menor Liga: ${_formatCurrencyFromDouble(basePrice!)}';
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.8),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.query_stats_outlined),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CalculatedPricePreview extends StatelessWidget {
+  final int? priceInCents;
+
+  const _CalculatedPricePreview({required this.priceInCents});
+
+  @override
+  Widget build(BuildContext context) {
+    final label = priceInCents == null
+        ? 'Preço calculado indisponível'
+        : 'Preço da vitrine: ${_formatCurrencyFromCents(priceInCents!)}';
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+          fontWeight: FontWeight.w800,
+          color: Theme.of(context).colorScheme.onPrimaryContainer,
+        ),
+      ),
+    );
+  }
+}
+
+String _formatPercentInput(double value) {
+  final fixed = value.toStringAsFixed(2);
+  return fixed.endsWith('00')
+      ? value.toStringAsFixed(0)
+      : fixed.replaceFirst(RegExp(r'0$'), '');
+}
+
+String _formatCurrencyFromDouble(double value) {
+  return _formatCurrencyFromCents((value * 100).round());
+}
+
+String _formatCurrencyFromCents(int cents) {
+  final reais = cents ~/ 100;
+  final centavos = (cents.abs() % 100).toString().padLeft(2, '0');
+  return 'R\$ $reais,$centavos';
 }
 
 class _SalesLoadingView extends StatelessWidget {
@@ -971,9 +1179,13 @@ class _SalesCardDetailsDialogState
     extends ConsumerState<_SalesCardDetailsDialog> {
   final TranslationService _translationService = TranslationService();
   late final TextEditingController _priceController;
+  late final TextEditingController _ligaPercentageController;
   late final TextEditingController _notesController;
   late String _saleStatus;
   late String _cardCondition;
+  late String _pricingMode;
+  late String _ligaRounding;
+  late Future<LigaOnePieceCardSnapshot?> _ligaSnapshotFuture;
 
   bool _isTranslating = false;
   bool _isSavingListing = false;
@@ -988,16 +1200,41 @@ class _SalesCardDetailsDialogState
           ? (widget.card.priceInCents! / 100).toStringAsFixed(2)
           : '',
     );
+    _ligaPercentageController = TextEditingController(
+      text: widget.card.ligaPercentage == null
+          ? '-10'
+          : _formatPercentInput(widget.card.ligaPercentage!),
+    );
     _notesController = TextEditingController(text: widget.card.notes);
     _saleStatus = widget.card.saleStatus;
     _cardCondition = widget.card.cardCondition;
+    _pricingMode = widget.card.pricingMode;
+    _ligaRounding = widget.card.ligaRounding;
+    _ligaSnapshotFuture = _loadLigaSnapshot();
+    _ligaPercentageController.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
   void dispose() {
     _priceController.dispose();
+    _ligaPercentageController.dispose();
     _notesController.dispose();
     super.dispose();
+  }
+
+  Future<LigaOnePieceCardSnapshot?> _loadLigaSnapshot() async {
+    try {
+      return await ref
+          .read(ligaOnePieceServiceProvider)
+          .fetchPublicCardSnapshotForCard(
+            cardName: widget.card.name,
+            cardCode: widget.card.cardCode,
+          );
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> _translateText() async {
@@ -1067,21 +1304,67 @@ class _SalesCardDetailsDialogState
       final parsedPrice = normalizedPrice.isEmpty
           ? null
           : (double.tryParse(normalizedPrice) ?? -1);
+      final normalizedPercentage = _ligaPercentageController.text
+          .trim()
+          .replaceAll(',', '.');
+      final parsedPercentage = normalizedPercentage.isEmpty
+          ? null
+          : double.tryParse(normalizedPercentage);
 
-      if (parsedPrice != null && parsedPrice < 0) {
+      if (_pricingMode == MarketplaceListing.manualPricingMode &&
+          parsedPrice != null &&
+          parsedPrice < 0) {
         throw Exception('Pre\u00E7o inv\u00E1lido.');
+      }
+
+      if (_pricingMode == MarketplaceListing.ligaPercentagePricingMode &&
+          parsedPercentage == null) {
+        throw Exception('Percentual da Liga inv\u00E1lido.');
+      }
+
+      final ligaSnapshot =
+          _pricingMode == MarketplaceListing.ligaPercentagePricingMode
+          ? await _ligaSnapshotFuture
+          : null;
+      final ligaBasePrice =
+          ligaSnapshot?.minimumPrice ?? ligaSnapshot?.lowestListing?.price;
+      final calculatedLigaPrice =
+          _pricingMode == MarketplaceListing.ligaPercentagePricingMode &&
+              ligaBasePrice != null &&
+              parsedPercentage != null
+          ? MarketplaceRepository.calculateLigaPercentagePriceInCents(
+              basePrice: ligaBasePrice,
+              percentage: parsedPercentage,
+              rounding: _ligaRounding,
+            )
+          : null;
+
+      if (_pricingMode == MarketplaceListing.ligaPercentagePricingMode &&
+          calculatedLigaPrice == null) {
+        throw Exception('Menor pre\u00E7o da Liga indispon\u00EDvel.');
       }
 
       await ref
           .read(marketplaceRepositoryProvider)
           .updateListingDetails(
             id: widget.card.id,
-            priceInCents: parsedPrice == null
-                ? null
-                : (parsedPrice * 100).round(),
+            priceInCents:
+                _pricingMode == MarketplaceListing.ligaPercentagePricingMode
+                ? calculatedLigaPrice
+                : (parsedPrice == null ? null : (parsedPrice * 100).round()),
             notes: _notesController.text,
             saleStatus: _saleStatus,
             cardCondition: _cardCondition,
+            pricingMode: _pricingMode,
+            ligaPercentage:
+                _pricingMode == MarketplaceListing.ligaPercentagePricingMode
+                ? parsedPercentage
+                : null,
+            ligaRounding: _ligaRounding,
+            ligaBasePriceCents: ligaBasePrice == null
+                ? null
+                : (ligaBasePrice * 100).round(),
+            ligaPriceSource: ligaSnapshot?.sourceUrl,
           );
 
       widget.onChanged();
@@ -1190,14 +1473,27 @@ class _SalesCardDetailsDialogState
                     const SizedBox(height: 16),
                     const Text('Dados do anúncio'),
                     const SizedBox(height: 8),
-                    TextField(
-                      controller: _priceController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Preço (ex: 12.50)',
-                      ),
+                    FutureBuilder<LigaOnePieceCardSnapshot?>(
+                      future: _ligaSnapshotFuture,
+                      builder: (context, snapshot) {
+                        return _PricingPanel(
+                          priceController: _priceController,
+                          percentageController: _ligaPercentageController,
+                          pricingMode: _pricingMode,
+                          ligaRounding: _ligaRounding,
+                          ligaSnapshot: snapshot.data,
+                          onPricingModeChanged: (value) {
+                            setState(() {
+                              _pricingMode = value;
+                            });
+                          },
+                          onRoundingChanged: (value) {
+                            setState(() {
+                              _ligaRounding = value;
+                            });
+                          },
+                        );
+                      },
                     ),
                     const SizedBox(height: 8),
                     Container(

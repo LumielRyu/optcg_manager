@@ -21,6 +21,12 @@ class MarketplaceListing {
   final String notes;
   final String saleStatus;
   final String cardCondition;
+  final String pricingMode;
+  final double? ligaPercentage;
+  final String ligaRounding;
+  final int? ligaBasePriceCents;
+  final DateTime? ligaPriceUpdatedAt;
+  final String ligaPriceSource;
 
   const MarketplaceListing({
     required this.id,
@@ -45,6 +51,12 @@ class MarketplaceListing {
     required this.notes,
     required this.saleStatus,
     required this.cardCondition,
+    required this.pricingMode,
+    required this.ligaPercentage,
+    required this.ligaRounding,
+    required this.ligaBasePriceCents,
+    required this.ligaPriceUpdatedAt,
+    required this.ligaPriceSource,
   });
 
   MarketplaceListing copyWith({
@@ -71,6 +83,15 @@ class MarketplaceListing {
     String? notes,
     String? saleStatus,
     String? cardCondition,
+    String? pricingMode,
+    double? ligaPercentage,
+    bool clearLigaPercentage = false,
+    String? ligaRounding,
+    int? ligaBasePriceCents,
+    bool clearLigaBasePrice = false,
+    DateTime? ligaPriceUpdatedAt,
+    bool clearLigaPriceUpdatedAt = false,
+    String? ligaPriceSource,
   }) {
     return MarketplaceListing(
       id: id ?? this.id,
@@ -95,6 +116,18 @@ class MarketplaceListing {
       notes: notes ?? this.notes,
       saleStatus: saleStatus ?? this.saleStatus,
       cardCondition: cardCondition ?? this.cardCondition,
+      pricingMode: pricingMode ?? this.pricingMode,
+      ligaPercentage: clearLigaPercentage
+          ? null
+          : (ligaPercentage ?? this.ligaPercentage),
+      ligaRounding: ligaRounding ?? this.ligaRounding,
+      ligaBasePriceCents: clearLigaBasePrice
+          ? null
+          : (ligaBasePriceCents ?? this.ligaBasePriceCents),
+      ligaPriceUpdatedAt: clearLigaPriceUpdatedAt
+          ? null
+          : (ligaPriceUpdatedAt ?? this.ligaPriceUpdatedAt),
+      ligaPriceSource: ligaPriceSource ?? this.ligaPriceSource,
     );
   }
 
@@ -124,6 +157,8 @@ class MarketplaceListing {
   bool get hasNotes => notes.trim().isNotEmpty;
   bool get hasPrice => (priceInCents ?? 0) > 0;
   bool get hasSellerName => sellerName.trim().isNotEmpty;
+  bool get usesLigaPricing => pricingMode == ligaPercentagePricingMode;
+  bool get hasLigaBasePrice => (ligaBasePriceCents ?? 0) > 0;
 
   bool get isSold => saleStatus == soldStatus;
   bool get isReserved => saleStatus == reservedStatus;
@@ -174,6 +209,12 @@ class MarketplaceListing {
   static const String reservedStatus = 'reserved';
   static const String soldStatus = 'sold';
 
+  static const String manualPricingMode = 'manual';
+  static const String ligaPercentagePricingMode = 'liga_percentage';
+  static const String noRounding = 'none';
+  static const String roundUp = 'up';
+  static const String roundDown = 'down';
+
   static const String mintCondition = 'mint';
   static const String nearMintCondition = 'near_mint';
   static const String lightlyPlayedCondition = 'lightly_played';
@@ -192,5 +233,16 @@ class MarketplaceListing {
     lightlyPlayedCondition,
     playedCondition,
     damagedCondition,
+  ];
+
+  static const List<String> pricingModes = [
+    manualPricingMode,
+    ligaPercentagePricingMode,
+  ];
+
+  static const List<String> ligaRoundingModes = [
+    noRounding,
+    roundUp,
+    roundDown,
   ];
 }

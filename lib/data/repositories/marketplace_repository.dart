@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/marketplace_listing.dart';
 import '../models/op_card.dart';
+import '../services/liga_one_piece_service.dart';
 import '../services/op_api_service.dart';
 import '../services/supabase_client_provider.dart';
 import 'user_preferences_repository.dart';
@@ -11,26 +12,33 @@ final marketplaceRepositoryProvider = Provider<MarketplaceRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
   final opApi = ref.watch(opApiServiceProvider);
   final prefs = ref.watch(userPreferencesRepositoryProvider);
-  return MarketplaceRepository(client, opApi, prefs);
+  final liga = ref.watch(ligaOnePieceServiceProvider);
+  return MarketplaceRepository(client, opApi, prefs, liga);
 });
 
 class MarketplaceRepository {
   final SupabaseClient _client;
   final OpApiService _opApi;
   final UserPreferencesRepository _prefs;
+  final LigaOnePieceService _liga;
   static const String _listingColumns =
       'id, user_id, card_code, quantity, is_favorite, is_public, share_code, '
       'created_at, image_url, name, set_name, rarity, color, type, text, '
       'attribute, sale_price_cents, sale_contact_info, sale_notes, '
       'sale_status, card_condition';
+  static const String _dynamicPricingColumns =
+      'sale_pricing_mode, sale_liga_percentage, sale_liga_rounding, '
+      'sale_liga_base_price_cents, sale_liga_price_updated_at, '
+      'sale_liga_price_source';
   static const String _publicListingColumns =
       'id, user_id, card_code, quantity, is_favorite, is_public, share_code, '
       'created_at, image_url, name, set_name, rarity, color, type, text, '
       'attribute, sale_price_cents, sale_notes, sale_status, card_condition';
+  static const Duration _dynamicPriceMaxAge = Duration(hours: 24);
   final Map<String, OpCard?> _apiCardCache = {};
   final Map<String, String> _sellerNameCache = {};
 
-  MarketplaceRepository(this._client, this._opApi, this._prefs);
+  MarketplaceRepository(this._client, this._opApi, this._prefs, this._liga);
 
   Future<List<MarketplaceListing>> getMyListings() async {
     final user = _client.auth.currentUser;
@@ -126,6 +134,11 @@ class MarketplaceRepository {
     required String notes,
     required String saleStatus,
     required String cardCondition,
+    required String pricingMode,
+    required double? ligaPercentage,
+    required String ligaRounding,
+    int? ligaBasePriceCents,
+    String? ligaPriceSource,
   }) async {
     final whatsAppPhone = await _prefs.getCurrentWhatsAppPhone();
 
@@ -135,9 +148,30 @@ class MarketplaceRepository {
       'sale_status': saleStatus,
       'card_condition': cardCondition,
       'sale_price_cents': priceInCents,
+      'sale_pricing_mode': pricingMode,
+      'sale_liga_percentage': ligaPercentage,
+      'sale_liga_rounding': ligaRounding,
+      'sale_liga_base_price_cents': ligaBasePriceCents,
+      'sale_liga_price_updated_at':
+          pricingMode == MarketplaceListing.ligaPercentagePricingMode
+          ? DateTime.now().toUtc().toIso8601String()
+          : null,
+      'sale_liga_price_source': ligaPriceSource,
     };
 
-    await _client.from('collection_items').update(payload).eq('id', id);
+    try {
+      await _client.from('collection_items').update(payload).eq('id', id);
+    } on PostgrestException catch (error) {
+      if (!_looksLikeMissingDynamicPricingSchema(error)) rethrow;
+      payload
+        ..remove('sale_pricing_mode')
+        ..remove('sale_liga_percentage')
+        ..remove('sale_liga_rounding')
+        ..remove('sale_liga_base_price_cents')
+        ..remove('sale_liga_price_updated_at')
+        ..remove('sale_liga_price_source');
+      await _client.from('collection_items').update(payload).eq('id', id);
+    }
   }
 
   Future<void> updateQuantity({
@@ -166,23 +200,17 @@ class MarketplaceRepository {
   }) async {
     await _opApi.preload();
 
-    var query = _client
-        .from('collection_items')
-        .select(includeContactInfo ? _listingColumns : _publicListingColumns)
-        .eq('collection_type', 'forSale');
+    final selectColumns = includeContactInfo
+        ? '$_listingColumns, $_dynamicPricingColumns'
+        : '$_publicListingColumns, $_dynamicPricingColumns';
 
-    if (userId != null) {
-      query = query.eq('user_id', userId);
-    }
+    var rows = await _selectListingRows(
+      selectColumns: selectColumns,
+      userId: userId,
+      onlyPublic: onlyPublic,
+    );
 
-    if (onlyPublic) {
-      query = query.eq('is_public', true);
-    }
-
-    final response = await query.order('created_at', ascending: false);
-    final rows = (response as List)
-        .map((raw) => Map<String, dynamic>.from(raw))
-        .toList();
+    rows = await _refreshDynamicPricesIfNeeded(rows);
 
     final uniqueCodes = <String>{};
     final uniqueUserIds = <String>{};
@@ -203,6 +231,126 @@ class MarketplaceRepository {
     ]);
 
     return rows.map(_mapRowToListing).toList(growable: false);
+  }
+
+  Future<List<Map<String, dynamic>>> _selectListingRows({
+    required String selectColumns,
+    required String? userId,
+    required bool onlyPublic,
+  }) async {
+    Future<List<Map<String, dynamic>>> run(String columns) async {
+      var query = _client
+          .from('collection_items')
+          .select(columns)
+          .eq('collection_type', 'forSale');
+
+      if (userId != null) {
+        query = query.eq('user_id', userId);
+      }
+
+      if (onlyPublic) {
+        query = query.eq('is_public', true);
+      }
+
+      final response = await query.order('created_at', ascending: false);
+      return (response as List)
+          .map((raw) => Map<String, dynamic>.from(raw))
+          .toList();
+    }
+
+    try {
+      return await run(selectColumns);
+    } on PostgrestException catch (error) {
+      if (!_looksLikeMissingDynamicPricingSchema(error)) rethrow;
+      return run(selectColumns.replaceAll(', $_dynamicPricingColumns', ''));
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _refreshDynamicPricesIfNeeded(
+    List<Map<String, dynamic>> rows,
+  ) async {
+    final currentUserId = _client.auth.currentUser?.id;
+    if (currentUserId == null) return rows;
+
+    var changed = false;
+    final refreshedRows = <Map<String, dynamic>>[];
+
+    for (final row in rows) {
+      final nextRow = Map<String, dynamic>.from(row);
+      final ownerUserId = (row['user_id'] ?? '').toString();
+      final pricingMode = (row['sale_pricing_mode'] ?? '').toString();
+      final updatedAt = DateTime.tryParse(
+        (row['sale_liga_price_updated_at'] ?? '').toString(),
+      );
+      final isStale =
+          updatedAt == null ||
+          DateTime.now().toUtc().difference(updatedAt.toUtc()) >
+              _dynamicPriceMaxAge;
+
+      if (ownerUserId == currentUserId &&
+          pricingMode == MarketplaceListing.ligaPercentagePricingMode &&
+          isStale) {
+        final refreshed = await _refreshDynamicPriceForRow(nextRow);
+        if (refreshed) changed = true;
+      }
+
+      refreshedRows.add(nextRow);
+    }
+
+    return changed ? refreshedRows : rows;
+  }
+
+  Future<bool> _refreshDynamicPriceForRow(Map<String, dynamic> row) async {
+    final percentage = (row['sale_liga_percentage'] as num?)?.toDouble();
+    if (percentage == null) return false;
+
+    final cardCode = (row['card_code'] ?? '').toString().trim().toUpperCase();
+    final cardName = (row['name'] ?? '').toString().trim();
+    if (cardCode.isEmpty) return false;
+
+    final snapshot =
+        await _liga.fetchCachedPublicCardSnapshotForCardCode(cardCode) ??
+        await _liga.fetchPublicCardSnapshotForCard(
+          cardName: cardName.isEmpty ? cardCode : cardName,
+          cardCode: cardCode,
+        );
+    final basePrice = snapshot.minimumPrice ?? snapshot.lowestListing?.price;
+    if (basePrice == null || basePrice <= 0) return false;
+
+    final rounding =
+        (row['sale_liga_rounding'] ?? MarketplaceListing.noRounding).toString();
+    final priceInCents = calculateLigaPercentagePriceInCents(
+      basePrice: basePrice,
+      percentage: percentage,
+      rounding: rounding,
+    );
+    final basePriceInCents = (basePrice * 100).round();
+    final updatedAt = DateTime.now().toUtc().toIso8601String();
+    final source = snapshot.sourceUrl;
+
+    final payload = <String, dynamic>{
+      'sale_price_cents': priceInCents,
+      'sale_liga_base_price_cents': basePriceInCents,
+      'sale_liga_price_updated_at': updatedAt,
+      'sale_liga_price_source': source,
+    };
+
+    try {
+      await _client
+          .from('collection_items')
+          .update(payload)
+          .eq('id', row['id']);
+    } on PostgrestException catch (error) {
+      if (!_looksLikeMissingDynamicPricingSchema(error)) rethrow;
+      return false;
+    }
+
+    row
+      ..['sale_price_cents'] = priceInCents
+      ..['sale_liga_base_price_cents'] = basePriceInCents
+      ..['sale_liga_price_updated_at'] = updatedAt
+      ..['sale_liga_price_source'] = source;
+    return true;
   }
 
   Future<void> _warmUpApiCards(Set<String> cardCodes) async {
@@ -291,6 +439,45 @@ class MarketplaceRepository {
           .toString(),
       cardCondition: (map['card_condition'] ?? MarketplaceListing.mintCondition)
           .toString(),
+      pricingMode:
+          (map['sale_pricing_mode'] ?? MarketplaceListing.manualPricingMode)
+              .toString(),
+      ligaPercentage: (map['sale_liga_percentage'] as num?)?.toDouble(),
+      ligaRounding: (map['sale_liga_rounding'] ?? MarketplaceListing.noRounding)
+          .toString(),
+      ligaBasePriceCents: (map['sale_liga_base_price_cents'] as num?)?.toInt(),
+      ligaPriceUpdatedAt: DateTime.tryParse(
+        (map['sale_liga_price_updated_at'] ?? '').toString(),
+      ),
+      ligaPriceSource: (map['sale_liga_price_source'] ?? '').toString(),
     );
+  }
+
+  bool _looksLikeMissingDynamicPricingSchema(PostgrestException error) {
+    final message =
+        '${error.message} ${error.details ?? ''} ${error.hint ?? ''}'
+            .toLowerCase();
+    return message.contains('sale_pricing_mode') ||
+        message.contains('sale_liga_percentage') ||
+        message.contains('sale_liga_rounding') ||
+        message.contains('sale_liga_base_price_cents') ||
+        message.contains('sale_liga_price_updated_at') ||
+        message.contains('sale_liga_price_source');
+  }
+
+  static int calculateLigaPercentagePriceInCents({
+    required double basePrice,
+    required double percentage,
+    required String rounding,
+  }) {
+    final rawCents = (basePrice * (1 + (percentage / 100)) * 100).round();
+    if (rawCents <= 0) return 0;
+
+    return switch (rounding) {
+      MarketplaceListing.roundUp =>
+        rawCents % 100 == 0 ? rawCents : ((rawCents ~/ 100) + 1) * 100,
+      MarketplaceListing.roundDown => (rawCents ~/ 100) * 100,
+      _ => rawCents,
+    };
   }
 }
