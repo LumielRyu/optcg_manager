@@ -27,7 +27,7 @@ class _GlobalMarketplaceScreenState
     extends ConsumerState<GlobalMarketplaceScreen> {
   static const double _cardMaxWidth = 220;
   static const double _cardSpacing = 12;
-  static const double _gridAspectRatio = 0.53;
+  static const double _gridAspectRatio = 0.50;
   static const int _pageSize = 60;
 
   final TextEditingController _searchController = TextEditingController();
@@ -79,10 +79,14 @@ class _GlobalMarketplaceScreenState
     return ref.read(marketplaceRepositoryProvider).getGlobalPublicListings();
   }
 
-  String? _ligaPriceLabelFor(MarketplaceListing item) {
+  String _ligaPriceLabelFor(MarketplaceListing item) {
     final normalizedCode = item.cardCode.trim().toUpperCase();
     if (normalizedCode.isEmpty) {
-      return null;
+      return 'Liga: sem codigo';
+    }
+
+    if (_ligaPriceLabels.containsKey(normalizedCode)) {
+      return _ligaPriceLabels[normalizedCode] ?? 'Liga: sem cache';
     }
 
     if (!_ligaPriceLabels.containsKey(normalizedCode) &&
@@ -90,7 +94,7 @@ class _GlobalMarketplaceScreenState
       _loadLigaPriceLabel(normalizedCode);
     }
 
-    return _ligaPriceLabels[normalizedCode];
+    return 'Liga: consultando...';
   }
 
   Future<void> _loadLigaPriceLabel(String normalizedCode) async {
@@ -117,7 +121,7 @@ class _GlobalMarketplaceScreenState
     }
   }
 
-  String _formatMarketplaceCurrency(double value) {
+  static String _formatMarketplaceCurrency(double value) {
     final cents = (value * 100).round();
     final reais = cents ~/ 100;
     final centavos = (cents % 100).toString().padLeft(2, '0');
@@ -776,43 +780,51 @@ class _GlobalMarketplaceScreenState
                                 if (item.hasSellerName)
                                   'Vendedor: ${item.sellerName}',
                                 'Oferta: ${item.formattedPrice}',
-                                ?ligaPriceLabel,
                                 '${item.statusLabel} - ${item.conditionLabel}',
                                 'Quantidade: ${item.quantity}x',
                               ],
-                              maxMetadataItems: 5,
-                              footer: Row(
+                              footer: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  SizedBox(
-                                    width: 52,
-                                    child: Tooltip(
-                                      message: 'Abrir WhatsApp',
-                                      child: FilledButton(
-                                        onPressed: item.hasWhatsAppContact
-                                            ? () => _openWhatsApp(item)
-                                            : null,
-                                        style: FilledButton.styleFrom(
-                                          padding: EdgeInsets.zero,
-                                        ),
-                                        child: const Icon(
-                                          Icons.open_in_new,
-                                          size: 18,
-                                        ),
-                                      ),
-                                    ),
+                                  _GlobalMarketplaceLigaPriceBadge(
+                                    label: ligaPriceLabel,
                                   ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: OutlinedButton.icon(
-                                      onPressed: item.ownerUserId.trim().isEmpty
-                                          ? null
-                                          : () => _openSellerStore(item),
-                                      icon: const Icon(
-                                        Icons.storefront_outlined,
-                                        size: 16,
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 52,
+                                        child: Tooltip(
+                                          message: 'Abrir WhatsApp',
+                                          child: FilledButton(
+                                            onPressed: item.hasWhatsAppContact
+                                                ? () => _openWhatsApp(item)
+                                                : null,
+                                            style: FilledButton.styleFrom(
+                                              padding: EdgeInsets.zero,
+                                            ),
+                                            child: const Icon(
+                                              Icons.open_in_new,
+                                              size: 18,
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                      label: const Text('Vitrine'),
-                                    ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: OutlinedButton.icon(
+                                          onPressed:
+                                              item.ownerUserId.trim().isEmpty
+                                              ? null
+                                              : () => _openSellerStore(item),
+                                          icon: const Icon(
+                                            Icons.storefront_outlined,
+                                            size: 16,
+                                          ),
+                                          label: const Text('Vitrine'),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
@@ -829,6 +841,7 @@ class _GlobalMarketplaceScreenState
                                   builder: (_) =>
                                       _GlobalMarketplaceCardDetailsDialog(
                                         card: item,
+                                        ligaPriceLabel: ligaPriceLabel,
                                         onOpenWhatsApp: () =>
                                             _openWhatsApp(item),
                                         onOpenSellerStore:
@@ -860,6 +873,57 @@ class _GlobalMarketplaceScreenState
               label: Text('Carrinho ($cartCount)'),
             )
           : null,
+    );
+  }
+}
+
+class _GlobalMarketplaceLigaPriceBadge extends StatelessWidget {
+  final String label;
+
+  const _GlobalMarketplaceLigaPriceBadge({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isPrice = label.startsWith('Liga: R\$');
+    final isLoading = label.contains('consultando');
+    final color = isPrice
+        ? Colors.green.shade700
+        : isLoading
+        ? theme.colorScheme.primary
+        : theme.colorScheme.onSurfaceVariant;
+    final background = isPrice
+        ? Colors.green.withValues(alpha: 0.12)
+        : isLoading
+        ? theme.colorScheme.primary.withValues(alpha: 0.10)
+        : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.72);
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 28),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.query_stats, size: 15, color: color),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1024,6 +1088,7 @@ class _GlobalMarketplaceHeader extends StatelessWidget {
 
 class _GlobalMarketplaceCardDetailsDialog extends StatefulWidget {
   final MarketplaceListing card;
+  final String ligaPriceLabel;
   final VoidCallback onOpenWhatsApp;
   final VoidCallback? onOpenSellerStore;
   final int selectedQuantity;
@@ -1031,6 +1096,7 @@ class _GlobalMarketplaceCardDetailsDialog extends StatefulWidget {
 
   const _GlobalMarketplaceCardDetailsDialog({
     required this.card,
+    required this.ligaPriceLabel,
     required this.onOpenWhatsApp,
     this.onOpenSellerStore,
     required this.selectedQuantity,
@@ -1105,6 +1171,7 @@ class _GlobalMarketplaceCardDetailsDialogState
                     ),
                     const SizedBox(height: 16),
                     _globalInfoRow('Preço', card.formattedPrice),
+                    _globalInfoRow('LigaOnePiece', widget.ligaPriceLabel),
                     if (card.hasSellerName)
                       _globalInfoRow('Vendedor', card.sellerName),
                     _globalInfoRow('Status', card.statusLabel),
