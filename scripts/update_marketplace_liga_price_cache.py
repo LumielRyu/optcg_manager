@@ -15,7 +15,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description=(
             "Atualiza automaticamente o cache da LigaOnePiece para cartas "
-            "anunciadas no marketplace publico."
+            "ativas na area de vendas."
         )
     )
     parser.add_argument("--limit", type=int, help="Limita a quantidade de cartas.")
@@ -35,6 +35,11 @@ def parse_args():
         type=float,
         default=0.35,
         help="Pausa entre consultas na LigaOnePiece.",
+    )
+    parser.add_argument(
+        "--public-only",
+        action="store_true",
+        help="Atualiza apenas cartas publicas no marketplace.",
     )
     return parser.parse_args()
 
@@ -69,14 +74,15 @@ def supabase_request(path: str, *, method="GET", payload=None):
         return json.loads(body) if body else None
 
 
-def load_marketplace_cards(limit: int | None):
+def load_marketplace_cards(limit: int | None, *, public_only: bool):
     params = {
         "select": "card_code,name,created_at",
         "collection_type": "eq.forSale",
-        "is_public": "eq.true",
         "sale_status": "eq.active",
         "order": "created_at.desc",
     }
+    if public_only:
+        params["is_public"] = "eq.true"
     if limit is not None:
         params["limit"] = str(limit)
 
@@ -129,7 +135,7 @@ def is_stale(row, refresh_days: int):
 
 def main():
     args = parse_args()
-    cards = load_marketplace_cards(args.limit)
+    cards = load_marketplace_cards(args.limit, public_only=args.public_only)
     existing = load_existing_cache([card["code"] for card in cards])
     targets = [
         card
@@ -137,7 +143,8 @@ def main():
         if is_stale(existing.get(card["code"]), args.refresh_days)
     ]
 
-    print(f"Cartas publicas ativas no marketplace: {len(cards)}")
+    scope_label = "publicas ativas no marketplace" if args.public_only else "ativas em vendas"
+    print(f"Cartas {scope_label}: {len(cards)}")
     print(f"Cartas que precisam atualizar cache: {len(targets)}")
     if args.dry_run:
         for card in targets:
