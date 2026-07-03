@@ -8,6 +8,23 @@ DEFAULT_IMAGE_DIR = pathlib.Path(".cache/card_images")
 DEFAULT_BUCKET = "card-images"
 
 
+def env_value(name: str) -> str:
+    return os.environ.get(name, "").strip()
+
+
+def is_placeholder(value: str) -> bool:
+    lowered = value.strip().lower()
+    return (
+        not lowered
+        or "<" in lowered
+        or ">" in lowered
+        or "account-id" in lowered
+        or "account_id" in lowered
+        or "seu_account" in lowered
+        or "example.com" in lowered
+    )
+
+
 def load_dotenv(path: pathlib.Path = pathlib.Path(".env")):
     if not path.exists():
         return
@@ -25,6 +42,11 @@ def load_dotenv(path: pathlib.Path = pathlib.Path(".env")):
 
 
 def parse_args():
+    r2_account_id = env_value("R2_ACCOUNT_ID")
+    r2_endpoint_url = env_value("R2_ENDPOINT_URL")
+    if is_placeholder(r2_endpoint_url) and not is_placeholder(r2_account_id):
+        r2_endpoint_url = f"https://{r2_account_id}.r2.cloudflarestorage.com"
+
     parser = argparse.ArgumentParser(
         description=(
             "Upload cached visual card catalog images to Cloudflare R2 or another "
@@ -34,11 +56,11 @@ def parse_args():
     parser.add_argument("--image-dir", type=pathlib.Path, default=DEFAULT_IMAGE_DIR)
     parser.add_argument(
         "--bucket",
-        default=os.environ.get("R2_BUCKET") or os.environ.get("S3_BUCKET", DEFAULT_BUCKET),
+        default=env_value("R2_BUCKET") or env_value("S3_BUCKET") or DEFAULT_BUCKET,
     )
     parser.add_argument(
         "--endpoint-url",
-        default=os.environ.get("R2_ENDPOINT_URL") or os.environ.get("S3_ENDPOINT_URL", ""),
+        default=r2_endpoint_url or env_value("S3_ENDPOINT_URL"),
         help=(
             "S3-compatible endpoint. For Cloudflare R2 use "
             "https://<account-id>.r2.cloudflarestorage.com."
@@ -46,17 +68,17 @@ def parse_args():
     )
     parser.add_argument(
         "--public-base-url",
-        default=os.environ.get("CARD_IMAGE_PUBLIC_BASE_URL", ""),
+        default=env_value("CARD_IMAGE_PUBLIC_BASE_URL"),
         help="Public URL prefix for generated catalog image URLs.",
     )
     parser.add_argument(
         "--access-key-id",
-        default=os.environ.get("R2_ACCESS_KEY_ID") or os.environ.get("S3_ACCESS_KEY_ID", ""),
+        default=env_value("R2_ACCESS_KEY_ID") or env_value("S3_ACCESS_KEY_ID"),
         help="S3/R2 access key id. Defaults to R2_ACCESS_KEY_ID or S3_ACCESS_KEY_ID.",
     )
     parser.add_argument(
         "--secret-access-key",
-        default=os.environ.get("R2_SECRET_ACCESS_KEY") or os.environ.get("S3_SECRET_ACCESS_KEY", ""),
+        default=env_value("R2_SECRET_ACCESS_KEY") or env_value("S3_SECRET_ACCESS_KEY"),
         help=(
             "S3/R2 secret access key. Defaults to R2_SECRET_ACCESS_KEY or "
             "S3_SECRET_ACCESS_KEY."
@@ -64,7 +86,7 @@ def parse_args():
     )
     parser.add_argument(
         "--region",
-        default=os.environ.get("R2_REGION") or os.environ.get("S3_REGION", "auto"),
+        default=env_value("R2_REGION") or env_value("S3_REGION") or "auto",
     )
     parser.add_argument("--force", action="store_true")
     parser.add_argument(
@@ -107,10 +129,22 @@ def main():
         )
     if not args.endpoint_url:
         raise SystemExit("Set --endpoint-url, R2_ENDPOINT_URL, or S3_ENDPOINT_URL.")
+    if is_placeholder(args.endpoint_url):
+        raise SystemExit(
+            "R2_ENDPOINT_URL ainda esta com placeholder. No .env, troque "
+            "https://<account-id>.r2.cloudflarestorage.com pelo endpoint real "
+            "da Cloudflare, ou preencha R2_ACCOUNT_ID com o Account ID real."
+        )
     if not args.access_key_id or not args.secret_access_key:
         raise SystemExit(
             "Set R2_ACCESS_KEY_ID/R2_SECRET_ACCESS_KEY or "
             "S3_ACCESS_KEY_ID/S3_SECRET_ACCESS_KEY."
+        )
+    if is_placeholder(args.access_key_id) or is_placeholder(args.secret_access_key):
+        raise SystemExit(
+            "As chaves R2_ACCESS_KEY_ID/R2_SECRET_ACCESS_KEY ainda parecem "
+            "placeholders. Crie um token R2 API na Cloudflare e cole os valores "
+            "reais no .env."
         )
 
     boto3, client_error_type = load_boto3()
