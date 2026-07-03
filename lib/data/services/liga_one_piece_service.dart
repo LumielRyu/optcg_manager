@@ -88,6 +88,13 @@ class LigaOnePieceService {
     required String cardCode,
   }) async {
     final normalizedCode = cardCode.trim().toUpperCase();
+
+    final remoteCached = await _remoteSnapshotForCardCode(normalizedCode);
+    if (remoteCached != null) {
+      _saveSnapshotForCardCode(normalizedCode, remoteCached);
+      return remoteCached;
+    }
+
     final memoryCached = _memorySnapshotForCardCode(normalizedCode);
     if (memoryCached != null) {
       return memoryCached;
@@ -97,12 +104,6 @@ class LigaOnePieceService {
     if (persistedCached != null) {
       _storeInMemoryCache(normalizedCode, persistedCached);
       return persistedCached;
-    }
-
-    final remoteCached = await _remoteSnapshotForCardCode(normalizedCode);
-    if (remoteCached != null) {
-      _saveSnapshotForCardCode(normalizedCode, remoteCached);
-      return remoteCached;
     }
 
     final cached = await _assetSnapshotForCardCode(normalizedCode);
@@ -187,6 +188,12 @@ class LigaOnePieceService {
       return null;
     }
 
+    final remoteCached = await _remoteSnapshotForCardCode(normalizedCode);
+    if (remoteCached != null) {
+      _saveSnapshotForCardCode(normalizedCode, remoteCached);
+      return remoteCached;
+    }
+
     final memoryCached = _memorySnapshotForCardCode(normalizedCode);
     if (memoryCached != null) {
       return memoryCached;
@@ -196,12 +203,6 @@ class LigaOnePieceService {
     if (persistedCached != null) {
       _storeInMemoryCache(normalizedCode, persistedCached);
       return persistedCached;
-    }
-
-    final remoteCached = await _remoteSnapshotForCardCode(normalizedCode);
-    if (remoteCached != null) {
-      _saveSnapshotForCardCode(normalizedCode, remoteCached);
-      return remoteCached;
     }
 
     final assetCached = await _assetSnapshotForCardCode(normalizedCode);
