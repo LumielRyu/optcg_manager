@@ -1238,15 +1238,17 @@ class _SalesCardDetailsDialogState
   }
 
   Future<LigaOnePieceCardSnapshot?> _loadLigaSnapshot() async {
+    final service = ref.read(ligaOnePieceServiceProvider);
     try {
-      return await ref
-          .read(ligaOnePieceServiceProvider)
-          .fetchPublicCardSnapshotForCard(
-            cardName: widget.card.name,
-            cardCode: widget.card.cardCode,
-          );
+      return await service.fetchPublicCardSnapshotForCard(
+        cardName: widget.card.name,
+        cardCode: widget.card.cardCode,
+      );
     } catch (_) {
-      return null;
+      return service.requestLigaCacheRefreshForCard(
+        cardName: widget.card.name,
+        cardCode: widget.card.cardCode,
+      );
     }
   }
 

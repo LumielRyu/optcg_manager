@@ -2,6 +2,15 @@ name: Update Liga price cache
 
 on:
   workflow_dispatch:
+    inputs:
+      card_code:
+        description: "Codigo da carta para atualizar uma carta especifica"
+        required: false
+        type: string
+      card_name:
+        description: "Nome da carta para atualizar uma carta especifica"
+        required: false
+        type: string
   schedule:
     - cron: "*/15 * * * *"
 
@@ -22,4 +31,11 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python scripts/update_marketplace_liga_price_cache.py --refresh-days 0 --sleep 0.8
+          CARD_CODE: ${{ inputs.card_code }}
+          CARD_NAME: ${{ inputs.card_name }}
+        run: |
+          if [ -n "$CARD_CODE" ]; then
+            python scripts/update_marketplace_liga_price_cache.py --code "$CARD_CODE" --name "$CARD_NAME" --refresh-days 0 --sleep 0.8
+          else
+            python scripts/update_marketplace_liga_price_cache.py --refresh-days 0 --sleep 0.8
+          fi

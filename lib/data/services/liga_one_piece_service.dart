@@ -214,6 +214,49 @@ class LigaOnePieceService {
     return null;
   }
 
+  Future<LigaOnePieceCardSnapshot?> requestLigaCacheRefreshForCard({
+    required String cardName,
+    required String cardCode,
+  }) async {
+    if (!kIsWeb) return null;
+
+    final normalizedCode = cardCode.trim().toUpperCase();
+    if (normalizedCode.isEmpty) return null;
+
+    try {
+      final uri = Uri.base.resolve('/api/request-liga-cache-refresh');
+      await http.post(
+        uri,
+        headers: const {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'cardName': cardName,
+          'cardCode': normalizedCode,
+        }),
+      );
+    } catch (_) {
+      return null;
+    }
+
+    const waits = <Duration>[
+      Duration(seconds: 6),
+      Duration(seconds: 8),
+      Duration(seconds: 10),
+      Duration(seconds: 12),
+      Duration(seconds: 14),
+    ];
+
+    for (final wait in waits) {
+      await Future<void>.delayed(wait);
+      final snapshot = await _remoteSnapshotForCardCode(normalizedCode);
+      if (snapshot != null) {
+        _saveSnapshotForCardCode(normalizedCode, snapshot);
+        return snapshot;
+      }
+    }
+
+    return null;
+  }
+
   Future<String?> _resolvePublicCardUrlForCard({
     required String cardName,
     required String cardCode,

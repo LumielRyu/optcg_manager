@@ -41,6 +41,8 @@ def parse_args():
         action="store_true",
         help="Atualiza apenas cartas publicas no marketplace.",
     )
+    parser.add_argument("--code", help="Atualiza uma carta especifica pelo codigo.")
+    parser.add_argument("--name", help="Nome da carta ao usar --code.")
     return parser.parse_args()
 
 
@@ -135,7 +137,13 @@ def is_stale(row, refresh_days: int):
 
 def main():
     args = parse_args()
-    cards = load_marketplace_cards(args.limit, public_only=args.public_only)
+    if args.code:
+        code = liga.normalize_code(args.code)
+        if not code:
+            raise RuntimeError("--code invalido.")
+        cards = [{"code": code, "name": (args.name or code).strip()}]
+    else:
+        cards = load_marketplace_cards(args.limit, public_only=args.public_only)
     existing = load_existing_cache([card["code"] for card in cards])
     targets = [
         card
