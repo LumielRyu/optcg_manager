@@ -96,3 +96,32 @@ So apague imagens antigas do Supabase depois de confirmar que:
 - Nao existem URLs antigas do Supabase sendo gravadas em novos registros.
 
 Para seguranca, mantenha os arquivos antigos por alguns dias antes de remover.
+
+## Cache automatico de precos da LigaOnePiece
+
+O app nao deve tentar consultar a LigaOnePiece diretamente no navegador de cada usuario. No web, isso pode falhar por CORS, bloqueio da origem ou rate limit. O fluxo correto e:
+
+- Um script local/servidor consulta a LigaOnePiece.
+- O resultado e salvo na tabela `liga_card_price_cache` do Supabase.
+- Cada computador ou celular baixa esse cache quando abre o marketplace.
+- O app salva uma copia local no Hive do proprio dispositivo.
+
+Para atualizar automaticamente os precos das cartas anunciadas no marketplace:
+
+```bash
+python scripts/update_marketplace_liga_price_cache.py
+```
+
+Para testar sem gravar:
+
+```bash
+python scripts/update_marketplace_liga_price_cache.py --dry-run
+```
+
+Para forcar uma reconsulta de tudo:
+
+```bash
+python scripts/update_marketplace_liga_price_cache.py --refresh-days 0
+```
+
+O script usa `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` do `.env`, entao deve rodar somente em maquina confiavel ou servidor privado. Nunca coloque a service role no Flutter, no navegador ou em codigo publico.
