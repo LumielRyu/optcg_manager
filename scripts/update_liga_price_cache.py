@@ -120,6 +120,22 @@ def build_current_descriptor(name: str, code: str) -> str:
     return " ".join(parts)
 
 
+def special_suffixes_for_name(name: str):
+    normalized = re.sub(r"[^a-z0-9]+", " ", (name or "").lower()).strip()
+    suffixes = []
+    if "sp" in normalized.split():
+        suffixes.append(("SP", "SP"))
+    return suffixes
+
+
+def is_special_descriptor(descriptor: str, code: str) -> bool:
+    normalized = descriptor.lower()
+    return (
+        f"{code.lower()}-sp" in normalized
+        or "(sp)" in normalized
+    )
+
+
 def build_candidate_descriptors(name: str, code: str):
     candidates = []
 
@@ -129,6 +145,8 @@ def build_candidate_descriptors(name: str, code: str):
             candidates.append(normalized)
 
     cleaned = clean_name(name, code)
+    for label, suffix in special_suffixes_for_name(name):
+        add(f"{cleaned} ({label}) ({code}-{suffix})")
     add(f"{cleaned} ({code})")
     add(build_current_descriptor(name, code))
     add(cleaned)
@@ -162,6 +180,8 @@ def build_candidate_urls(name: str, code: str):
     edition = infer_edition(code)
     card_urls = []
     search_urls = []
+    priority_search_urls = []
+    wants_special = bool(special_suffixes_for_name(name))
 
     direct_descriptors = [
         build_current_descriptor(name, code),
@@ -189,11 +209,14 @@ def build_candidate_urls(name: str, code: str):
                 "tipo": "1",
             }
         )
-        search_urls.append((descriptor, search_url))
+        if wants_special and is_special_descriptor(descriptor, code):
+            priority_search_urls.append((descriptor, search_url))
+        else:
+            search_urls.append((descriptor, search_url))
 
     deduped = []
     seen = set()
-    for descriptor, url in card_urls + search_urls:
+    for descriptor, url in priority_search_urls + card_urls + search_urls:
         if url in seen:
             continue
         seen.add(url)

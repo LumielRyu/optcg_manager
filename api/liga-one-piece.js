@@ -208,6 +208,10 @@ function buildCandidateUrls(cardName, cardCode) {
     descriptors.push(normalized);
   };
 
+  for (const { label, suffix } of specialSuffixesForName(cardName)) {
+    pushDescriptor(`${cleanName} (${label}) (${cardCode}-${suffix})`);
+  }
+
   pushDescriptor(`${cleanName}${isReprint ? ' (Reprint)' : ''} (${ligaCode})`);
 
   if (numberLabel) {
@@ -226,6 +230,19 @@ function buildCandidateUrls(cardName, cardCode) {
     url.searchParams.set('tipo', '1');
     return url.toString();
   });
+}
+
+function specialSuffixesForName(cardName) {
+  const normalized = stringValue(cardName)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+  const tokens = new Set(normalized.split(/\s+/).filter(Boolean));
+  const suffixes = [];
+  if (tokens.has('sp')) {
+    suffixes.push({ label: 'SP', suffix: 'SP' });
+  }
+  return suffixes;
 }
 
 function cleanCardName(cardName) {
