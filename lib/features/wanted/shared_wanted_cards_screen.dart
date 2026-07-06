@@ -102,7 +102,7 @@ class _SharedWantedCardsScreenState
     try {
       final action = await shareOrCopyText(
         link,
-        subject: 'Cartas procuradas no OPTCG Manager',
+        subject: 'Cartas procuradas no OPTCG BH',
       );
 
       if (!mounted) return;

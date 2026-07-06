@@ -1,4 +1,5 @@
 const DEFAULT_ALLOWED_ORIGINS = new Set([
+  'https://optcgbh.vercel.app',
   'https://optcgmanager.vercel.app',
   'https://optcgmanager-lumielryus-projects.vercel.app',
   'https://optcgmanager-lumielryu-lumielryus-projects.vercel.app',
@@ -77,6 +78,9 @@ function setCorsHeaders(res, req) {
 
 function isAllowedOrigin(origin) {
   if (DEFAULT_ALLOWED_ORIGINS.has(origin)) return true;
+  if (/^https:\/\/optcgbh-[a-z0-9-]+-lumielryus-projects\.vercel\.app$/i.test(origin)) {
+    return true;
+  }
   return /^https:\/\/optcgmanager-[a-z0-9-]+-lumielryus-projects\.vercel\.app$/i.test(
     origin,
   );

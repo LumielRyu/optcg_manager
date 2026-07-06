@@ -89,7 +89,7 @@ class OptcgManagerApp extends ConsumerWidget {
     );
 
     return MaterialApp.router(
-      title: 'TCG Manager',
+      title: 'OPTCG BH',
       debugShowCheckedModeBanner: false,
       routerConfig: appRouter,
       themeMode: themeMode,

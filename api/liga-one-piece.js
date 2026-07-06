@@ -1,6 +1,7 @@
 const LIGA_BASE_URL = 'https://www.ligaonepiece.com.br/';
 const ALLOWED_HOSTS = new Set(['www.ligaonepiece.com.br', 'ligaonepiece.com.br']);
 const DEFAULT_ALLOWED_ORIGINS = new Set([
+  'https://optcgbh.vercel.app',
   'https://optcgmanager.vercel.app',
   'https://optcgmanager-lumielryus-projects.vercel.app',
   'https://optcgmanager-lumielryu-lumielryus-projects.vercel.app',
@@ -97,6 +98,9 @@ function setCorsHeaders(res, req) {
 
 function isAllowedOrigin(origin, allowedOrigins) {
   if (allowedOrigins.has(origin)) return true;
+  if (/^https:\/\/optcgbh-[a-z0-9-]+-lumielryus-projects\.vercel\.app$/i.test(origin)) {
+    return true;
+  }
   return /^https:\/\/optcgmanager-[a-z0-9-]+-lumielryus-projects\.vercel\.app$/i.test(
     origin,
   );

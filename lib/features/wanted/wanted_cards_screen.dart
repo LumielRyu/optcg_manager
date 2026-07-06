@@ -204,7 +204,7 @@ class _WantedCardsScreenState extends ConsumerState<WantedCardsScreen> {
 
   Future<void> _sendWantedLinkViaWhatsApp(String link) async {
     final message = [
-      'Estas sao as cartas que estou procurando no OPTCG Manager:',
+      'Estas sao as cartas que estou procurando no OPTCG BH:',
       link,
     ].join('\n\n');
     final uri = Uri.parse(

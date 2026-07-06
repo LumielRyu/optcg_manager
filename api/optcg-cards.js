@@ -28,7 +28,7 @@ export default async function handler(request, response) {
         const upstream = await fetch(url, {
           headers: {
             Accept: 'application/json',
-            'User-Agent': 'OPTCG Manager/1.0 (+https://optcgmanager.vercel.app)',
+            'User-Agent': 'OPTCG BH/1.0 (+https://optcgbh.vercel.app)',
           },
         });
 

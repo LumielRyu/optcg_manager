@@ -17,7 +17,7 @@ class TcgSelectorScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('TCG Manager'),
+        title: const Text('OPTCG BH'),
         actions: [
           IconButton(
             tooltip: isDark ? 'Modo claro' : 'Modo escuro',
@@ -74,7 +74,7 @@ class TcgSelectorScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const AppHeroPanel(
-                      eyebrow: 'TCG Manager',
+                      eyebrow: 'OPTCG BH',
                       title: 'Escolha seu card game',
                       subtitle:
                           'Entre no jogo que deseja explorar. Cada hub concentra biblioteca, semanais e os recursos disponiveis.',

@@ -68,14 +68,19 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
     _cachedSellerName = allItems
         .map((item) => item.sellerName.trim())
         .firstWhere((name) => name.isNotEmpty, orElse: () => '');
-    _cachedTotalCards = allItems.fold<int>(0, (sum, item) => sum + item.quantity);
-    _cachedVisibleItems = allItems.where((item) {
-      if (_query.isEmpty) return true;
+    _cachedTotalCards = allItems.fold<int>(
+      0,
+      (sum, item) => sum + item.quantity,
+    );
+    _cachedVisibleItems = allItems
+        .where((item) {
+          if (_query.isEmpty) return true;
 
-      return item.name.toLowerCase().contains(_query) ||
-          item.cardCode.toLowerCase().contains(_query) ||
-          item.setName.toLowerCase().contains(_query);
-    }).toList(growable: false);
+          return item.name.toLowerCase().contains(_query) ||
+              item.cardCode.toLowerCase().contains(_query) ||
+              item.setName.toLowerCase().contains(_query);
+        })
+        .toList(growable: false);
   }
 
   String _buildPublicStoreLink() {
@@ -124,7 +129,7 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
     try {
       final action = await shareOrCopyText(
         link,
-        subject: 'Vitrine do OPTCG Manager',
+        subject: 'Vitrine do OPTCG BH',
       );
 
       if (!mounted) return;

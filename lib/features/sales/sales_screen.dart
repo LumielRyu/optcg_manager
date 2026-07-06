@@ -165,7 +165,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       final link = _buildPublicStoreLink(user.id);
       final action = await shareOrCopyText(
         link,
-        subject: 'Vitrine do OPTCG Manager',
+        subject: 'Vitrine do OPTCG BH',
       );
 
       if (!mounted) return;
