@@ -1,10 +1,11 @@
 import 'dart:convert';
 
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/pokemon_card.dart';
+
+const _pokemonTcgApiKey = String.fromEnvironment('POKEMON_TCG_API_KEY');
 
 final pokemonTcgServiceProvider = Provider<PokemonTcgService>((ref) {
   final client = http.Client();
@@ -56,23 +57,23 @@ class PokemonTcgService {
 
       if (tokens.isNotEmpty) {
         queryParameters['q'] = tokens
-            .map((token) => '(name:$token* OR set.name:$token* OR number:$token*)')
+            .map(
+              (token) => '(name:$token* OR set.name:$token* OR number:$token*)',
+            )
             .join(' ');
       }
     }
 
     final uri = Uri.https('api.pokemontcg.io', '/v2/cards', queryParameters);
     final headers = <String, String>{'Accept': 'application/json'};
-    final apiKey = dotenv.env['POKEMON_TCG_API_KEY']?.trim() ?? '';
+    final apiKey = _pokemonTcgApiKey.trim();
     if (apiKey.isNotEmpty) {
       headers['X-Api-Key'] = apiKey;
     }
 
     final response = await _client.get(uri, headers: headers);
     if (response.statusCode != 200) {
-      throw Exception(
-        'Pokemon TCG API retornou ${response.statusCode}.',
-      );
+      throw Exception('Pokemon TCG API retornou ${response.statusCode}.');
     }
 
     final payload = jsonDecode(response.body) as Map<String, dynamic>;

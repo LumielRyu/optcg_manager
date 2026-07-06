@@ -1,5 +1,5 @@
 name: optcg_manager
-description: "A new Flutter project."
+description: "OPTCG BH: colecao, biblioteca e marketplace regional para One Piece TCG."
 publish_to: 'none'
 version: 0.1.0+1
 
@@ -24,7 +24,6 @@ dependencies:
   web: ^1.1.1
   google_mlkit_text_recognition: ^0.15.1
   supabase_flutter: ^2.12.2
-  flutter_dotenv: ^6.0.0
 
 dev_dependencies:
   flutter_test:
@@ -34,7 +33,6 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - .env
     - assets/visual_card_fingerprints.json
     - assets/liga_one_piece_price_cache.json
     - assets/one_piece_cards_cache.json
