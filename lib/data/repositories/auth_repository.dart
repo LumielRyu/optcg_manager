@@ -22,6 +22,12 @@ final currentUserProvider = Provider<User?>((ref) {
   return client.auth.currentUser;
 });
 
+void _debugLog(String message) {
+  if (kDebugMode) {
+    debugPrint(message);
+  }
+}
+
 class AuthRepository {
   final SupabaseClient _client;
   final UserPreferencesRepository _prefs;
@@ -57,7 +63,7 @@ class AuthRepository {
         whatsAppPhone: whatsAppPhone,
       );
     } catch (e) {
-      debugPrint('SIGNUP ERROR: $e');
+      _debugLog('SIGNUP ERROR: $e');
       rethrow;
     }
   }
@@ -73,7 +79,7 @@ class AuthRepository {
         throw Exception('Usuario nao retornado no login.');
       }
     } catch (e) {
-      debugPrint('SIGNIN ERROR: $e');
+      _debugLog('SIGNIN ERROR: $e');
       rethrow;
     }
   }
@@ -90,7 +96,7 @@ class AuthRepository {
         throw Exception('Nao foi possivel abrir o login social.');
       }
     } catch (e) {
-      debugPrint('OAUTH SIGNIN ERROR: $e');
+      _debugLog('OAUTH SIGNIN ERROR: $e');
       rethrow;
     }
   }

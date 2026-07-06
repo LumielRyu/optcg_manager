@@ -17,16 +17,19 @@ class CardOcrService {
   }
 
   Future<String> _recognize(String source) async {
+    await _ensureTesseractLoaded();
     final tesseract = (web.window as JSObject).getProperty('Tesseract'.toJS);
     if (tesseract == null) {
-      throw Exception('Tesseract.js não foi carregado no navegador.');
+      throw Exception('Tesseract.js nao foi carregado no navegador.');
     }
 
-    final promise = (tesseract as JSObject).callMethod(
-      'recognize'.toJS,
-      source.toJS,
-      'eng'.toJS,
-    ) as JSPromise<JSAny?>;
+    final promise =
+        (tesseract as JSObject).callMethod(
+              'recognize'.toJS,
+              source.toJS,
+              'eng'.toJS,
+            )
+            as JSPromise<JSAny?>;
 
     final result = await promise.toDart;
     final data = (result as JSObject).getProperty('data'.toJS);
@@ -34,6 +37,21 @@ class CardOcrService {
         ? null
         : (data as JSObject).getProperty('text'.toJS);
     return (text ?? '').toString();
+  }
+
+  Future<void> _ensureTesseractLoaded() async {
+    final windowObject = web.window as JSObject;
+    if (windowObject.getProperty('Tesseract'.toJS) != null) {
+      return;
+    }
+
+    if (windowObject.getProperty('loadTesseractJs'.toJS) == null) {
+      throw Exception('Carregador do Tesseract.js nao esta disponivel.');
+    }
+
+    final promise =
+        windowObject.callMethod('loadTesseractJs'.toJS) as JSPromise<JSAny?>;
+    await promise.toDart;
   }
 
   Future<void> dispose() async {}

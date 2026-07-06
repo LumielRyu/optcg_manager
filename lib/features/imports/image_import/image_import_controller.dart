@@ -95,6 +95,12 @@ class ImageImportCandidate {
 
 const Object _copySentinel = Object();
 
+void _debugLog(String message) {
+  if (kDebugMode) {
+    debugPrint(message);
+  }
+}
+
 class ImageImportState {
   static const Object _sentinel = Object();
 
@@ -219,15 +225,15 @@ class ImageImportController extends StateNotifier<ImageImportState> {
         debugMessage:
             'An\u00E1lise manual concluiu ${results.length} item(ns). Encontradas: ${results.where((item) => item.found).length}.',
       );
-      debugPrint('[ImageImport][manual] input="$rawInput"');
-      debugPrint('[ImageImport][manual] normalized="$normalizedDetected"');
+      _debugLog('[ImageImport][manual] input="$rawInput"');
+      _debugLog('[ImageImport][manual] normalized="$normalizedDetected"');
     } catch (e) {
       state = state.copyWith(
         isBusy: false,
         error: 'Erro ao analisar c\u00F3digos: $e',
         debugMessage: 'Erro durante a an\u00E1lise manual: $e',
       );
-      debugPrint('[ImageImport][manual][error] $e');
+      _debugLog('[ImageImport][manual][error] $e');
     }
   }
 
@@ -304,10 +310,10 @@ class ImageImportController extends StateNotifier<ImageImportState> {
         rawText,
       );
       final candidateNames = OcrCodeExtractor.extractCandidateNames(rawText);
-      debugPrint('[ImageImport][ocr] path=$path');
-      debugPrint('[ImageImport][ocr] raw="$rawText"');
-      debugPrint('[ImageImport][ocr] extracted=$extractedLines');
-      debugPrint('[ImageImport][ocr] names=$candidateNames');
+      _debugLog('[ImageImport][ocr] path=$path');
+      _debugLog('[ImageImport][ocr] raw="$rawText"');
+      _debugLog('[ImageImport][ocr] extracted=$extractedLines');
+      _debugLog('[ImageImport][ocr] names=$candidateNames');
 
       if (extractedLines.isEmpty) {
         final visualMatch = await _resolveVisualCandidates(
@@ -317,7 +323,7 @@ class ImageImportController extends StateNotifier<ImageImportState> {
           sourceBytes: sourceBytes,
         );
         if (visualMatch != null) {
-          debugPrint(
+          _debugLog(
             '[ImageImport][visual-primary] ${visualMatch.card.code} mode=${visualMatch.matchedBy} confidence=${visualMatch.isHighConfidence} detail=${visualMatch.debug}',
           );
         }
@@ -406,7 +412,7 @@ class ImageImportController extends StateNotifier<ImageImportState> {
         sourceBytes: sourceBytes,
       );
       if (visualMatch != null) {
-        debugPrint(
+        _debugLog(
           '[ImageImport][visual-primary] ${visualMatch.card.code} mode=${visualMatch.matchedBy} confidence=${visualMatch.isHighConfidence} detail=${visualMatch.debug}',
         );
       }
@@ -496,7 +502,7 @@ class ImageImportController extends StateNotifier<ImageImportState> {
         error: 'Erro ao ler a imagem da carta: $e',
         debugMessage: 'Falha ao executar OCR da imagem: $e',
       );
-      debugPrint('[ImageImport][ocr][error] $e');
+      _debugLog('[ImageImport][ocr][error] $e');
       return null;
     }
   }
@@ -573,11 +579,11 @@ class ImageImportController extends StateNotifier<ImageImportState> {
         extractedLines: extractedLines,
         sourceBytes: bytes,
       );
-      debugPrint('[ImageImport][ocr-web] raw="$rawText"');
-      debugPrint('[ImageImport][ocr-web] extracted=$extractedLines');
-      debugPrint('[ImageImport][ocr-web] names=$candidateNames');
+      _debugLog('[ImageImport][ocr-web] raw="$rawText"');
+      _debugLog('[ImageImport][ocr-web] extracted=$extractedLines');
+      _debugLog('[ImageImport][ocr-web] names=$candidateNames');
       if (visualMatch != null) {
-        debugPrint(
+        _debugLog(
           '[ImageImport][visual-primary] ${visualMatch.card.code} mode=${visualMatch.matchedBy} confidence=${visualMatch.isHighConfidence} detail=${visualMatch.debug}',
         );
       }
@@ -731,7 +737,7 @@ class ImageImportController extends StateNotifier<ImageImportState> {
         error: 'Erro ao ler a imagem no navegador: $e',
         debugMessage: 'Falha ao executar OCR web: $e',
       );
-      debugPrint('[ImageImport][ocr-web][error] $e');
+      _debugLog('[ImageImport][ocr-web][error] $e');
       return null;
     }
   }
@@ -1001,7 +1007,7 @@ class ImageImportController extends StateNotifier<ImageImportState> {
     );
 
     if (databaseRanked.isNotEmpty) {
-      debugPrint(
+      _debugLog(
         '[ImageImport][visual-db] ranked=${databaseRanked.map((item) => '${item.card.code}:${item.distance}').join(', ')}',
       );
 
@@ -1101,7 +1107,7 @@ class ImageImportController extends StateNotifier<ImageImportState> {
     final hasConfidenceGap = secondDistance - best.distance >= 3;
     final isStrongEnough = best.distance <= 18;
 
-    debugPrint(
+    _debugLog(
       '[ImageImport][visual] ranked=${ranked.map((item) => '${item.card.code}:${item.distance}').join(', ')}',
     );
 
