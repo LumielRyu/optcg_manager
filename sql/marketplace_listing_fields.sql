@@ -12,3 +12,6 @@ add column if not exists sale_status text default 'active';
 
 alter table public.collection_items
 add column if not exists card_condition text default 'mint';
+
+alter table public.collection_items
+add column if not exists sale_expires_at timestamptz;

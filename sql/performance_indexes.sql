@@ -5,6 +5,12 @@ create index if not exists idx_collection_items_public_for_sale_created_at
 on public.collection_items (user_id, created_at desc)
 where collection_type = 'forSale' and is_public = true;
 
+create index if not exists idx_collection_items_public_for_sale_expires_at
+on public.collection_items (sale_expires_at desc, created_at desc)
+where collection_type = 'forSale'
+  and is_public = true
+  and sale_status = 'active';
+
 create index if not exists idx_collection_items_share_code_public
 on public.collection_items (share_code)
 where collection_type = 'forSale' and is_public = true;

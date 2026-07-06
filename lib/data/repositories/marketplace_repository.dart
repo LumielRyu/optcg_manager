@@ -25,7 +25,7 @@ class MarketplaceRepository {
       'id, user_id, card_code, quantity, is_favorite, is_public, share_code, '
       'created_at, image_url, name, set_name, rarity, color, type, text, '
       'attribute, sale_price_cents, sale_contact_info, sale_notes, '
-      'sale_status, card_condition';
+      'sale_status, card_condition, sale_expires_at';
   static const String _dynamicPricingColumns =
       'sale_pricing_mode, sale_liga_percentage, sale_liga_rounding, '
       'sale_liga_base_price_cents, sale_liga_price_updated_at, '
@@ -33,7 +33,8 @@ class MarketplaceRepository {
   static const String _publicListingColumns =
       'id, user_id, card_code, quantity, is_favorite, is_public, share_code, '
       'created_at, image_url, name, set_name, rarity, color, type, text, '
-      'attribute, sale_price_cents, sale_notes, sale_status, card_condition';
+      'attribute, sale_price_cents, sale_notes, sale_status, card_condition, '
+      'sale_expires_at';
   static const Duration _dynamicPriceMaxAge = Duration(hours: 24);
   final Map<String, OpCard?> _apiCardCache = {};
   final Map<String, String> _sellerNameCache = {};
@@ -80,13 +81,39 @@ class MarketplaceRepository {
   ) async {
     await _opApi.preload();
 
-    final row = await _client
-        .from('collection_items')
-        .select(_listingColumns)
-        .eq('share_code', shareCode)
-        .eq('is_public', true)
-        .eq('collection_type', 'forSale')
-        .maybeSingle();
+    Future<Map<String, dynamic>?> run({
+      required String columns,
+      required bool filterExpiration,
+    }) async {
+      var query = _client
+          .from('collection_items')
+          .select(columns)
+          .eq('share_code', shareCode)
+          .eq('is_public', true)
+          .eq('collection_type', 'forSale')
+          .eq('sale_status', MarketplaceListing.activeStatus);
+
+      if (filterExpiration) {
+        query = query.gt(
+          'sale_expires_at',
+          DateTime.now().toUtc().toIso8601String(),
+        );
+      }
+
+      final row = await query.maybeSingle();
+      return row == null ? null : Map<String, dynamic>.from(row);
+    }
+
+    Map<String, dynamic>? row;
+    try {
+      row = await run(columns: _listingColumns, filterExpiration: true);
+    } on PostgrestException catch (error) {
+      if (!_looksLikeMissingListingExpirationSchema(error)) rethrow;
+      row = await run(
+        columns: _listingColumns.replaceAll(', sale_expires_at', ''),
+        filterExpiration: false,
+      );
+    }
 
     if (row == null) {
       return null;
@@ -110,22 +137,50 @@ class MarketplaceRepository {
 
     final whatsAppPhone = await _prefs.getCurrentWhatsAppPhone();
 
-    await _client
-        .from('collection_items')
-        .update({'is_public': true, 'sale_contact_info': whatsAppPhone})
-        .eq('user_id', user.id)
-        .eq('collection_type', 'forSale');
+    final expiration = MarketplaceListing.newExpirationDate().toIso8601String();
+    final payload = {
+      'is_public': true,
+      'sale_contact_info': whatsAppPhone,
+      'sale_expires_at': expiration,
+    };
+
+    try {
+      await _client
+          .from('collection_items')
+          .update(payload)
+          .eq('user_id', user.id)
+          .eq('collection_type', 'forSale')
+          .eq('sale_status', MarketplaceListing.activeStatus);
+    } on PostgrestException catch (error) {
+      if (!_looksLikeMissingListingExpirationSchema(error)) rethrow;
+      payload.remove('sale_expires_at');
+      await _client
+          .from('collection_items')
+          .update(payload)
+          .eq('user_id', user.id)
+          .eq('collection_type', 'forSale')
+          .eq('sale_status', MarketplaceListing.activeStatus);
+    }
   }
 
   Future<void> disablePublicStoreSharingForUser() async {
     final user = _client.auth.currentUser;
     if (user == null) return;
 
-    await _client
-        .from('collection_items')
-        .update({'is_public': false})
-        .eq('user_id', user.id)
-        .eq('collection_type', 'forSale');
+    try {
+      await _client
+          .from('collection_items')
+          .update({'is_public': false, 'sale_expires_at': null})
+          .eq('user_id', user.id)
+          .eq('collection_type', 'forSale');
+    } on PostgrestException catch (error) {
+      if (!_looksLikeMissingListingExpirationSchema(error)) rethrow;
+      await _client
+          .from('collection_items')
+          .update({'is_public': false})
+          .eq('user_id', user.id)
+          .eq('collection_type', 'forSale');
+    }
   }
 
   Future<void> updateListingDetails({
@@ -157,19 +212,27 @@ class MarketplaceRepository {
           ? DateTime.now().toUtc().toIso8601String()
           : null,
       'sale_liga_price_source': ligaPriceSource,
+      'sale_expires_at': saleStatus == MarketplaceListing.activeStatus
+          ? MarketplaceListing.newExpirationDate().toIso8601String()
+          : null,
     };
 
     try {
       await _client.from('collection_items').update(payload).eq('id', id);
     } on PostgrestException catch (error) {
-      if (!_looksLikeMissingDynamicPricingSchema(error)) rethrow;
-      payload
-        ..remove('sale_pricing_mode')
-        ..remove('sale_liga_percentage')
-        ..remove('sale_liga_rounding')
-        ..remove('sale_liga_base_price_cents')
-        ..remove('sale_liga_price_updated_at')
-        ..remove('sale_liga_price_source');
+      if (!_looksLikeMissingOptionalListingSchema(error)) rethrow;
+      if (_looksLikeMissingListingExpirationSchema(error)) {
+        payload.remove('sale_expires_at');
+      }
+      if (_looksLikeMissingDynamicPricingSchema(error)) {
+        payload
+          ..remove('sale_pricing_mode')
+          ..remove('sale_liga_percentage')
+          ..remove('sale_liga_rounding')
+          ..remove('sale_liga_base_price_cents')
+          ..remove('sale_liga_price_updated_at')
+          ..remove('sale_liga_price_source');
+      }
       await _client.from('collection_items').update(payload).eq('id', id);
     }
   }
@@ -238,7 +301,10 @@ class MarketplaceRepository {
     required String? userId,
     required bool onlyPublic,
   }) async {
-    Future<List<Map<String, dynamic>>> run(String columns) async {
+    Future<List<Map<String, dynamic>>> run(
+      String columns, {
+      required bool filterExpiration,
+    }) async {
       var query = _client
           .from('collection_items')
           .select(columns)
@@ -249,7 +315,15 @@ class MarketplaceRepository {
       }
 
       if (onlyPublic) {
-        query = query.eq('is_public', true);
+        query = query
+            .eq('is_public', true)
+            .eq('sale_status', MarketplaceListing.activeStatus);
+        if (filterExpiration) {
+          query = query.gt(
+            'sale_expires_at',
+            DateTime.now().toUtc().toIso8601String(),
+          );
+        }
       }
 
       final response = await query.order('created_at', ascending: false);
@@ -259,10 +333,15 @@ class MarketplaceRepository {
     }
 
     try {
-      return await run(selectColumns);
+      return await run(selectColumns, filterExpiration: true);
     } on PostgrestException catch (error) {
-      if (!_looksLikeMissingDynamicPricingSchema(error)) rethrow;
-      return run(selectColumns.replaceAll(', $_dynamicPricingColumns', ''));
+      if (!_looksLikeMissingOptionalListingSchema(error)) rethrow;
+      var fallbackColumns = selectColumns.replaceAll(
+        ', $_dynamicPricingColumns',
+        '',
+      );
+      fallbackColumns = fallbackColumns.replaceAll(', sale_expires_at', '');
+      return run(fallbackColumns, filterExpiration: false);
     }
   }
 
@@ -453,7 +532,15 @@ class MarketplaceRepository {
         (map['sale_liga_price_updated_at'] ?? '').toString(),
       ),
       ligaPriceSource: (map['sale_liga_price_source'] ?? '').toString(),
+      saleExpiresAt: DateTime.tryParse(
+        (map['sale_expires_at'] ?? '').toString(),
+      ),
     );
+  }
+
+  bool _looksLikeMissingOptionalListingSchema(PostgrestException error) {
+    return _looksLikeMissingDynamicPricingSchema(error) ||
+        _looksLikeMissingListingExpirationSchema(error);
   }
 
   bool _looksLikeMissingDynamicPricingSchema(PostgrestException error) {
@@ -466,6 +553,13 @@ class MarketplaceRepository {
         message.contains('sale_liga_base_price_cents') ||
         message.contains('sale_liga_price_updated_at') ||
         message.contains('sale_liga_price_source');
+  }
+
+  bool _looksLikeMissingListingExpirationSchema(PostgrestException error) {
+    final message =
+        '${error.message} ${error.details ?? ''} ${error.hint ?? ''}'
+            .toLowerCase();
+    return message.contains('sale_expires_at');
   }
 
   static int calculateLigaPercentagePriceInCents({

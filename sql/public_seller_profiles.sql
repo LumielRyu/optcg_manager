@@ -16,6 +16,9 @@ as $$
       where ci.user_id = p.id
         and ci.collection_type = 'forSale'
         and ci.is_public = true
+        and ci.sale_status = 'active'
+        and ci.sale_expires_at is not null
+        and ci.sale_expires_at > now()
     );
 $$;
 

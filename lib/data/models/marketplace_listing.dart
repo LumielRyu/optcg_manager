@@ -27,6 +27,7 @@ class MarketplaceListing {
   final int? ligaBasePriceCents;
   final DateTime? ligaPriceUpdatedAt;
   final String ligaPriceSource;
+  final DateTime? saleExpiresAt;
 
   const MarketplaceListing({
     required this.id,
@@ -57,6 +58,7 @@ class MarketplaceListing {
     required this.ligaBasePriceCents,
     required this.ligaPriceUpdatedAt,
     required this.ligaPriceSource,
+    required this.saleExpiresAt,
   });
 
   MarketplaceListing copyWith({
@@ -92,6 +94,8 @@ class MarketplaceListing {
     DateTime? ligaPriceUpdatedAt,
     bool clearLigaPriceUpdatedAt = false,
     String? ligaPriceSource,
+    DateTime? saleExpiresAt,
+    bool clearSaleExpiresAt = false,
   }) {
     return MarketplaceListing(
       id: id ?? this.id,
@@ -128,6 +132,9 @@ class MarketplaceListing {
           ? null
           : (ligaPriceUpdatedAt ?? this.ligaPriceUpdatedAt),
       ligaPriceSource: ligaPriceSource ?? this.ligaPriceSource,
+      saleExpiresAt: clearSaleExpiresAt
+          ? null
+          : (saleExpiresAt ?? this.saleExpiresAt),
     );
   }
 
@@ -163,6 +170,13 @@ class MarketplaceListing {
   bool get isSold => saleStatus == soldStatus;
   bool get isReserved => saleStatus == reservedStatus;
   bool get isActive => saleStatus == activeStatus;
+  bool get isExpired {
+    final expiresAt = saleExpiresAt;
+    if (expiresAt == null) return false;
+    return !expiresAt.toUtc().isAfter(DateTime.now().toUtc());
+  }
+
+  bool get isVisibleInMarketplace => isPublic && isActive && !isExpired;
 
   bool get hasWhatsAppContact => normalizedWhatsAppNumber.isNotEmpty;
 
@@ -186,8 +200,33 @@ class MarketplaceListing {
       case soldStatus:
         return 'Vendida';
       default:
-        return 'Ativa';
+        return isExpired ? 'Expirada' : 'Ativa';
     }
+  }
+
+  String get expirationLabel {
+    final expiresAt = saleExpiresAt;
+    if (expiresAt == null) {
+      return 'Sem validade definida';
+    }
+
+    final remaining = expiresAt.toUtc().difference(DateTime.now().toUtc());
+    if (remaining.isNegative || remaining.inSeconds == 0) {
+      return 'Expirada';
+    }
+    if (remaining.inDays >= 1) {
+      final days = remaining.inDays;
+      return days == 1 ? 'Expira em 1 dia' : 'Expira em $days dias';
+    }
+    if (remaining.inHours >= 1) {
+      final hours = remaining.inHours;
+      return hours == 1 ? 'Expira em 1 hora' : 'Expira em $hours horas';
+    }
+    return 'Expira em menos de 1 hora';
+  }
+
+  static DateTime newExpirationDate() {
+    return DateTime.now().toUtc().add(publicVisibilityDuration);
   }
 
   String get conditionLabel {
@@ -208,6 +247,7 @@ class MarketplaceListing {
   static const String activeStatus = 'active';
   static const String reservedStatus = 'reserved';
   static const String soldStatus = 'sold';
+  static const Duration publicVisibilityDuration = Duration(days: 7);
 
   static const String manualPricingMode = 'manual';
   static const String ligaPercentagePricingMode = 'liga_percentage';

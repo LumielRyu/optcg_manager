@@ -36,7 +36,13 @@ using ((select auth.uid()) = user_id);
 drop policy if exists "Public can read public marketplace listings" on public.collection_items;
 create policy "Public can read public marketplace listings"
 on public.collection_items for select to anon, authenticated
-using (collection_type = 'forSale' and is_public = true);
+using (
+  collection_type = 'forSale'
+  and is_public = true
+  and sale_status = 'active'
+  and sale_expires_at is not null
+  and sale_expires_at > now()
+);
 
 drop policy if exists "Users can read own decks" on public.decks;
 create policy "Users can read own decks"
@@ -146,6 +152,8 @@ as $$
     and ci.collection_type = 'forSale'
     and ci.is_public = true
     and ci.sale_status = 'active'
+    and ci.sale_expires_at is not null
+    and ci.sale_expires_at > now()
   limit 1;
 $$;
 

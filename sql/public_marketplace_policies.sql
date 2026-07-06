@@ -15,6 +15,9 @@ begin
     using (
       collection_type = 'forSale'
       and is_public = true
+      and sale_status = 'active'
+      and sale_expires_at is not null
+      and sale_expires_at > now()
     );
   end if;
 end $$;

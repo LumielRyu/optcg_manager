@@ -114,11 +114,7 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
           return;
         }
 
-        await _saveManualCard(
-          repo: repo,
-          code: code,
-          quantity: quantity,
-        );
+        await _saveManualCard(repo: repo, code: code, quantity: quantity);
 
         await ref.read(collectionControllerProvider.notifier).load();
         if (mounted) Navigator.of(context).pop();
@@ -373,6 +369,44 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
               },
               decoration: const InputDecoration(labelText: 'Destino'),
             ),
+            if (_destination == CollectionTypes.forSale) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.tertiaryContainer.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.tertiary.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: Theme.of(context).colorScheme.onTertiaryContainer,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Cartas adicionadas em vendas só aparecem no marketplace depois de publicar/ativar o anúncio. Quando ativado, ele fica visível por 7 dias e precisa ser renovado depois.',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onTertiaryContainer,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             if (_destination == CollectionTypes.deck) ...[
               const SizedBox(height: 12),
               TextField(

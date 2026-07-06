@@ -565,6 +565,47 @@ class _CalculatedPricePreview extends StatelessWidget {
   }
 }
 
+class _ListingExpirationNotice extends StatelessWidget {
+  final MarketplaceListing card;
+
+  const _ListingExpirationNotice({required this.card});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final message = card.isExpired
+        ? 'Este anúncio expirou. Salve como Ativa para publicar por mais 7 dias.'
+        : card.saleExpiresAt == null
+        ? 'Ao publicar ou reativar, este anúncio ficará visível no marketplace por 7 dias.'
+        : '${card.expirationLabel}. Ao salvar como Ativa, a validade será renovada por 7 dias.';
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colorScheme.tertiaryContainer.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: colorScheme.tertiary.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.schedule_outlined, color: colorScheme.onTertiaryContainer),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: colorScheme.onTertiaryContainer,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 String _formatPercentInput(double value) {
   final fixed = value.toStringAsFixed(2);
   return fixed.endsWith('00')
@@ -768,6 +809,7 @@ class _SalesLibraryView extends ConsumerWidget {
               'Set: ${item.setName.isEmpty ? '-' : item.setName}',
               item.formattedPrice,
               'Status: ${item.statusLabel}',
+              item.expirationLabel,
               'Condição: ${item.conditionLabel}',
               'Quantidade: ${item.quantity}x',
               if (item.hasContactInfo) 'Contato configurado',
@@ -815,6 +857,7 @@ class _SalesLibraryView extends ConsumerWidget {
             if (item.hasSellerName) 'Vendedor: ${item.sellerName}',
             'Quantidade: ${item.quantity}x',
             item.statusLabel,
+            item.expirationLabel,
             item.conditionLabel,
             item.formattedPrice,
           ],
@@ -1453,6 +1496,7 @@ class _SalesCardDetailsDialogState
                     if (card.hasSellerName)
                       _infoRow('Vendedor', card.sellerName),
                     _infoRow('Status', card.statusLabel),
+                    _infoRow('Visibilidade', card.expirationLabel),
                     _infoRow('Set', card.setName),
                     _infoRow('Raridade', card.rarity),
                     _infoRow('Condição', card.conditionLabel),
@@ -1488,6 +1532,8 @@ class _SalesCardDetailsDialogState
                     ],
                     const SizedBox(height: 16),
                     const Text('Dados do anúncio'),
+                    const SizedBox(height: 8),
+                    _ListingExpirationNotice(card: card),
                     const SizedBox(height: 8),
                     FutureBuilder<LigaOnePieceCardSnapshot?>(
                       future: _ligaSnapshotFuture,
