@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
-const Color _shellInk = Color(0xFF061017);
-const Color _shellPanel = Color(0xFF0A1A20);
-const Color _shellPanelSoft = Color(0xFF10272D);
-const Color _shellGold = Color(0xFFE6A935);
+const Color _shellVoid = Color(0xFF060A10);
+const Color _shellNavy = Color(0xFF0B1821);
+const Color _shellPanel = Color(0xFF10232D);
+const Color _shellPanelSoft = Color(0xFF173541);
+const Color _shellCyan = Color(0xFF28D7E8);
+const Color _shellAmber = Color(0xFFF4B740);
 
 class AppPageShell extends StatelessWidget {
   final Widget child;
@@ -26,17 +28,17 @@ class AppPageShell extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         gradient: dark
-            ? const RadialGradient(
-                center: Alignment(-0.9, -0.7),
-                radius: 1.35,
-                colors: [Color(0xFF113543), _shellInk, Color(0xFF02060A)],
-                stops: [0, 0.48, 1],
+            ? const LinearGradient(
+                colors: [_shellNavy, _shellVoid, Color(0xFF11100B)],
+                stops: [0, 0.58, 1],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               )
             : LinearGradient(
                 colors: [
-                  const Color(0xFFF7DCA7),
+                  const Color(0xFFF4F7FB),
                   theme.colorScheme.surface,
-                  const Color(0xFFEAC47B),
+                  const Color(0xFFE7F8FA),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -44,8 +46,7 @@ class AppPageShell extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          if (dark)
-            Positioned.fill(child: CustomPaint(painter: _ShellSeaPainter())),
+          Positioned.fill(child: CustomPaint(painter: _ShellGridPainter(dark))),
           SingleChildScrollView(
             padding:
                 padding ??
@@ -66,20 +67,43 @@ class AppPageShell extends StatelessWidget {
   }
 }
 
-class _ShellSeaPainter extends CustomPainter {
+class _ShellGridPainter extends CustomPainter {
+  final bool dark;
+
+  const _ShellGridPainter(this.dark);
+
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = _shellGold.withValues(alpha: 0.045)
+    final linePaint = Paint()
+      ..color = (dark ? _shellCyan : const Color(0xFF006B78)).withValues(
+        alpha: dark ? 0.055 : 0.045,
+      )
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
-    for (var y = size.height * 0.18; y < size.height; y += 58) {
-      final path = Path()..moveTo(0, y);
-      for (var x = 0.0; x <= size.width; x += 90) {
-        path.quadraticBezierTo(x + 45, y + 12, x + 90, y);
-      }
-      canvas.drawPath(path, paint);
+    const step = 42.0;
+    for (var x = 0.0; x < size.width; x += step) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), linePaint);
     }
+    for (var y = 0.0; y < size.height; y += step) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), linePaint);
+    }
+
+    final accentPaint = Paint()
+      ..color = (dark ? _shellAmber : const Color(0xFF4F8CFF)).withValues(
+        alpha: dark ? 0.11 : 0.06,
+      )
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+    canvas.drawLine(
+      Offset(size.width * 0.08, size.height * 0.08),
+      Offset(size.width * 0.74, size.height * 0.02),
+      accentPaint,
+    );
+    canvas.drawLine(
+      Offset(size.width * 0.36, size.height),
+      Offset(size.width, size.height * 0.74),
+      accentPaint,
+    );
   }
 
   @override
@@ -117,23 +141,23 @@ class AppHeroPanel extends StatelessWidget {
         gradient: LinearGradient(
           colors: dark
               ? [
-                  _shellPanelSoft.withValues(alpha: 0.92),
-                  _shellPanel.withValues(alpha: 0.94),
-                  Colors.black.withValues(alpha: 0.46),
+                  _shellPanelSoft.withValues(alpha: 0.78),
+                  _shellPanel.withValues(alpha: 0.88),
+                  Colors.black.withValues(alpha: 0.28),
                 ]
               : [
-                  color.withValues(alpha: 0.18),
-                  theme.colorScheme.surface.withValues(alpha: 0.96),
+                  Colors.white.withValues(alpha: 0.96),
+                  color.withValues(alpha: 0.08),
                 ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: dark ? 0.42 : 0.32)),
+        border: Border.all(color: color.withValues(alpha: dark ? 0.32 : 0.2)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: dark ? 0.35 : 0.12),
-            blurRadius: 22,
+            color: Colors.black.withValues(alpha: dark ? 0.32 : 0.08),
+            blurRadius: 28,
             offset: const Offset(0, 12),
           ),
         ],
@@ -148,7 +172,7 @@ class AppHeroPanel extends StatelessWidget {
             height: 68,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.14),
+              color: color.withValues(alpha: dark ? 0.13 : 0.1),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: color.withValues(alpha: 0.28)),
             ),
@@ -164,7 +188,7 @@ class AppHeroPanel extends StatelessWidget {
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: color,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: 1.1,
+                    letterSpacing: 0.8,
                   ),
                 ),
                 const SizedBox(height: 5),
@@ -172,7 +196,7 @@ class AppHeroPanel extends StatelessWidget {
                   title,
                   style: theme.textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w900,
-                    letterSpacing: -0.7,
+                    letterSpacing: 0,
                   ),
                 ),
                 const SizedBox(height: 7),
@@ -230,7 +254,7 @@ class AppSectionHeading extends StatelessWidget {
               Text(
                 title,
                 style: theme.textTheme.titleLarge?.copyWith(
-                  color: theme.colorScheme.primary,
+                  color: theme.colorScheme.onSurface,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 0,
                 ),
@@ -306,7 +330,7 @@ class AppAuthPanel extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: Padding(
-        padding: const EdgeInsets.all(22),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

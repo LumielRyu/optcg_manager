@@ -27,16 +27,28 @@ class DashboardHeaderPanel extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            theme.colorScheme.primaryContainer,
             theme.colorScheme.surface.withValues(alpha: 0.96),
+            theme.colorScheme.primary.withValues(alpha: 0.08),
+            theme.colorScheme.secondary.withValues(alpha: 0.06),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.55),
+          color: theme.colorScheme.primary.withValues(alpha: 0.16),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(
+              alpha: theme.colorScheme.brightness == Brightness.dark
+                  ? 0.28
+                  : 0.06,
+            ),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: crossAxisAlignment,

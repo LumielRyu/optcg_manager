@@ -65,124 +65,120 @@ class TcgSelectorScreen extends ConsumerWidget {
           final totalSpacing = 18.0 * (cardsPerRow - 1);
           final cardWidth = (availableWidth - totalSpacing) / cardsPerRow;
 
-          return SingleChildScrollView(
+          return AppPageShell(
+            maxWidth: 1320,
             padding: EdgeInsets.all(horizontalPadding),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1320),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const AppHeroPanel(
-                      eyebrow: 'OPTCG BH',
-                      title: 'Escolha seu card game',
-                      subtitle:
-                          'Entre no jogo que deseja explorar. Cada hub concentra biblioteca, semanais e os recursos disponiveis.',
-                      icon: Icons.style_outlined,
-                      badges: [
-                        AppBadge(
-                          label: '6 card games',
-                          icon: Icons.dashboard_customize_outlined,
-                        ),
-                        AppBadge(
-                          label: 'Bibliotecas conectadas',
-                          icon: Icons.auto_stories_outlined,
-                        ),
-                        AppBadge(
-                          label: 'Semanais e ranking',
-                          icon: Icons.emoji_events_outlined,
-                        ),
-                      ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const AppHeroPanel(
+                  eyebrow: 'OPTCG BH',
+                  title: 'Escolha seu card game',
+                  subtitle:
+                      'Entre no jogo que deseja explorar. Cada hub concentra biblioteca, semanais e recursos da comunidade em uma experiencia mais limpa e rapida.',
+                  icon: Icons.style_outlined,
+                  badges: [
+                    AppBadge(
+                      label: '6 card games',
+                      icon: Icons.dashboard_customize_outlined,
                     ),
-                    const SizedBox(height: 24),
-                    const AppSectionHeading(
-                      icon: Icons.explore_outlined,
-                      title: 'Card games disponiveis',
-                      subtitle:
-                          'Abra um hub para acessar os recursos daquele jogo.',
+                    AppBadge(
+                      label: 'Bibliotecas conectadas',
+                      icon: Icons.auto_stories_outlined,
                     ),
-                    const SizedBox(height: 14),
-                    Wrap(
-                      spacing: 18,
-                      runSpacing: 18,
-                      children: [
-                        SizedBox(
-                          width: cardWidth,
-                          child: _TcgChoiceCard(
-                            title: 'One Piece',
-                            subtitle:
-                                'Colecao, vendas, marketplace e biblioteca oficial do One Piece Card Game.',
-                            accent: const Color(0xFF0D5C63),
-                            chipLabel: 'Fluxo completo',
-                            icon: Icons.waves_outlined,
-                            onTap: () => context.go('/home/one-piece'),
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardWidth,
-                          child: _TcgChoiceCard(
-                            title: 'Pokemon',
-                            subtitle:
-                                'Biblioteca inicial com busca em tempo real usando a Pokemon TCG API.',
-                            accent: const Color(0xFFD62828),
-                            chipLabel: 'Nova biblioteca',
-                            icon: Icons.catching_pokemon,
-                            onTap: () => context.go('/pokemon'),
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardWidth,
-                          child: _TcgChoiceCard(
-                            title: 'Yu-Gi-Oh',
-                            subtitle:
-                                'Biblioteca inicial conectada ao YGOPRODeck para pesquisar cartas e detalhes.',
-                            accent: const Color(0xFF4A4E9B),
-                            chipLabel: 'Nova biblioteca',
-                            icon: Icons.auto_awesome_outlined,
-                            onTap: () => context.go('/yugioh'),
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardWidth,
-                          child: _TcgChoiceCard(
-                            title: 'Digimon',
-                            subtitle:
-                                'Biblioteca inicial com busca em tempo real usando a Heroicc Digimon API.',
-                            accent: const Color(0xFF0F766E),
-                            chipLabel: 'Nova biblioteca',
-                            icon: Icons.memory_outlined,
-                            onTap: () => context.go('/digimon'),
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardWidth,
-                          child: _TcgChoiceCard(
-                            title: 'Magic',
-                            subtitle:
-                                'Biblioteca inicial conectada ao Scryfall para pesquisar cartas e metadados.',
-                            accent: const Color(0xFFB45309),
-                            chipLabel: 'Nova biblioteca',
-                            icon: Icons.auto_fix_high_outlined,
-                            onTap: () => context.go('/magic'),
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardWidth,
-                          child: _TcgChoiceCard(
-                            title: 'Riftbound',
-                            subtitle:
-                                'Biblioteca inicial com listagem e busca aproximada de cartas via Riftcodex.',
-                            accent: const Color(0xFF2563EB),
-                            chipLabel: 'Nova biblioteca',
-                            icon: Icons.bolt_outlined,
-                            onTap: () => context.go('/riftbound'),
-                          ),
-                        ),
-                      ],
+                    AppBadge(
+                      label: 'Semanais e ranking',
+                      icon: Icons.emoji_events_outlined,
                     ),
                   ],
                 ),
-              ),
+                const SizedBox(height: 24),
+                const AppSectionHeading(
+                  icon: Icons.explore_outlined,
+                  title: 'Card games disponiveis',
+                  subtitle:
+                      'Abra um hub para acessar os recursos daquele jogo.',
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 18,
+                  runSpacing: 18,
+                  children: [
+                    SizedBox(
+                      width: cardWidth,
+                      child: _TcgChoiceCard(
+                        title: 'One Piece',
+                        subtitle:
+                            'Colecao, vendas, marketplace e biblioteca oficial do One Piece Card Game.',
+                        accent: const Color(0xFF28D7E8),
+                        chipLabel: 'Fluxo completo',
+                        icon: Icons.waves_outlined,
+                        onTap: () => context.go('/home/one-piece'),
+                      ),
+                    ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: _TcgChoiceCard(
+                        title: 'Pokemon',
+                        subtitle:
+                            'Biblioteca inicial com busca em tempo real usando a Pokemon TCG API.',
+                        accent: const Color(0xFFFF6B5A),
+                        chipLabel: 'Nova biblioteca',
+                        icon: Icons.catching_pokemon,
+                        onTap: () => context.go('/pokemon'),
+                      ),
+                    ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: _TcgChoiceCard(
+                        title: 'Yu-Gi-Oh',
+                        subtitle:
+                            'Biblioteca inicial conectada ao YGOPRODeck para pesquisar cartas e detalhes.',
+                        accent: const Color(0xFF9B8CFF),
+                        chipLabel: 'Nova biblioteca',
+                        icon: Icons.auto_awesome_outlined,
+                        onTap: () => context.go('/yugioh'),
+                      ),
+                    ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: _TcgChoiceCard(
+                        title: 'Digimon',
+                        subtitle:
+                            'Biblioteca inicial com busca em tempo real usando a Heroicc Digimon API.',
+                        accent: const Color(0xFF30D67A),
+                        chipLabel: 'Nova biblioteca',
+                        icon: Icons.memory_outlined,
+                        onTap: () => context.go('/digimon'),
+                      ),
+                    ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: _TcgChoiceCard(
+                        title: 'Magic',
+                        subtitle:
+                            'Biblioteca inicial conectada ao Scryfall para pesquisar cartas e metadados.',
+                        accent: const Color(0xFFF4B740),
+                        chipLabel: 'Nova biblioteca',
+                        icon: Icons.auto_fix_high_outlined,
+                        onTap: () => context.go('/magic'),
+                      ),
+                    ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: _TcgChoiceCard(
+                        title: 'Riftbound',
+                        subtitle:
+                            'Biblioteca inicial com listagem e busca aproximada de cartas via Riftcodex.',
+                        accent: const Color(0xFF4F8CFF),
+                        chipLabel: 'Nova biblioteca',
+                        icon: Icons.bolt_outlined,
+                        onTap: () => context.go('/riftbound'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           );
         },
@@ -216,17 +212,11 @@ class _TcgChoiceCard extends StatelessWidget {
       elevation: 0,
       surfaceTintColor: Colors.transparent,
       clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(26),
-        side: BorderSide(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-        ),
-      ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(8),
         onTap: onTap,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 296),
+          constraints: const BoxConstraints(minHeight: 274),
           child: Padding(
             padding: const EdgeInsets.all(22),
             child: Column(
@@ -237,7 +227,8 @@ class _TcgChoiceCard extends StatelessWidget {
                   height: 62,
                   decoration: BoxDecoration(
                     color: accent.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: accent.withValues(alpha: 0.25)),
                   ),
                   alignment: Alignment.center,
                   child: Icon(icon, color: accent, size: 30),
@@ -251,6 +242,7 @@ class _TcgChoiceCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: accent.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: accent.withValues(alpha: 0.2)),
                   ),
                   child: Text(
                     chipLabel,
@@ -269,11 +261,14 @@ class _TcgChoiceCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(subtitle, style: theme.textTheme.bodyMedium),
-                const SizedBox(height: 18),
-                FilledButton.icon(
-                  onPressed: onTap,
-                  icon: const Icon(Icons.arrow_forward),
-                  label: const Text('Entrar'),
+                const Spacer(),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: FilledButton.icon(
+                    onPressed: onTap,
+                    icon: const Icon(Icons.arrow_forward),
+                    label: const Text('Entrar'),
+                  ),
                 ),
               ],
             ),

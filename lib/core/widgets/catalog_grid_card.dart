@@ -40,7 +40,7 @@ class CatalogGridCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -52,7 +52,7 @@ class CatalogGridCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.labelMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                        color: theme.colorScheme.primary,
                         fontWeight: FontWeight.w800,
                         fontSize: 12 * safeTextScale,
                       ),
@@ -65,12 +65,19 @@ class CatalogGridCard extends StatelessWidget {
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest.withValues(
-                      alpha: 0.42,
+                    gradient: LinearGradient(
+                      colors: [
+                        theme.colorScheme.surfaceContainerHighest.withValues(
+                          alpha: 0.34,
+                        ),
+                        theme.colorScheme.primary.withValues(alpha: 0.045),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.14),
+                      color: theme.colorScheme.primary.withValues(alpha: 0.16),
                     ),
                   ),
                   padding: const EdgeInsets.all(8),

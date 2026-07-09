@@ -24,10 +24,17 @@ class SummaryStatCard extends StatelessWidget {
       constraints: minWidth > 0 ? BoxConstraints(minWidth: minWidth) : null,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface.withValues(alpha: surfaceAlpha),
+        gradient: LinearGradient(
+          colors: [
+            theme.colorScheme.surface.withValues(alpha: surfaceAlpha),
+            theme.colorScheme.primary.withValues(alpha: 0.055),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: 0.28),
+          color: theme.colorScheme.primary.withValues(alpha: 0.2),
         ),
       ),
       child: Row(
@@ -40,7 +47,7 @@ class SummaryStatCard extends StatelessWidget {
               color: theme.colorScheme.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: theme.colorScheme.primary.withValues(alpha: 0.28),
+                color: theme.colorScheme.primary.withValues(alpha: 0.22),
               ),
             ),
             alignment: Alignment.center,

@@ -16,7 +16,6 @@ class HomeScreen extends ConsumerWidget {
     final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
     ref.watch(authStateProvider);
     final isLoggedIn = ref.watch(currentUserProvider) != null;
-    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -29,9 +28,7 @@ class HomeScreen extends ConsumerWidget {
           ),
           IconButton(
             tooltip: isDark ? 'Modo claro' : 'Modo escuro',
-            onPressed: () {
-              ref.read(themeModeProvider.notifier).toggle();
-            },
+            onPressed: () => ref.read(themeModeProvider.notifier).toggle(),
             icon: Icon(
               isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
             ),
@@ -71,167 +68,154 @@ class HomeScreen extends ConsumerWidget {
           final contentWidth = width < 1200 ? width : 1200.0;
           final availableWidth = contentWidth - (horizontalPadding * 2);
           final cardsPerRow = width >= 1280
-              ? 5
+              ? 4
               : width >= 720
               ? 2
               : 1;
           final totalSpacing = 16.0 * (cardsPerRow - 1);
           final cardWidth = (availableWidth - totalSpacing) / cardsPerRow;
 
-          return SingleChildScrollView(
+          return AppPageShell(
+            maxWidth: 1200,
             padding: EdgeInsets.all(horizontalPadding),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1200),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AppHeroPanel(
+                  eyebrow: 'OPTCG BH',
+                  title: 'Hub One Piece',
+                  subtitle:
+                      'Controle colecao, vendas, cartas procuradas, biblioteca e ranking semanal em uma interface mais rapida para a comunidade de BH.',
+                  icon: Icons.waves_outlined,
+                  badges: const [
+                    AppBadge(
+                      label: 'Marketplace local',
+                      icon: Icons.storefront_outlined,
+                    ),
+                    AppBadge(
+                      label: 'Colecao e decks',
+                      icon: Icons.collections_bookmark_outlined,
+                    ),
+                    AppBadge(
+                      label: 'Scanner e biblioteca',
+                      icon: Icons.center_focus_strong_outlined,
+                    ),
+                  ],
+                  action: FilledButton.icon(
+                    onPressed: () => context.go('/marketplace'),
+                    icon: const Icon(Icons.public_outlined),
+                    label: const Text('Marketplace'),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const AppSectionHeading(
+                  icon: Icons.grid_view_rounded,
+                  title: 'Escolha seu proximo passo',
+                  subtitle:
+                      'Acesse rapidamente os recursos principais da plataforma.',
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  runAlignment: WrapAlignment.center,
+                  spacing: 16,
+                  runSpacing: 16,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            colorScheme.primaryContainer,
-                            colorScheme.surface,
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(
-                          color: colorScheme.outlineVariant.withValues(
-                            alpha: 0.5,
-                          ),
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            'Hub One Piece',
-                            style: Theme.of(context).textTheme.headlineSmall
-                                ?.copyWith(fontWeight: FontWeight.w800),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            'Gerencie sua coleção, organize decks e publique sua vitrine de vendas em um só lugar.',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
+                    SizedBox(
+                      width: cardWidth,
+                      child: const _HomeFeatureCard(
+                        icon: Icons.emoji_events_outlined,
+                        title: 'Semanais STOP TCG',
+                        subtitle:
+                            'Consulte historico de partidas, pontuacao mensal e ranking dos encontros da loja STOP TCG.',
+                        buttonLabel: 'Abrir semanais',
+                        route: '/weeklies/one-piece',
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    const AppSectionHeading(
-                      icon: Icons.grid_view_rounded,
-                      title: 'Escolha seu proximo passo',
-                      subtitle:
-                          'Acesse rapidamente os recursos principais da plataforma.',
+                    SizedBox(
+                      width: cardWidth,
+                      child: const _HomeFeatureCard(
+                        icon: Icons.auto_stories_outlined,
+                        title: 'Biblioteca One Piece',
+                        subtitle:
+                            'Consulte todas as cartas do jogo com imagem, codigo e filtros por cor, tipo e edicao.',
+                        buttonLabel: 'Abrir biblioteca',
+                        route: '/library',
+                      ),
                     ),
-                    const SizedBox(height: 14),
-                    Wrap(
-                      alignment: WrapAlignment.center,
-                      runAlignment: WrapAlignment.center,
-                      spacing: 16,
-                      runSpacing: 16,
-                      children: [
-                        SizedBox(
-                          width: cardWidth,
-                          child: const _HomeFeatureCard(
-                            icon: Icons.emoji_events_outlined,
-                            title: 'Semanais STOP TCG',
-                            subtitle:
-                                'Consulte historico de partidas, pontuacao mensal e ranking dos encontros da loja STOP TCG.',
-                            buttonLabel: 'Abrir semanais',
-                            route: '/weeklies/one-piece',
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardWidth,
-                          child: const _HomeFeatureCard(
-                            icon: Icons.auto_stories_outlined,
-                            title: 'Biblioteca One Piece',
-                            subtitle:
-                                'Consulte todas as cartas do jogo com imagem, código e filtros por cor, tipo e edição.',
-                            buttonLabel: 'Abrir biblioteca',
-                            route: '/library',
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardWidth,
-                          child: const _HomeFeatureCard(
-                            icon: Icons.collections_bookmark_outlined,
-                            title: 'Abrir coleção',
-                            subtitle:
-                                'Acesse cartas obtidas e decks montados, além das ferramentas de importação.',
-                            buttonLabel: 'Abrir coleção',
-                            route: '/collection',
-                            requiresAuth: true,
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardWidth,
-                          child: const _HomeFeatureCard(
-                            icon: Icons.storefront_outlined,
-                            title: 'Cartas à venda',
-                            subtitle:
-                                'Gerencie sua área de vendas e copie o link da sua vitrine pública.',
-                            buttonLabel: 'Abrir vendas',
-                            route: '/sales',
-                            requiresAuth: true,
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardWidth,
-                          child: const _HomeFeatureCard(
-                            icon: Icons.public_outlined,
-                            title: 'Marketplace Global',
-                            subtitle:
-                                'Veja todas as cartas públicas à venda dentro da plataforma e fale direto no WhatsApp com o vendedor.',
-                            buttonLabel: 'Abrir marketplace',
-                            route: '/marketplace',
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardWidth,
-                          child: const _HomeFeatureCard(
-                            icon: Icons.travel_explore_outlined,
-                            title: 'Cartas procuradas',
-                            subtitle:
-                                'Cadastre cartas que voce procura e veja buscas de outros usuarios para oferecer pelo WhatsApp.',
-                            buttonLabel: 'Abrir buscas',
-                            route: '/wanted',
-                            requiresAuth: true,
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardWidth,
-                          child: const _HomeFeatureCard(
-                            icon: Icons.help_outline,
-                            title: 'Ajuda e documentação',
-                            subtitle:
-                                'Veja como usar coleção, scanner, vendas, biblioteca, semanais e importações.',
-                            buttonLabel: 'Abrir ajuda',
-                            route: '/help',
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardWidth,
-                          child: const _HomeFeatureCard(
-                            icon: Icons.center_focus_strong_outlined,
-                            title: 'Reconhecimento por imagem',
-                            subtitle:
-                                'Identifique cartas por foto usando camera, galeria ou uma imagem de exemplo.',
-                            buttonLabel: 'Testar reconhecimento',
-                            route: '/card-scan-test',
-                            requiresAuth: true,
-                          ),
-                        ),
-                      ],
+                    SizedBox(
+                      width: cardWidth,
+                      child: const _HomeFeatureCard(
+                        icon: Icons.collections_bookmark_outlined,
+                        title: 'Abrir colecao',
+                        subtitle:
+                            'Acesse cartas obtidas e decks montados, alem das ferramentas de importacao.',
+                        buttonLabel: 'Abrir colecao',
+                        route: '/collection',
+                        requiresAuth: true,
+                      ),
+                    ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: const _HomeFeatureCard(
+                        icon: Icons.storefront_outlined,
+                        title: 'Cartas a venda',
+                        subtitle:
+                            'Gerencie sua area de vendas e copie o link da sua vitrine publica.',
+                        buttonLabel: 'Abrir vendas',
+                        route: '/sales',
+                        requiresAuth: true,
+                      ),
+                    ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: const _HomeFeatureCard(
+                        icon: Icons.public_outlined,
+                        title: 'Marketplace Global',
+                        subtitle:
+                            'Veja todas as cartas publicas a venda na plataforma e fale direto no WhatsApp com o vendedor.',
+                        buttonLabel: 'Abrir marketplace',
+                        route: '/marketplace',
+                      ),
+                    ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: const _HomeFeatureCard(
+                        icon: Icons.travel_explore_outlined,
+                        title: 'Cartas procuradas',
+                        subtitle:
+                            'Cadastre cartas que voce procura e veja buscas de outros usuarios para oferecer pelo WhatsApp.',
+                        buttonLabel: 'Abrir buscas',
+                        route: '/wanted',
+                        requiresAuth: true,
+                      ),
+                    ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: const _HomeFeatureCard(
+                        icon: Icons.help_outline,
+                        title: 'Ajuda',
+                        subtitle:
+                            'Veja como usar colecao, scanner, vendas, biblioteca, semanais e importacoes.',
+                        buttonLabel: 'Abrir ajuda',
+                        route: '/help',
+                      ),
+                    ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: const _HomeFeatureCard(
+                        icon: Icons.center_focus_strong_outlined,
+                        title: 'Reconhecimento por imagem',
+                        subtitle:
+                            'Identifique cartas por foto usando camera, galeria ou uma imagem de exemplo.',
+                        buttonLabel: 'Testar scanner',
+                        route: '/card-scan-test',
+                        requiresAuth: true,
+                      ),
                     ),
                   ],
                 ),
-              ),
+              ],
             ),
           );
         },
@@ -269,14 +253,9 @@ class _HomeFeatureCard extends StatelessWidget {
       elevation: 0,
       shadowColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
-        side: BorderSide(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
-        ),
-      ),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(8),
         splashColor: theme.colorScheme.primary.withValues(alpha: 0.05),
         highlightColor: Colors.transparent,
         hoverColor: theme.colorScheme.primary.withValues(alpha: 0.04),
@@ -287,58 +266,64 @@ class _HomeFeatureCard extends StatelessWidget {
           context.go(route);
         },
         child: Padding(
-          padding: EdgeInsets.all(compact ? 14 : 22),
+          padding: EdgeInsets.all(compact ? 14 : 18),
           child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: compact ? 210 : 240),
+            constraints: BoxConstraints(minHeight: compact ? 190 : 220),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: compact ? 52 : 64,
-                  height: compact ? 52 : 64,
+                  width: compact ? 48 : 56,
+                  height: compact ? 48 : 56,
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(18),
+                    color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.22),
+                    ),
                   ),
                   alignment: Alignment.center,
                   child: Icon(
                     icon,
-                    size: compact ? 24 : 30,
-                    color: theme.colorScheme.onPrimaryContainer,
+                    size: compact ? 23 : 28,
+                    color: theme.colorScheme.primary,
                   ),
                 ),
-                SizedBox(height: compact ? 12 : 18),
+                SizedBox(height: compact ? 12 : 16),
                 Text(
                   title,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    fontSize: compact ? 18 : null,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    fontSize: compact ? 17 : null,
                   ),
-                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 SizedBox(height: compact ? 6 : 8),
                 Text(
                   subtitle,
-                  maxLines: compact ? 5 : 6,
+                  maxLines: compact ? 5 : 4,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontSize: compact ? 13 : null,
                   ),
-                  textAlign: TextAlign.center,
                 ),
                 const Spacer(),
-                FilledButton.icon(
-                  onPressed: () {
-                    if (requiresAuth && !requireSignedIn(context)) {
-                      return;
-                    }
-                    context.go(route);
-                  },
-                  icon: const Icon(Icons.arrow_forward),
-                  label: Text(
-                    buttonLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: FilledButton.icon(
+                    onPressed: () {
+                      if (requiresAuth && !requireSignedIn(context)) {
+                        return;
+                      }
+                      context.go(route);
+                    },
+                    icon: const Icon(Icons.arrow_forward),
+                    label: Text(
+                      buttonLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ),
               ],
