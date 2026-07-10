@@ -8,9 +8,8 @@ import '../../core/utils/auth_action_guard.dart';
 import '../../core/widgets/catalog_dropdown_field.dart';
 import '../../core/widgets/catalog_search_field.dart';
 import '../../core/widgets/catalog_grid_card.dart';
-import '../../core/widgets/dashboard_header_panel.dart';
+import '../../core/widgets/app_page_shell.dart';
 import '../../core/widgets/home_navigation_button.dart';
-import '../../core/widgets/summary_stat_card.dart';
 import '../../data/models/marketplace_listing.dart';
 import '../../data/repositories/marketplace_repository.dart';
 import '../../data/services/liga_one_piece_service.dart';
@@ -593,13 +592,13 @@ class _GlobalMarketplaceScreenState
 
   int _compareListings(MarketplaceListing a, MarketplaceListing b) {
     switch (_selectedSort) {
-      case 'Preço: menor':
+      case 'Preco: menor':
         return (a.priceInCents ?? 1 << 30).compareTo(b.priceInCents ?? 1 << 30);
-      case 'Preço: maior':
+      case 'Preco: maior':
         return (b.priceInCents ?? -1).compareTo(a.priceInCents ?? -1);
       case 'Nome':
         return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-      case 'Código':
+      case 'Codigo':
         return a.cardCode.toLowerCase().compareTo(b.cardCode.toLowerCase());
       default:
         return b.dateAddedUtc.compareTo(a.dateAddedUtc);
@@ -611,6 +610,309 @@ class _GlobalMarketplaceScreenState
     setState(() {
       _visibleCount = (_visibleCount + _pageSize).clamp(0, totalItems);
     });
+  }
+
+  void _resetFilters() {
+    setState(() {
+      _searchController.clear();
+      _query = '';
+      _showOnlyPriced = false;
+      _showOnlyActive = true;
+      _selectedColor = 'Todas';
+      _selectedType = 'Todos';
+      _selectedRarity = 'Todas';
+      _selectedSort = 'Mais recentes';
+      _visibleCount = _pageSize;
+    });
+  }
+
+  void _openItemDetails(MarketplaceListing item, String ligaPriceLabel) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => _GlobalMarketplaceCardDetailsDialog(
+        card: item,
+        ligaPriceLabel: ligaPriceLabel,
+        onOpenWhatsApp: () => _openWhatsApp(item),
+        onOpenSellerStore: item.ownerUserId.trim().isEmpty
+            ? null
+            : () => _openSellerStore(item),
+        selectedQuantity: _selectedQuantityFor(item),
+        onQuantityChanged: (quantity) {
+          _setCartQuantity(item, quantity);
+        },
+      ),
+    );
+  }
+
+  void _showFiltersSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        child: _MarketplaceEditorialFilters(
+          searchController: _searchController,
+          showOnlyPriced: _showOnlyPriced,
+          showOnlyActive: _showOnlyActive,
+          selectedColor: _selectedColor,
+          selectedType: _selectedType,
+          selectedRarity: _selectedRarity,
+          selectedSort: _selectedSort,
+          colorOptions: _cachedColorOptions,
+          typeOptions: _cachedTypeOptions,
+          rarityOptions: _cachedRarityOptions,
+          onToggleOnlyPriced: () {
+            setState(() {
+              _showOnlyPriced = !_showOnlyPriced;
+              _visibleCount = _pageSize;
+            });
+          },
+          onToggleOnlyActive: () {
+            setState(() {
+              _showOnlyActive = !_showOnlyActive;
+              _visibleCount = _pageSize;
+            });
+          },
+          onColorChanged: (value) {
+            setState(() {
+              _selectedColor = value;
+              _visibleCount = _pageSize;
+            });
+          },
+          onTypeChanged: (value) {
+            setState(() {
+              _selectedType = value;
+              _visibleCount = _pageSize;
+            });
+          },
+          onRarityChanged: (value) {
+            setState(() {
+              _selectedRarity = value;
+              _visibleCount = _pageSize;
+            });
+          },
+          onSortChanged: (value) {
+            setState(() {
+              _selectedSort = value;
+              _visibleCount = _pageSize;
+            });
+          },
+          onReset: _resetFilters,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMarketplaceGrid(
+    List<MarketplaceListing> visibleItems,
+    int total,
+  ) {
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (notification.metrics.pixels >=
+            notification.metrics.maxScrollExtent - 320) {
+          _loadMoreIfNeeded(total);
+        }
+        return false;
+      },
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        key: ValueKey(
+          'global-marketplace-$_query-$_showOnlyPriced-$_showOnlyActive-$_selectedColor-$_selectedType-$_selectedRarity-$_selectedSort-${visibleItems.length}',
+        ),
+        padding: EdgeInsets.zero,
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: _cardMaxWidth,
+          crossAxisSpacing: _cardSpacing,
+          mainAxisSpacing: _cardSpacing,
+          childAspectRatio: _gridAspectRatio,
+        ),
+        itemCount: visibleItems.length + (visibleItems.length < total ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index >= visibleItems.length) {
+            return const _GlobalMarketplaceLoadMoreCard();
+          }
+
+          final item = visibleItems[index];
+          final ligaPriceLabel = _ligaPriceLabelFor(item);
+
+          return CatalogGridCard(
+            key: ValueKey(
+              'global-market-${item.id}-${item.cardCode}-${item.imageUrl}',
+            ),
+            code: item.cardCode,
+            title: item.name,
+            metadata: [
+              if (item.hasSellerName) 'Vendedor: ${item.sellerName}',
+              'Oferta: ${item.formattedPrice}',
+              '${item.statusLabel} - ${item.conditionLabel}',
+              'Quantidade: ${item.quantity}x',
+            ],
+            footer: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _GlobalMarketplaceLigaPriceBadge(label: ligaPriceLabel),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 52,
+                      child: Tooltip(
+                        message: 'Abrir WhatsApp',
+                        child: FilledButton(
+                          onPressed: item.hasWhatsAppContact
+                              ? () => _openWhatsApp(item)
+                              : null,
+                          style: FilledButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                          ),
+                          child: const Icon(Icons.open_in_new, size: 18),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: item.ownerUserId.trim().isEmpty
+                            ? null
+                            : () => _openSellerStore(item),
+                        icon: const Icon(Icons.storefront_outlined, size: 16),
+                        label: const Text('Vitrine'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            image: _GlobalMarketplaceCardImage(
+              key: ValueKey('global-market-image-${item.id}-${item.imageUrl}'),
+              imageUrl: item.imageUrl,
+              cardCode: item.cardCode,
+            ),
+            onTap: () => _openItemDetails(item, ligaPriceLabel),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildEditorialMarketplace({
+    required List<MarketplaceListing> filteredItems,
+    required List<MarketplaceListing> visibleItems,
+    required int totalListings,
+    required int totalCards,
+    required int totalWithPrice,
+  }) {
+    final width = MediaQuery.sizeOf(context).width;
+    final wide = width >= 1040;
+    final featured = filteredItems.isEmpty ? null : filteredItems.first;
+    final spotlight = filteredItems.take(8).toList(growable: false);
+
+    return AppPageShell(
+      maxWidth: 1480,
+      padding: EdgeInsets.fromLTRB(wide ? 24 : 14, 16, wide ? 24 : 14, 28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _MarketplaceEditorialHero(
+            featured: featured,
+            ligaPriceLabel: featured == null
+                ? ''
+                : _ligaPriceLabelFor(featured),
+            totalListings: totalListings,
+            totalCards: totalCards,
+            totalWithPrice: totalWithPrice,
+            onOpenFeatured: featured == null
+                ? null
+                : () =>
+                      _openItemDetails(featured, _ligaPriceLabelFor(featured)),
+            onOpenFilters: wide ? null : _showFiltersSheet,
+          ),
+          const SizedBox(height: 18),
+          if (spotlight.isNotEmpty) ...[
+            _MarketplaceSpotlightRail(
+              items: spotlight,
+              ligaLabelFor: _ligaPriceLabelFor,
+              onOpen: _openItemDetails,
+            ),
+            const SizedBox(height: 18),
+          ],
+          if (wide)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: filteredItems.isEmpty
+                      ? const _GlobalMarketplaceEmptyState()
+                      : _buildMarketplaceGrid(
+                          visibleItems,
+                          filteredItems.length,
+                        ),
+                ),
+                const SizedBox(width: 18),
+                SizedBox(
+                  width: 290,
+                  child: _MarketplaceEditorialFilters(
+                    searchController: _searchController,
+                    showOnlyPriced: _showOnlyPriced,
+                    showOnlyActive: _showOnlyActive,
+                    selectedColor: _selectedColor,
+                    selectedType: _selectedType,
+                    selectedRarity: _selectedRarity,
+                    selectedSort: _selectedSort,
+                    colorOptions: _cachedColorOptions,
+                    typeOptions: _cachedTypeOptions,
+                    rarityOptions: _cachedRarityOptions,
+                    onToggleOnlyPriced: () {
+                      setState(() {
+                        _showOnlyPriced = !_showOnlyPriced;
+                        _visibleCount = _pageSize;
+                      });
+                    },
+                    onToggleOnlyActive: () {
+                      setState(() {
+                        _showOnlyActive = !_showOnlyActive;
+                        _visibleCount = _pageSize;
+                      });
+                    },
+                    onColorChanged: (value) {
+                      setState(() {
+                        _selectedColor = value;
+                        _visibleCount = _pageSize;
+                      });
+                    },
+                    onTypeChanged: (value) {
+                      setState(() {
+                        _selectedType = value;
+                        _visibleCount = _pageSize;
+                      });
+                    },
+                    onRarityChanged: (value) {
+                      setState(() {
+                        _selectedRarity = value;
+                        _visibleCount = _pageSize;
+                      });
+                    },
+                    onSortChanged: (value) {
+                      setState(() {
+                        _selectedSort = value;
+                        _visibleCount = _pageSize;
+                      });
+                    },
+                    onReset: _resetFilters,
+                  ),
+                ),
+              ],
+            )
+          else
+            filteredItems.isEmpty
+                ? const _GlobalMarketplaceEmptyState()
+                : _buildMarketplaceGrid(visibleItems, filteredItems.length),
+        ],
+      ),
+    );
   }
 
   @override
@@ -686,192 +988,12 @@ class _GlobalMarketplaceScreenState
               .where((item) => item.hasPrice)
               .length;
 
-          return SingleChildScrollView(
-            child: Column(
-              children: [
-                _GlobalMarketplaceHeader(
-                  totalListings: totalListings,
-                  totalCards: totalCards,
-                  totalWithPrice: totalWithPrice,
-                  searchController: _searchController,
-                  isCollapsed: false,
-                  showOnlyPriced: _showOnlyPriced,
-                  showOnlyActive: _showOnlyActive,
-                  selectedColor: _selectedColor,
-                  selectedType: _selectedType,
-                  selectedRarity: _selectedRarity,
-                  selectedSort: _selectedSort,
-                  colorOptions: _cachedColorOptions,
-                  typeOptions: _cachedTypeOptions,
-                  rarityOptions: _cachedRarityOptions,
-                  onToggleCollapsed: () {},
-                  onToggleOnlyPriced: () {
-                    setState(() {
-                      _showOnlyPriced = !_showOnlyPriced;
-                      _visibleCount = _pageSize;
-                    });
-                  },
-                  onToggleOnlyActive: () {
-                    setState(() {
-                      _showOnlyActive = !_showOnlyActive;
-                      _visibleCount = _pageSize;
-                    });
-                  },
-                  onColorChanged: (value) {
-                    setState(() {
-                      _selectedColor = value;
-                      _visibleCount = _pageSize;
-                    });
-                  },
-                  onTypeChanged: (value) {
-                    setState(() {
-                      _selectedType = value;
-                      _visibleCount = _pageSize;
-                    });
-                  },
-                  onRarityChanged: (value) {
-                    setState(() {
-                      _selectedRarity = value;
-                      _visibleCount = _pageSize;
-                    });
-                  },
-                  onSortChanged: (value) {
-                    setState(() {
-                      _selectedSort = value;
-                      _visibleCount = _pageSize;
-                    });
-                  },
-                ),
-                filteredItems.isEmpty
-                    ? const _GlobalMarketplaceEmptyState()
-                    : NotificationListener<ScrollNotification>(
-                        onNotification: (notification) {
-                          if (notification.metrics.pixels >=
-                              notification.metrics.maxScrollExtent - 320) {
-                            _loadMoreIfNeeded(filteredItems.length);
-                          }
-                          return false;
-                        },
-                        child: GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          key: ValueKey(
-                            'global-marketplace-$_query-$_showOnlyPriced-$_showOnlyActive-$_selectedColor-$_selectedType-$_selectedRarity-$_selectedSort-${visibleItems.length}',
-                          ),
-                          padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
-                          gridDelegate:
-                              const SliverGridDelegateWithMaxCrossAxisExtent(
-                                maxCrossAxisExtent: _cardMaxWidth,
-                                crossAxisSpacing: _cardSpacing,
-                                mainAxisSpacing: _cardSpacing,
-                                childAspectRatio: _gridAspectRatio,
-                              ),
-                          itemCount:
-                              visibleItems.length +
-                              (visibleItems.length < filteredItems.length
-                                  ? 1
-                                  : 0),
-                          itemBuilder: (context, index) {
-                            if (index >= visibleItems.length) {
-                              return const _GlobalMarketplaceLoadMoreCard();
-                            }
-
-                            final item = visibleItems[index];
-                            final ligaPriceLabel = _ligaPriceLabelFor(item);
-
-                            return CatalogGridCard(
-                              key: ValueKey(
-                                'global-market-${item.id}-${item.cardCode}-${item.imageUrl}',
-                              ),
-                              code: item.cardCode,
-                              title: item.name,
-                              metadata: [
-                                if (item.hasSellerName)
-                                  'Vendedor: ${item.sellerName}',
-                                'Oferta: ${item.formattedPrice}',
-                                '${item.statusLabel} - ${item.conditionLabel}',
-                                'Quantidade: ${item.quantity}x',
-                              ],
-                              footer: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  _GlobalMarketplaceLigaPriceBadge(
-                                    label: ligaPriceLabel,
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Row(
-                                    children: [
-                                      SizedBox(
-                                        width: 52,
-                                        child: Tooltip(
-                                          message: 'Abrir WhatsApp',
-                                          child: FilledButton(
-                                            onPressed: item.hasWhatsAppContact
-                                                ? () => _openWhatsApp(item)
-                                                : null,
-                                            style: FilledButton.styleFrom(
-                                              padding: EdgeInsets.zero,
-                                            ),
-                                            child: const Icon(
-                                              Icons.open_in_new,
-                                              size: 18,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: OutlinedButton.icon(
-                                          onPressed:
-                                              item.ownerUserId.trim().isEmpty
-                                              ? null
-                                              : () => _openSellerStore(item),
-                                          icon: const Icon(
-                                            Icons.storefront_outlined,
-                                            size: 16,
-                                          ),
-                                          label: const Text('Vitrine'),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              image: _GlobalMarketplaceCardImage(
-                                key: ValueKey(
-                                  'global-market-image-${item.id}-${item.imageUrl}',
-                                ),
-                                imageUrl: item.imageUrl,
-                                cardCode: item.cardCode,
-                              ),
-                              onTap: () {
-                                showDialog<void>(
-                                  context: context,
-                                  builder: (_) =>
-                                      _GlobalMarketplaceCardDetailsDialog(
-                                        card: item,
-                                        ligaPriceLabel: ligaPriceLabel,
-                                        onOpenWhatsApp: () =>
-                                            _openWhatsApp(item),
-                                        onOpenSellerStore:
-                                            item.ownerUserId.trim().isEmpty
-                                            ? null
-                                            : () => _openSellerStore(item),
-                                        selectedQuantity: _selectedQuantityFor(
-                                          item,
-                                        ),
-                                        onQuantityChanged: (quantity) {
-                                          _setCartQuantity(item, quantity);
-                                        },
-                                      ),
-                                );
-                              },
-                            );
-                          },
-                        ),
-                      ),
-              ],
-            ),
+          return _buildEditorialMarketplace(
+            filteredItems: filteredItems,
+            visibleItems: visibleItems,
+            totalListings: totalListings,
+            totalCards: totalCards,
+            totalWithPrice: totalWithPrice,
           );
         },
       ),
@@ -937,12 +1059,300 @@ class _GlobalMarketplaceLigaPriceBadge extends StatelessWidget {
   }
 }
 
-class _GlobalMarketplaceHeader extends StatelessWidget {
+class _MarketplaceEditorialHero extends StatelessWidget {
+  final MarketplaceListing? featured;
+  final String ligaPriceLabel;
   final int totalListings;
   final int totalCards;
   final int totalWithPrice;
+  final VoidCallback? onOpenFeatured;
+  final VoidCallback? onOpenFilters;
+
+  const _MarketplaceEditorialHero({
+    required this.featured,
+    required this.ligaPriceLabel,
+    required this.totalListings,
+    required this.totalCards,
+    required this.totalWithPrice,
+    required this.onOpenFeatured,
+    this.onOpenFilters,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final card = featured;
+    final wide = MediaQuery.sizeOf(context).width >= 860;
+    final copy = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'OPTCG BH MARKETPLACE',
+          style: theme.textTheme.labelLarge?.copyWith(
+            color: theme.colorScheme.primary,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          'Encontre.\nCompare.\nConquiste.',
+          style: theme.textTheme.displaySmall?.copyWith(
+            fontWeight: FontWeight.w900,
+            height: 0.98,
+            letterSpacing: 0,
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          'As melhores cartas de One Piece TCG em Belo Horizonte e regiao, com preco da Liga e contato direto com vendedores.',
+          style: theme.textTheme.bodyLarge,
+        ),
+        const SizedBox(height: 20),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            _MarketplaceHeroPill(
+              icon: Icons.storefront_outlined,
+              label: '$totalListings anuncios',
+            ),
+            _MarketplaceHeroPill(
+              icon: Icons.style_outlined,
+              label: '$totalCards cartas',
+            ),
+            _MarketplaceHeroPill(
+              icon: Icons.sell_outlined,
+              label: '$totalWithPrice com preco',
+            ),
+          ],
+        ),
+        if (onOpenFilters != null) ...[
+          const SizedBox(height: 18),
+          FilledButton.icon(
+            onPressed: onOpenFilters,
+            icon: const Icon(Icons.tune),
+            label: const Text('Filtros'),
+          ),
+        ],
+      ],
+    );
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 320),
+      padding: EdgeInsets.all(wide ? 26 : 18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            theme.colorScheme.primary.withValues(alpha: 0.10),
+            theme.colorScheme.surface.withValues(alpha: 0.08),
+            theme.colorScheme.secondary.withValues(alpha: 0.08),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _MarketplaceStarfieldPainter(theme.colorScheme.primary),
+            ),
+          ),
+          if (wide)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(flex: 5, child: copy),
+                const SizedBox(width: 24),
+                if (card != null)
+                  Flexible(
+                    flex: 3,
+                    child: _MarketplaceFeaturedCard(
+                      item: card,
+                      ligaPriceLabel: ligaPriceLabel,
+                      onTap: onOpenFeatured,
+                    ),
+                  ),
+              ],
+            )
+          else
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                copy,
+                if (card != null) ...[
+                  const SizedBox(height: 22),
+                  _MarketplaceFeaturedCard(
+                    item: card,
+                    ligaPriceLabel: ligaPriceLabel,
+                    onTap: onOpenFeatured,
+                  ),
+                ],
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MarketplaceFeaturedCard extends StatelessWidget {
+  final MarketplaceListing item;
+  final String ligaPriceLabel;
+  final VoidCallback? onTap;
+
+  const _MarketplaceFeaturedCard({
+    required this.item,
+    required this.ligaPriceLabel,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: onTap,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 360),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: theme.colorScheme.primary.withValues(alpha: 0.22),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              height: 230,
+              child: _GlobalMarketplaceCardImage(
+                imageUrl: item.imageUrl,
+                cardCode: item.cardCode,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              item.name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text('${item.cardCode} - ${item.formattedPrice}'),
+            const SizedBox(height: 8),
+            _GlobalMarketplaceLigaPriceBadge(label: ligaPriceLabel),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MarketplaceSpotlightRail extends StatelessWidget {
+  final List<MarketplaceListing> items;
+  final String Function(MarketplaceListing item) ligaLabelFor;
+  final void Function(MarketplaceListing item, String ligaPriceLabel) onOpen;
+
+  const _MarketplaceSpotlightRail({
+    required this.items,
+    required this.ligaLabelFor,
+    required this.onOpen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Ofertas em destaque',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 218,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: items.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              final item = items[index];
+              final liga = ligaLabelFor(item);
+              return _MarketplaceSpotlightCard(
+                item: item,
+                ligaPriceLabel: liga,
+                onTap: () => onOpen(item, liga),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MarketplaceSpotlightCard extends StatelessWidget {
+  final MarketplaceListing item;
+  final String ligaPriceLabel;
+  final VoidCallback onTap;
+
+  const _MarketplaceSpotlightCard({
+    required this.item,
+    required this.ligaPriceLabel,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      width: 164,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _GlobalMarketplaceCardImage(
+                  imageUrl: item.imageUrl,
+                  cardCode: item.cardCode,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                item.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              Text(item.formattedPrice, style: theme.textTheme.labelMedium),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MarketplaceEditorialFilters extends StatelessWidget {
   final TextEditingController searchController;
-  final bool isCollapsed;
   final bool showOnlyPriced;
   final bool showOnlyActive;
   final String selectedColor;
@@ -952,20 +1362,16 @@ class _GlobalMarketplaceHeader extends StatelessWidget {
   final List<String> colorOptions;
   final List<String> typeOptions;
   final List<String> rarityOptions;
-  final VoidCallback onToggleCollapsed;
   final VoidCallback onToggleOnlyPriced;
   final VoidCallback onToggleOnlyActive;
   final ValueChanged<String> onColorChanged;
   final ValueChanged<String> onTypeChanged;
   final ValueChanged<String> onRarityChanged;
   final ValueChanged<String> onSortChanged;
+  final VoidCallback onReset;
 
-  const _GlobalMarketplaceHeader({
-    required this.totalListings,
-    required this.totalCards,
-    required this.totalWithPrice,
+  const _MarketplaceEditorialFilters({
     required this.searchController,
-    required this.isCollapsed,
     required this.showOnlyPriced,
     required this.showOnlyActive,
     required this.selectedColor,
@@ -975,124 +1381,162 @@ class _GlobalMarketplaceHeader extends StatelessWidget {
     required this.colorOptions,
     required this.typeOptions,
     required this.rarityOptions,
-    required this.onToggleCollapsed,
     required this.onToggleOnlyPriced,
     required this.onToggleOnlyActive,
     required this.onColorChanged,
     required this.onTypeChanged,
     required this.onRarityChanged,
     required this.onSortChanged,
+    required this.onReset,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    return DashboardHeaderPanel(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      top: Text(
-        'Encontre cartas \u00E0 venda de toda a plataforma em um s\u00F3 lugar.',
-        style: theme.textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.w700,
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface.withValues(alpha: 0.34),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.12),
         ),
       ),
-      stats: Wrap(
-        spacing: 12,
-        runSpacing: 12,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          SummaryStatCard(
-            label: 'An\u00FAncios',
-            value: '$totalListings',
-            icon: Icons.storefront_outlined,
-          ),
-          SummaryStatCard(
-            label: 'Cartas',
-            value: '$totalCards',
-            icon: Icons.style_outlined,
-          ),
-          SummaryStatCard(
-            label: 'Com pre\u00E7o',
-            value: '$totalWithPrice',
-            icon: Icons.sell_outlined,
-          ),
-        ],
-      ),
-      search: CatalogSearchField(
-        controller: searchController,
-        hintText: 'Buscar por nome, c\u00F3digo ou edi\u00E7\u00E3o',
-      ),
-      footer: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
+          Row(
             children: [
-              FilterChip(
-                label: const Text('Somente ativas'),
-                selected: showOnlyActive,
-                onSelected: (_) => onToggleOnlyActive(),
+              Expanded(
+                child: Text(
+                  'Filtros',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
               ),
-              FilterChip(
-                label: const Text('Somente com pre\u00E7o'),
-                selected: showOnlyPriced,
-                onSelected: (_) => onToggleOnlyPriced(),
-              ),
+              TextButton(onPressed: onReset, child: const Text('Limpar')),
             ],
+          ),
+          const SizedBox(height: 10),
+          CatalogSearchField(
+            controller: searchController,
+            hintText: 'Buscar no marketplace...',
           ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              CatalogDropdownField<String>(
-                width: 180,
-                label: 'Cor',
-                value: selectedColor,
-                options: colorOptions,
-                onChanged: (value) {
-                  if (value != null) onColorChanged(value);
-                },
-              ),
-              CatalogDropdownField<String>(
-                width: 180,
-                label: 'Tipo',
-                value: selectedType,
-                options: typeOptions,
-                onChanged: (value) {
-                  if (value != null) onTypeChanged(value);
-                },
-              ),
-              CatalogDropdownField<String>(
-                width: 180,
-                label: 'Raridade',
-                value: selectedRarity,
-                options: rarityOptions,
-                onChanged: (value) {
-                  if (value != null) onRarityChanged(value);
-                },
-              ),
-              CatalogDropdownField<String>(
-                width: 200,
-                label: 'Ordenar por',
-                value: selectedSort,
-                options: const [
-                  'Mais recentes',
-                  'Pre\u00E7o: menor',
-                  'Pre\u00E7o: maior',
-                  'Nome',
-                  'C\u00F3digo',
-                ],
-                onChanged: (value) {
-                  if (value != null) onSortChanged(value);
-                },
-              ),
+          FilterChip(
+            label: const Text('Somente ativas'),
+            selected: showOnlyActive,
+            onSelected: (_) => onToggleOnlyActive(),
+          ),
+          const SizedBox(height: 8),
+          FilterChip(
+            label: const Text('Somente com preco'),
+            selected: showOnlyPriced,
+            onSelected: (_) => onToggleOnlyPriced(),
+          ),
+          const SizedBox(height: 12),
+          CatalogDropdownField<String>(
+            width: double.infinity,
+            label: 'Cor',
+            value: selectedColor,
+            options: colorOptions,
+            onChanged: (value) {
+              if (value != null) onColorChanged(value);
+            },
+          ),
+          const SizedBox(height: 10),
+          CatalogDropdownField<String>(
+            width: double.infinity,
+            label: 'Tipo',
+            value: selectedType,
+            options: typeOptions,
+            onChanged: (value) {
+              if (value != null) onTypeChanged(value);
+            },
+          ),
+          const SizedBox(height: 10),
+          CatalogDropdownField<String>(
+            width: double.infinity,
+            label: 'Raridade',
+            value: selectedRarity,
+            options: rarityOptions,
+            onChanged: (value) {
+              if (value != null) onRarityChanged(value);
+            },
+          ),
+          const SizedBox(height: 10),
+          CatalogDropdownField<String>(
+            width: double.infinity,
+            label: 'Ordenar por',
+            value: selectedSort,
+            options: const [
+              'Mais recentes',
+              'Preco: menor',
+              'Preco: maior',
+              'Nome',
+              'Codigo',
             ],
+            onChanged: (value) {
+              if (value != null) onSortChanged(value);
+            },
           ),
         ],
       ),
     );
   }
+}
+
+class _MarketplaceHeroPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _MarketplaceHeroPill({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: theme.colorScheme.primary),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MarketplaceStarfieldPainter extends CustomPainter {
+  final Color color;
+
+  const _MarketplaceStarfieldPainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color.withValues(alpha: 0.16);
+    for (var i = 0; i < 42; i++) {
+      final x = (i * 73) % size.width;
+      final y = (i * 41) % size.height;
+      canvas.drawCircle(Offset(x, y), i % 3 == 0 ? 1.5 : 0.8, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _GlobalMarketplaceCardDetailsDialog extends StatefulWidget {
