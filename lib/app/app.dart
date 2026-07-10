@@ -144,8 +144,8 @@ class OptcgManagerApp extends ConsumerWidget {
         color: dark
             ? _techPanel.withValues(alpha: 0.82)
             : _techPaperPanel.withValues(alpha: 0.92),
-        elevation: 0,
-        shadowColor: scheme.shadow.withValues(alpha: dark ? 0.34 : 0.1),
+        elevation: 2,
+        shadowColor: scheme.shadow.withValues(alpha: dark ? 0.46 : 0.12),
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
@@ -186,11 +186,15 @@ class OptcgManagerApp extends ConsumerWidget {
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: dark ? _techPanel : _techPaperPanel,
+        elevation: 18,
+        shadowColor: scheme.shadow.withValues(alpha: dark ? 0.55 : 0.2),
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: scheme.surface,
+        backgroundColor: dark ? _techPanel : _techPaperPanel,
+        elevation: 18,
+        shadowColor: scheme.shadow.withValues(alpha: dark ? 0.52 : 0.18),
         surfaceTintColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
@@ -200,7 +204,7 @@ class OptcgManagerApp extends ConsumerWidget {
         backgroundColor: dark
             ? _techVoid.withValues(alpha: 0.92)
             : _techPaperPanel.withValues(alpha: 0.94),
-        elevation: 0,
+        elevation: 8,
         height: 72,
         indicatorColor: scheme.primary.withValues(alpha: dark ? 0.2 : 0.13),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
@@ -241,6 +245,44 @@ class OptcgManagerApp extends ConsumerWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
         side: BorderSide.none,
       ),
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: _PremiumPageTransitionsBuilder(),
+          TargetPlatform.iOS: _PremiumPageTransitionsBuilder(),
+          TargetPlatform.macOS: _PremiumPageTransitionsBuilder(),
+          TargetPlatform.windows: _PremiumPageTransitionsBuilder(),
+          TargetPlatform.linux: _PremiumPageTransitionsBuilder(),
+        },
+      ),
+    );
+  }
+}
+
+class _PremiumPageTransitionsBuilder extends PageTransitionsBuilder {
+  const _PremiumPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    final curved = CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+    final offset = Tween<Offset>(
+      begin: const Offset(0.035, 0),
+      end: Offset.zero,
+    ).animate(curved);
+    final fade = Tween<double>(begin: 0, end: 1).animate(curved);
+
+    return FadeTransition(
+      opacity: fade,
+      child: SlideTransition(position: offset, child: child),
     );
   }
 }

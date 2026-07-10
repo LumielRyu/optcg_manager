@@ -1,10 +1,12 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 const Color _shellVoid = Color(0xFF060A10);
-const Color _shellNavy = Color(0xFF0B1821);
 const Color _shellPanel = Color(0xFF10232D);
 const Color _shellPanelSoft = Color(0xFF173541);
 const Color _shellCyan = Color(0xFF28D7E8);
+const Color _shellBlue = Color(0xFF4F8CFF);
 const Color _shellAmber = Color(0xFFF4B740);
 
 class AppPageShell extends StatelessWidget {
@@ -24,13 +26,14 @@ class AppPageShell extends StatelessWidget {
     final theme = Theme.of(context);
     final compact = MediaQuery.sizeOf(context).width < 640;
     final dark = theme.colorScheme.brightness == Brightness.dark;
+
     return DecoratedBox(
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         gradient: dark
             ? const LinearGradient(
-                colors: [_shellNavy, _shellVoid, Color(0xFF11100B)],
-                stops: [0, 0.58, 1],
+                colors: [Color(0xFF0F2430), _shellVoid, Color(0xFF070B12)],
+                stops: [0, 0.52, 1],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               )
@@ -47,17 +50,34 @@ class AppPageShell extends StatelessWidget {
       child: Stack(
         children: [
           Positioned.fill(child: CustomPaint(painter: _ShellGridPainter(dark))),
+          Positioned.fill(
+            child: CustomPaint(painter: _ShellDepthPainter(dark)),
+          ),
           SingleChildScrollView(
             padding:
                 padding ??
                 EdgeInsets.symmetric(
-                  horizontal: compact ? 14 : 24,
-                  vertical: compact ? 14 : 24,
+                  horizontal: compact ? 14 : 28,
+                  vertical: compact ? 16 : 30,
                 ),
             child: Center(
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: maxWidth),
-                child: child,
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: 1),
+                  duration: const Duration(milliseconds: 420),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, value, animatedChild) {
+                    return Opacity(
+                      opacity: value,
+                      child: Transform.translate(
+                        offset: Offset(0, 18 * (1 - value)),
+                        child: animatedChild,
+                      ),
+                    );
+                  },
+                  child: child,
+                ),
               ),
             ),
           ),
@@ -76,7 +96,7 @@ class _ShellGridPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final linePaint = Paint()
       ..color = (dark ? _shellCyan : const Color(0xFF006B78)).withValues(
-        alpha: dark ? 0.055 : 0.045,
+        alpha: dark ? 0.05 : 0.04,
       )
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
@@ -89,8 +109,8 @@ class _ShellGridPainter extends CustomPainter {
     }
 
     final accentPaint = Paint()
-      ..color = (dark ? _shellAmber : const Color(0xFF4F8CFF)).withValues(
-        alpha: dark ? 0.11 : 0.06,
+      ..color = (dark ? _shellAmber : _shellBlue).withValues(
+        alpha: dark ? 0.1 : 0.055,
       )
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
@@ -104,6 +124,52 @@ class _ShellGridPainter extends CustomPainter {
       Offset(size.width, size.height * 0.74),
       accentPaint,
     );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _ShellDepthPainter extends CustomPainter {
+  final bool dark;
+
+  const _ShellDepthPainter(this.dark);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final bandPaint = Paint()
+      ..shader = LinearGradient(
+        colors: [
+          (dark ? _shellCyan : const Color(0xFF006B78)).withValues(
+            alpha: dark ? 0.1 : 0.055,
+          ),
+          Colors.transparent,
+        ],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+
+    final path = Path()
+      ..moveTo(size.width * 0.66, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width, size.height * 0.82)
+      ..lineTo(size.width * 0.78, size.height)
+      ..lineTo(size.width * 0.54, size.height)
+      ..close();
+    canvas.drawPath(path, bandPaint);
+
+    final strokePaint = Paint()
+      ..color = (dark ? _shellBlue : _shellCyan).withValues(
+        alpha: dark ? 0.16 : 0.08,
+      )
+      ..strokeWidth = 1.2
+      ..style = PaintingStyle.stroke;
+    for (var i = 0; i < 5; i++) {
+      final shift = i * 44.0;
+      canvas.drawLine(
+        Offset(size.width * 0.7 + shift, -20),
+        Offset(size.width * 0.46 + shift, size.height + 20),
+        strokePaint,
+      );
+    }
   }
 
   @override
@@ -135,80 +201,308 @@ class AppHeroPanel extends StatelessWidget {
     final theme = Theme.of(context);
     final color = accent ?? theme.colorScheme.primary;
     final dark = theme.colorScheme.brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.all(22),
+    final compact = MediaQuery.sizeOf(context).width < 720;
+    final leading = Container(
+      width: 72,
+      height: 72,
+      alignment: Alignment.center,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: dark
-              ? [
-                  _shellPanelSoft.withValues(alpha: 0.78),
-                  _shellPanel.withValues(alpha: 0.88),
-                  Colors.black.withValues(alpha: 0.28),
-                ]
-              : [
-                  Colors.white.withValues(alpha: 0.96),
-                  color.withValues(alpha: 0.08),
-                ],
+          colors: [
+            color.withValues(alpha: dark ? 0.22 : 0.16),
+            _shellBlue.withValues(alpha: dark ? 0.12 : 0.08),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: dark ? 0.32 : 0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.32)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: dark ? 0.32 : 0.08),
-            blurRadius: 28,
+            color: color.withValues(alpha: dark ? 0.2 : 0.12),
+            blurRadius: 24,
             offset: const Offset(0, 12),
           ),
         ],
       ),
-      child: Wrap(
-        spacing: 18,
-        runSpacing: 16,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          Container(
-            width: 68,
-            height: 68,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: dark ? 0.13 : 0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: color.withValues(alpha: 0.28)),
-            ),
-            child: Icon(icon, color: color, size: 34),
+      child: Icon(icon, color: color, size: 36),
+    );
+    final copy = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          eyebrow.toUpperCase(),
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: color,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.7,
           ),
-          ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 220, maxWidth: 820),
-            child: Column(
+        ),
+        const SizedBox(height: 6),
+        Text(
+          title,
+          style: theme.textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(subtitle, style: theme.textTheme.bodyLarge),
+        if (badges.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Wrap(spacing: 8, runSpacing: 8, children: badges),
+        ],
+      ],
+    );
+
+    return AppPremiumSurface(
+      accent: color,
+      padding: EdgeInsets.all(compact ? 18 : 24),
+      child: Stack(
+        children: [
+          Positioned.fill(child: _HeroCircuitBackdrop(color: color)),
+          if (compact)
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  eyebrow.toUpperCase(),
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.8,
+                leading,
+                const SizedBox(height: 16),
+                copy,
+                if (action != null) ...[const SizedBox(height: 16), action!],
+              ],
+            )
+          else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                leading,
+                const SizedBox(width: 18),
+                Expanded(flex: 3, child: copy),
+                const SizedBox(width: 18),
+                Flexible(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: _HeroSignalPanel(color: color, action: action),
                   ),
                 ),
-                const SizedBox(height: 5),
-                Text(
-                  title,
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0,
-                  ),
-                ),
-                const SizedBox(height: 7),
-                Text(subtitle, style: theme.textTheme.bodyLarge),
-                if (badges.isNotEmpty) ...[
-                  const SizedBox(height: 14),
-                  Wrap(spacing: 8, runSpacing: 8, children: badges),
-                ],
               ],
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class AppPremiumSurface extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final Color? accent;
+
+  const AppPremiumSurface({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(18),
+    this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.colorScheme.brightness == Brightness.dark;
+    final color = accent ?? theme.colorScheme.primary;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: dark
+                  ? [
+                      _shellPanelSoft.withValues(alpha: 0.78),
+                      _shellPanel.withValues(alpha: 0.9),
+                      Colors.black.withValues(alpha: 0.3),
+                    ]
+                  : [
+                      Colors.white.withValues(alpha: 0.96),
+                      color.withValues(alpha: 0.075),
+                      Colors.white.withValues(alpha: 0.88),
+                    ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: color.withValues(alpha: dark ? 0.34 : 0.18),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: dark ? 0.38 : 0.08),
+                blurRadius: 34,
+                offset: const Offset(0, 18),
+              ),
+              BoxShadow(
+                color: color.withValues(alpha: dark ? 0.1 : 0.035),
+                blurRadius: 28,
+                offset: const Offset(0, 0),
+              ),
+            ],
           ),
-          ?action,
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+class AppHoverLift extends StatefulWidget {
+  final Widget child;
+  final Color? accent;
+  final double scale;
+
+  const AppHoverLift({
+    super.key,
+    required this.child,
+    this.accent,
+    this.scale = 1.018,
+  });
+
+  @override
+  State<AppHoverLift> createState() => _AppHoverLiftState();
+}
+
+class _AppHoverLiftState extends State<AppHoverLift> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.colorScheme.brightness == Brightness.dark;
+    final accent = widget.accent ?? theme.colorScheme.primary;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedScale(
+        scale: _hovered ? widget.scale : 1,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(
+                  alpha: _hovered
+                      ? (dark ? 0.34 : 0.13)
+                      : (dark ? 0.18 : 0.055),
+                ),
+                blurRadius: _hovered ? 30 : 16,
+                offset: Offset(0, _hovered ? 16 : 9),
+              ),
+              if (_hovered)
+                BoxShadow(
+                  color: accent.withValues(alpha: dark ? 0.16 : 0.07),
+                  blurRadius: 26,
+                ),
+            ],
+          ),
+          child: widget.child,
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroCircuitBackdrop extends StatelessWidget {
+  final Color color;
+
+  const _HeroCircuitBackdrop({required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: CustomPaint(painter: _HeroCircuitPainter(color)),
+    );
+  }
+}
+
+class _HeroCircuitPainter extends CustomPainter {
+  final Color color;
+
+  const _HeroCircuitPainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color.withValues(alpha: 0.12)
+      ..strokeWidth = 1.1
+      ..style = PaintingStyle.stroke;
+    final top = size.height * 0.16;
+    final right = size.width - 18;
+    for (var i = 0; i < 4; i++) {
+      final y = top + (i * 34);
+      canvas.drawLine(Offset(size.width * 0.58, y), Offset(right, y), paint);
+      canvas.drawCircle(Offset(right - (i * 28), y), 3, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _HeroSignalPanel extends StatelessWidget {
+  final Color color;
+  final Widget? action;
+
+  const _HeroSignalPanel({required this.color, this.action});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 240),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            height: 86,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface.withValues(alpha: 0.34),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: color.withValues(alpha: 0.22)),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: List.generate(3, (index) {
+                final width = 1.0 - (index * 0.18);
+                return Align(
+                  alignment: Alignment.centerLeft,
+                  child: FractionallySizedBox(
+                    widthFactor: width,
+                    child: Container(
+                      height: 8,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            color.withValues(alpha: 0.85),
+                            _shellBlue.withValues(alpha: 0.45),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+          if (action != null) ...[const SizedBox(height: 12), action!],
         ],
       ),
     );
@@ -327,39 +621,36 @@ class AppAuthPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              width: 58,
-              height: 58,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Icon(icon, color: theme.colorScheme.primary, size: 29),
-            ),
-            const SizedBox(height: 18),
-            Text(
-              title,
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w900,
+    return AppPremiumSurface(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            width: 58,
+            height: 58,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: theme.colorScheme.primary.withValues(alpha: 0.3),
               ),
             ),
-            const SizedBox(height: 6),
-            Text(subtitle, style: theme.textTheme.bodyMedium),
-            const SizedBox(height: 20),
-            child,
-          ],
-        ),
+            child: Icon(icon, color: theme.colorScheme.primary, size: 29),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            title,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(subtitle, style: theme.textTheme.bodyMedium),
+          const SizedBox(height: 20),
+          child,
+        ],
       ),
     );
   }

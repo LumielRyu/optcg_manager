@@ -164,44 +164,57 @@ class _HubFeatureCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 238),
-        child: Padding(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(18),
+    return AppHoverLift(
+      accent: accent,
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 238),
+          child: Padding(
+            padding: const EdgeInsets.all(22),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        accent.withValues(alpha: 0.18),
+                        Theme.of(
+                          context,
+                        ).colorScheme.secondary.withValues(alpha: 0.06),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: accent.withValues(alpha: 0.22)),
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(icon, color: accent, size: 28),
                 ),
-                alignment: Alignment.center,
-                child: Icon(icon, color: accent, size: 28),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                title,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 10),
-              Text(description),
-              const SizedBox(height: 18),
-              if (onTap == null)
-                OutlinedButton(onPressed: null, child: Text(buttonLabel))
-              else
-                FilledButton.icon(
-                  onPressed: onTap,
-                  icon: const Icon(Icons.arrow_forward),
-                  label: Text(buttonLabel),
+                const SizedBox(height: 16),
+                Text(
+                  title,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
                 ),
-            ],
+                const SizedBox(height: 10),
+                Text(description),
+                const SizedBox(height: 18),
+                if (onTap == null)
+                  OutlinedButton(onPressed: null, child: Text(buttonLabel))
+                else
+                  FilledButton.icon(
+                    onPressed: onTap,
+                    icon: const Icon(Icons.arrow_forward),
+                    label: Text(buttonLabel),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

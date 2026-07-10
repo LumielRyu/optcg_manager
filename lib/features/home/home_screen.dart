@@ -249,84 +249,93 @@ class _HomeFeatureCard extends StatelessWidget {
     final theme = Theme.of(context);
     final compact = MediaQuery.of(context).size.width < 600;
 
-    return Card(
-      elevation: 0,
-      shadowColor: Colors.transparent,
-      surfaceTintColor: Colors.transparent,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        splashColor: theme.colorScheme.primary.withValues(alpha: 0.05),
-        highlightColor: Colors.transparent,
-        hoverColor: theme.colorScheme.primary.withValues(alpha: 0.04),
-        onTap: () {
-          if (requiresAuth && !requireSignedIn(context)) {
-            return;
-          }
-          context.go(route);
-        },
-        child: Padding(
-          padding: EdgeInsets.all(compact ? 14 : 18),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: compact ? 190 : 220),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: compact ? 48 : 56,
-                  height: compact ? 48 : 56,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.22),
+    return AppHoverLift(
+      child: Card(
+        surfaceTintColor: Colors.transparent,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          splashColor: theme.colorScheme.primary.withValues(alpha: 0.05),
+          highlightColor: Colors.transparent,
+          hoverColor: theme.colorScheme.primary.withValues(alpha: 0.04),
+          onTap: () {
+            if (requiresAuth && !requireSignedIn(context)) {
+              return;
+            }
+            context.go(route);
+          },
+          child: Padding(
+            padding: EdgeInsets.all(compact ? 14 : 18),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: compact ? 190 : 220),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: compact ? 48 : 56,
+                    height: compact ? 48 : 56,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          theme.colorScheme.primary.withValues(alpha: 0.16),
+                          theme.colorScheme.secondary.withValues(alpha: 0.08),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: theme.colorScheme.primary.withValues(
+                          alpha: 0.22,
+                        ),
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(
+                      icon,
+                      size: compact ? 23 : 28,
+                      color: theme.colorScheme.primary,
                     ),
                   ),
-                  alignment: Alignment.center,
-                  child: Icon(
-                    icon,
-                    size: compact ? 23 : 28,
-                    color: theme.colorScheme.primary,
+                  SizedBox(height: compact ? 12 : 16),
+                  Text(
+                    title,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      fontSize: compact ? 17 : null,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                SizedBox(height: compact ? 12 : 16),
-                Text(
-                  title,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    fontSize: compact ? 17 : null,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                SizedBox(height: compact ? 6 : 8),
-                Text(
-                  subtitle,
-                  maxLines: compact ? 5 : 4,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontSize: compact ? 13 : null,
-                  ),
-                ),
-                const Spacer(),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: FilledButton.icon(
-                    onPressed: () {
-                      if (requiresAuth && !requireSignedIn(context)) {
-                        return;
-                      }
-                      context.go(route);
-                    },
-                    icon: const Icon(Icons.arrow_forward),
-                    label: Text(
-                      buttonLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                  SizedBox(height: compact ? 6 : 8),
+                  Text(
+                    subtitle,
+                    maxLines: compact ? 5 : 4,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontSize: compact ? 13 : null,
                     ),
                   ),
-                ),
-              ],
+                  const Spacer(),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: FilledButton.icon(
+                      onPressed: () {
+                        if (requiresAuth && !requireSignedIn(context)) {
+                          return;
+                        }
+                        context.go(route);
+                      },
+                      icon: const Icon(Icons.arrow_forward),
+                      label: Text(
+                        buttonLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

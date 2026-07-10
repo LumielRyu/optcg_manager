@@ -36,6 +36,17 @@ class SummaryStatCard extends StatelessWidget {
         border: Border.all(
           color: theme.colorScheme.primary.withValues(alpha: 0.2),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(
+              alpha: theme.colorScheme.brightness == Brightness.dark
+                  ? 0.22
+                  : 0.06,
+            ),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
