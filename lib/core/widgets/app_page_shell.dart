@@ -255,9 +255,16 @@ class AppHeroPanel extends StatelessWidget {
       ],
     );
 
-    return AppPremiumSurface(
-      accent: color,
-      padding: EdgeInsets.all(compact ? 18 : 24),
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 4 : 8,
+        vertical: compact ? 8 : 12,
+      ),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: color.withValues(alpha: dark ? 0.18 : 0.1)),
+        ),
+      ),
       child: Stack(
         children: [
           Positioned.fill(child: _HeroCircuitBackdrop(color: color)),
@@ -321,34 +328,20 @@ class AppPremiumSurface extends StatelessWidget {
             gradient: LinearGradient(
               colors: dark
                   ? [
-                      _shellPanelSoft.withValues(alpha: 0.78),
-                      _shellPanel.withValues(alpha: 0.9),
-                      Colors.black.withValues(alpha: 0.3),
+                      _shellPanelSoft.withValues(alpha: 0.5),
+                      _shellPanel.withValues(alpha: 0.72),
                     ]
                   : [
-                      Colors.white.withValues(alpha: 0.96),
-                      color.withValues(alpha: 0.075),
-                      Colors.white.withValues(alpha: 0.88),
+                      Colors.white.withValues(alpha: 0.72),
+                      color.withValues(alpha: 0.045),
                     ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: color.withValues(alpha: dark ? 0.34 : 0.18),
+              color: color.withValues(alpha: dark ? 0.14 : 0.08),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: dark ? 0.38 : 0.08),
-                blurRadius: 34,
-                offset: const Offset(0, 18),
-              ),
-              BoxShadow(
-                color: color.withValues(alpha: dark ? 0.1 : 0.035),
-                blurRadius: 28,
-                offset: const Offset(0, 0),
-              ),
-            ],
           ),
           child: child,
         ),

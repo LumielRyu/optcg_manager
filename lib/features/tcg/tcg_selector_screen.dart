@@ -210,39 +210,59 @@ class _TcgChoiceCard extends StatelessWidget {
 
     return AppHoverLift(
       accent: accent,
-      child: Card(
-        surfaceTintColor: Colors.transparent,
-        clipBehavior: Clip.antiAlias,
+      scale: 1.01,
+      child: Material(
+        color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
           onTap: onTap,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 274),
-            child: Padding(
-              padding: const EdgeInsets.all(22),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 62,
-                    height: 62,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          accent.withValues(alpha: 0.18),
-                          theme.colorScheme.secondary.withValues(alpha: 0.06),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 210),
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  theme.colorScheme.surface.withValues(alpha: 0.2),
+                  accent.withValues(alpha: 0.045),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(8),
+              border: Border(
+                left: BorderSide(
+                  color: accent.withValues(alpha: 0.74),
+                  width: 3,
+                ),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(icon, color: accent, size: 30),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: accent.withValues(alpha: 0.25)),
                     ),
-                    alignment: Alignment.center,
-                    child: Icon(icon, color: accent, size: 30),
-                  ),
-                  const SizedBox(height: 18),
-                  Container(
+                    Icon(
+                      Icons.arrow_forward,
+                      color: accent.withValues(alpha: 0.85),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(subtitle, style: theme.textTheme.bodyMedium),
+                const Spacer(),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
                       vertical: 6,
@@ -250,7 +270,6 @@ class _TcgChoiceCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: accent.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: accent.withValues(alpha: 0.2)),
                     ),
                     child: Text(
                       chipLabel,
@@ -260,26 +279,8 @@ class _TcgChoiceCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  Text(
-                    title,
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(subtitle, style: theme.textTheme.bodyMedium),
-                  const Spacer(),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: FilledButton.icon(
-                      onPressed: onTap,
-                      icon: const Icon(Icons.arrow_forward),
-                      label: const Text('Entrar'),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),

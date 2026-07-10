@@ -144,15 +144,15 @@ class OptcgManagerApp extends ConsumerWidget {
         color: dark
             ? _techPanel.withValues(alpha: 0.82)
             : _techPaperPanel.withValues(alpha: 0.92),
-        elevation: 2,
-        shadowColor: scheme.shadow.withValues(alpha: dark ? 0.46 : 0.12),
+        elevation: 0,
+        shadowColor: scheme.shadow.withValues(alpha: dark ? 0.18 : 0.05),
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
           side: BorderSide(
             color: dark
-                ? scheme.primary.withValues(alpha: 0.18)
-                : scheme.outlineVariant.withValues(alpha: 0.9),
+                ? scheme.primary.withValues(alpha: 0.08)
+                : scheme.outlineVariant.withValues(alpha: 0.45),
           ),
         ),
       ),

@@ -57,14 +57,18 @@ class _CatalogGridCardState extends State<CatalogGridCard> {
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(
-                  alpha: _hovered ? (dark ? 0.34 : 0.12) : (dark ? 0.18 : 0.05),
+                  alpha: _hovered ? (dark ? 0.24 : 0.08) : (dark ? 0.08 : 0.02),
                 ),
-                blurRadius: _hovered ? 28 : 14,
-                offset: Offset(0, _hovered ? 14 : 8),
+                blurRadius: _hovered ? 22 : 10,
+                offset: Offset(0, _hovered ? 12 : 6),
               ),
             ],
           ),
-          child: Card(
+          child: Material(
+            color: theme.colorScheme.surface.withValues(
+              alpha: dark ? 0.28 : 0.42,
+            ),
+            borderRadius: BorderRadius.circular(8),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               borderRadius: BorderRadius.circular(8),
@@ -108,11 +112,7 @@ class _CatalogGridCardState extends State<CatalogGridCard> {
                             end: Alignment.bottomRight,
                           ),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: theme.colorScheme.primary.withValues(
-                              alpha: _hovered ? 0.32 : 0.16,
-                            ),
-                          ),
+                          border: Border.all(color: Colors.transparent),
                         ),
                         padding: const EdgeInsets.all(8),
                         child: widget.image,

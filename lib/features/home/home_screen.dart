@@ -250,92 +250,88 @@ class _HomeFeatureCard extends StatelessWidget {
     final compact = MediaQuery.of(context).size.width < 600;
 
     return AppHoverLift(
-      child: Card(
-        surfaceTintColor: Colors.transparent,
-        clipBehavior: Clip.antiAlias,
+      scale: 1.01,
+      child: Material(
+        color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
           splashColor: theme.colorScheme.primary.withValues(alpha: 0.05),
           highlightColor: Colors.transparent,
-          hoverColor: theme.colorScheme.primary.withValues(alpha: 0.04),
+          hoverColor: theme.colorScheme.primary.withValues(alpha: 0.035),
           onTap: () {
             if (requiresAuth && !requireSignedIn(context)) {
               return;
             }
             context.go(route);
           },
-          child: Padding(
-            padding: EdgeInsets.all(compact ? 14 : 18),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: compact ? 190 : 220),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: compact ? 48 : 56,
-                    height: compact ? 48 : 56,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          theme.colorScheme.primary.withValues(alpha: 0.16),
-                          theme.colorScheme.secondary.withValues(alpha: 0.08),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: theme.colorScheme.primary.withValues(
-                          alpha: 0.22,
+          child: Container(
+            constraints: BoxConstraints(minHeight: compact ? 132 : 150),
+            padding: EdgeInsets.all(compact ? 14 : 16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  theme.colorScheme.surface.withValues(alpha: 0.2),
+                  theme.colorScheme.primary.withValues(alpha: 0.035),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(8),
+              border: Border(
+                left: BorderSide(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.7),
+                  width: 3,
+                ),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  icon,
+                  size: compact ? 24 : 28,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          fontSize: compact ? 16 : null,
                         ),
-                      ),
-                    ),
-                    alignment: Alignment.center,
-                    child: Icon(
-                      icon,
-                      size: compact ? 23 : 28,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                  SizedBox(height: compact ? 12 : 16),
-                  Text(
-                    title,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      fontSize: compact ? 17 : null,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  SizedBox(height: compact ? 6 : 8),
-                  Text(
-                    subtitle,
-                    maxLines: compact ? 5 : 4,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontSize: compact ? 13 : null,
-                    ),
-                  ),
-                  const Spacer(),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: FilledButton.icon(
-                      onPressed: () {
-                        if (requiresAuth && !requireSignedIn(context)) {
-                          return;
-                        }
-                        context.go(route);
-                      },
-                      icon: const Icon(Icons.arrow_forward),
-                      label: Text(
-                        buttonLabel,
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                    ),
+                      const SizedBox(height: 7),
+                      Text(
+                        subtitle,
+                        maxLines: compact ? 4 : 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontSize: compact ? 13 : null,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        buttonLabel,
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.arrow_forward,
+                  color: theme.colorScheme.primary.withValues(alpha: 0.85),
+                ),
+              ],
             ),
           ),
         ),
