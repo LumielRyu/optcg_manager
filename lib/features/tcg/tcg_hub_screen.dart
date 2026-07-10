@@ -44,6 +44,7 @@ class TcgHubScreen extends StatelessWidget {
               subtitle: subtitle,
               icon: heroIcon,
               accent: accent,
+              visualAsset: 'assets/editorial/scanner_card_stack.png',
               badges: [
                 AppBadge(
                   label: sourceLabel,

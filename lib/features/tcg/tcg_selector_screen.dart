@@ -77,6 +77,7 @@ class TcgSelectorScreen extends ConsumerWidget {
                   subtitle:
                       'Entre no jogo que deseja explorar. Cada hub concentra biblioteca, semanais e recursos da comunidade em uma experiencia mais limpa e rapida.',
                   icon: Icons.style_outlined,
+                  visualAsset: 'assets/editorial/scanner_card_stack.png',
                   badges: [
                     AppBadge(
                       label: '6 card games',

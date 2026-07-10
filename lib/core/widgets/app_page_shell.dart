@@ -184,6 +184,7 @@ class AppHeroPanel extends StatelessWidget {
   final Color? accent;
   final List<Widget> badges;
   final Widget? action;
+  final String? visualAsset;
 
   const AppHeroPanel({
     super.key,
@@ -194,6 +195,7 @@ class AppHeroPanel extends StatelessWidget {
     this.accent,
     this.badges = const [],
     this.action,
+    this.visualAsset,
   });
 
   @override
@@ -227,6 +229,35 @@ class AppHeroPanel extends StatelessWidget {
       ),
       child: Icon(icon, color: color, size: 36),
     );
+    final visual = visualAsset == null
+        ? null
+        : ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Stack(
+              children: [
+                Image.asset(
+                  visualAsset!,
+                  width: 300,
+                  height: 210,
+                  fit: BoxFit.cover,
+                ),
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: dark ? 0.32 : 0.16),
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
     final copy = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -275,6 +306,7 @@ class AppHeroPanel extends StatelessWidget {
                 leading,
                 const SizedBox(height: 16),
                 copy,
+                if (visual != null) ...[const SizedBox(height: 16), visual],
                 if (action != null) ...[const SizedBox(height: 16), action!],
               ],
             )
@@ -289,7 +321,19 @@ class AppHeroPanel extends StatelessWidget {
                 Flexible(
                   child: Align(
                     alignment: Alignment.centerRight,
-                    child: _HeroSignalPanel(color: color, action: action),
+                    child: visual == null
+                        ? _HeroSignalPanel(color: color, action: action)
+                        : Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              visual,
+                              if (action != null) ...[
+                                const SizedBox(height: 12),
+                                action!,
+                              ],
+                            ],
+                          ),
                   ),
                 ),
               ],

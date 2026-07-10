@@ -1157,6 +1157,31 @@ class _MarketplaceEditorialHero extends StatelessWidget {
       child: Stack(
         children: [
           Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.asset(
+                'assets/editorial/marketplace_hero.png',
+                fit: BoxFit.cover,
+                opacity: const AlwaysStoppedAnimation(0.34),
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    theme.colorScheme.surface.withValues(alpha: 0.92),
+                    theme.colorScheme.surface.withValues(alpha: 0.58),
+                    Colors.black.withValues(alpha: 0.18),
+                  ],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+              ),
+            ),
+          ),
+          Positioned.fill(
             child: CustomPaint(
               painter: _MarketplaceStarfieldPainter(theme.colorScheme.primary),
             ),
