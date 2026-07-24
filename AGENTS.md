@@ -571,3 +571,25 @@ git diff --stat
   migrar a chave unica do cache e ajustar a correspondencia da aplicacao; nao
   basta mudar a ordem de coleta, pois isso apenas substituiria o preco normal
   pelo Release Event.
+
+### 24/07/2026 - Correcao das edicoes auxiliares de preco
+
+- A colisao foi corrigida sem uma migracao destrutiva da tabela: edicoes
+  principais continuam usando `lookup_code` normal e edicoes auxiliares usam
+  a chave de armazenamento `<codigo>@<edicao>`.
+- Exemplo: a carta normal permanece `OP15-001`, enquanto a Release Event fica
+  `OP15-001@OP-15-RE`; `card_code` continua sendo `OP15-001` nas duas linhas.
+- O coletor passa a preservar simultaneamente a carta principal e cada versao
+  auxiliar durante a consolidacao e o upsert.
+- A aplicacao passou a consultar candidatos pelo `card_code` real e escolher
+  a variante por imagem exata, nome indicando Pre-Release/Release Event ou,
+  sem indicacao de variante, manter a edicao principal.
+- A imagem da carta agora acompanha as referencias de preco na biblioteca,
+  colecao, valor total e dialogo de detalhes.
+- A atualizacao direcionada de `OP-15-RE` foi executada localmente e gravou 90
+  linhas no Supabase; consulta posterior confirmou 90/90 registros com menor
+  preco.
+- Foram adicionados testes de regressao para chave auxiliar, sobrevivencia da
+  edicao principal e auxiliar no mesmo upsert e selecao correta de variante.
+- Validacoes aprovadas: 9 testes Python, `flutter analyze`, 58 testes Flutter
+  e build web release.

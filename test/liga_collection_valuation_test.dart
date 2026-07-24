@@ -22,7 +22,7 @@ void main() {
         ),
       ],
       prices: const {'OP01-001': 10.50, 'OP01-016': 4.25},
-      lookupCodeForCard: (_, cardCode) => cardCode,
+      priceReferenceKeyForCard: (_, cardCode, _) => cardCode,
     );
 
     expect(valuation.totalValue, 40);
@@ -48,7 +48,7 @@ void main() {
         ),
       ],
       prices: const {'OP01-001': 10, 'OP01-002': null},
-      lookupCodeForCard: (_, cardCode) => cardCode,
+      priceReferenceKeyForCard: (_, cardCode, _) => cardCode,
     );
 
     expect(valuation.totalValue, 0);

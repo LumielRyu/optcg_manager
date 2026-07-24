@@ -296,7 +296,7 @@ def parse_edition_cards_page(
         seen.add(exact_code)
         rows.append(
             {
-                "lookup_code": exact_code,
+                "lookup_code": storage_lookup_code(exact_code, edition),
                 "source_url": edition.source_url,
                 "card_name": _clean_card_name(
                     str(item.get("nPT") or item.get("nEN") or exact_code),
@@ -319,6 +319,13 @@ def parse_edition_cards_page(
             }
         )
     return rows
+
+
+def storage_lookup_code(exact_code: str, edition: LigaEdition) -> str:
+    normalized_code = liga.normalize_code(exact_code)
+    if edition.group != "aux":
+        return normalized_code
+    return f"{normalized_code}@{edition.acronym}"
 
 
 def upsert_rows(rows: list[dict], batch_size: int = DEFAULT_BATCH_SIZE) -> int:

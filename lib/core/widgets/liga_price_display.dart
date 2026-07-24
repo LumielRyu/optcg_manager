@@ -7,10 +7,12 @@ import 'summary_stat_card.dart';
 class LigaPriceCardReference {
   final String cardName;
   final String cardCode;
+  final String imageUrl;
 
   const LigaPriceCardReference({
     required this.cardName,
     required this.cardCode,
+    this.imageUrl = '',
   });
 }
 
@@ -20,6 +22,7 @@ class LigaPriceCollectionItemReference extends LigaPriceCardReference {
   const LigaPriceCollectionItemReference({
     required super.cardName,
     required super.cardCode,
+    super.imageUrl,
     required this.quantity,
   });
 }
@@ -45,7 +48,8 @@ class LigaCollectionValuation {
 LigaCollectionValuation calculateLigaCollectionValuation({
   required List<LigaPriceCollectionItemReference> items,
   required Map<String, double?> prices,
-  required String Function(String cardName, String cardCode) lookupCodeForCard,
+  required String Function(String cardName, String cardCode, String imageUrl)
+  priceReferenceKeyForCard,
 }) {
   var totalValue = 0.0;
   var totalUnits = 0;
@@ -55,8 +59,12 @@ LigaCollectionValuation calculateLigaCollectionValuation({
   for (final item in items) {
     final quantity = item.quantity < 0 ? 0 : item.quantity;
     totalUnits += quantity;
-    final lookupCode = lookupCodeForCard(item.cardName, item.cardCode);
-    final price = prices[lookupCode];
+    final referenceKey = priceReferenceKeyForCard(
+      item.cardName,
+      item.cardCode,
+      item.imageUrl,
+    );
+    final price = prices[referenceKey];
     if (price == null) continue;
     totalValue += price * quantity;
     pricedUnits += quantity;
@@ -112,7 +120,11 @@ class _LigaPriceScopeState extends ConsumerState<LigaPriceScope> {
     final service = ref.read(ligaOnePieceServiceProvider);
     final snapshots = await service.fetchCachedPublicCardSnapshotsForCards(
       widget.cards.map(
-        (card) => (cardName: card.cardName, cardCode: card.cardCode),
+        (card) => (
+          cardName: card.cardName,
+          cardCode: card.cardCode,
+          imageUrl: card.imageUrl,
+        ),
       ),
     );
     if (!mounted) return;
@@ -124,7 +136,10 @@ class _LigaPriceScopeState extends ConsumerState<LigaPriceScope> {
 
   String _buildSignature(List<LigaPriceCardReference> cards) {
     return cards
-        .map((card) => '${card.cardCode}\u0000${card.cardName}')
+        .map(
+          (card) =>
+              '${card.cardCode}\u0000${card.cardName}\u0000${card.imageUrl}',
+        )
         .join('|');
   }
 
@@ -164,8 +179,12 @@ class LigaCollectionValueCard extends ConsumerWidget {
     final valuation = calculateLigaCollectionValuation(
       items: items,
       prices: prices,
-      lookupCodeForCard: (cardName, cardCode) =>
-          service.lookupCodeForCard(cardName: cardName, cardCode: cardCode),
+      priceReferenceKeyForCard: (cardName, cardCode, imageUrl) =>
+          service.priceReferenceKeyForCard(
+            cardName: cardName,
+            cardCode: cardCode,
+            imageUrl: imageUrl,
+          ),
     );
     final coverage =
         '${valuation.pricedUniqueCards}/${valuation.totalUniqueCards} com preço';
@@ -187,20 +206,23 @@ class LigaCollectionValueCard extends ConsumerWidget {
 class LigaPriceLabel extends ConsumerWidget {
   final String cardName;
   final String cardCode;
+  final String imageUrl;
 
   const LigaPriceLabel({
     super.key,
     required this.cardName,
     required this.cardCode,
+    this.imageUrl = '',
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final data = _LigaPriceData.maybeOf(context);
     final service = ref.read(ligaOnePieceServiceProvider);
-    final lookupCode = service.lookupCodeForCard(
+    final lookupCode = service.priceReferenceKeyForCard(
       cardName: cardName,
       cardCode: cardCode,
+      imageUrl: imageUrl,
     );
     final snapshot = data?.snapshots[lookupCode];
     final price = snapshot?.minimumPrice ?? snapshot?.lowestListing?.price;
@@ -270,11 +292,13 @@ class LigaPriceLabel extends ConsumerWidget {
 class LigaPriceDetailsPanel extends ConsumerStatefulWidget {
   final String cardName;
   final String cardCode;
+  final String imageUrl;
 
   const LigaPriceDetailsPanel({
     super.key,
     required this.cardName,
     required this.cardCode,
+    this.imageUrl = '',
   });
 
   @override
@@ -295,7 +319,8 @@ class _LigaPriceDetailsPanelState extends ConsumerState<LigaPriceDetailsPanel> {
   void didUpdateWidget(covariant LigaPriceDetailsPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.cardName != widget.cardName ||
-        oldWidget.cardCode != widget.cardCode) {
+        oldWidget.cardCode != widget.cardCode ||
+        oldWidget.imageUrl != widget.imageUrl) {
       _snapshotFuture = _load();
     }
   }
@@ -306,6 +331,7 @@ class _LigaPriceDetailsPanelState extends ConsumerState<LigaPriceDetailsPanel> {
         .fetchCachedPublicCardSnapshotForCard(
           cardName: widget.cardName,
           cardCode: widget.cardCode,
+          imageUrl: widget.imageUrl,
         );
   }
 

@@ -133,6 +133,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
             (card) => LigaPriceCollectionItemReference(
               cardName: card.name,
               cardCode: card.cardCode,
+              imageUrl: card.imageUrl,
               quantity: card.quantity,
             ),
           )
@@ -234,6 +235,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                       (card) => LigaPriceCardReference(
                         cardName: card.name,
                         cardCode: card.cardCode,
+                        imageUrl: card.imageUrl,
                       ),
                     )
                     .toList(growable: false),
@@ -1136,7 +1138,11 @@ class _StandardLibraryView extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  LigaPriceLabel(cardName: item.name, cardCode: item.cardCode),
+                  LigaPriceLabel(
+                    cardName: item.name,
+                    cardCode: item.cardCode,
+                    imageUrl: item.imageUrl,
+                  ),
                   IconButton(
                     tooltip: 'Adicionar às vendas',
                     onPressed: () => _importCardToSales(context, ref, item),
@@ -1197,6 +1203,7 @@ class _StandardLibraryView extends ConsumerWidget {
             footer: LigaPriceLabel(
               cardName: item.name,
               cardCode: item.cardCode,
+              imageUrl: item.imageUrl,
             ),
             image: _CollectionCardImage(
               key: ValueKey(
@@ -1628,6 +1635,7 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
                     LigaPriceDetailsPanel(
                       cardName: card.name,
                       cardCode: card.cardCode,
+                      imageUrl: card.imageUrl,
                     ),
                     const SizedBox(height: 16),
                     FilledButton.icon(

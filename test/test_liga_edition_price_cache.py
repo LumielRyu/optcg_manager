@@ -219,6 +219,55 @@ class LigaEditionPriceCacheTest(unittest.TestCase):
             rows[0]["resolved_at"],
         )
 
+    def test_auxiliary_editions_use_a_distinct_storage_key(self):
+        edition = edition_cache.LigaEdition(
+            80,
+            "OP-15-RE",
+            "Adventure on Kami's Island Release Event Cards",
+            "2026-03-27 00:00:00",
+            "aux",
+        )
+        source = (
+            '<script>const cardsjson = [{"sN":"OP15-001",'
+            '"nPT":"Monkey.D.Luffy","precoMenor":"12,50"}];</script>'
+        )
+
+        rows = edition_cache.parse_edition_cards_page(
+            source,
+            edition,
+            resolved_at="2026-07-24T12:00:00Z",
+        )
+
+        self.assertEqual("OP15-001@OP-15-RE", rows[0]["lookup_code"])
+        self.assertEqual("OP15-001", rows[0]["card_code"])
+
+    def test_main_and_auxiliary_versions_survive_the_same_upsert(self):
+        rows = [
+            {
+                "lookup_code": "OP15-001",
+                "card_code": "OP15-001",
+                "edition_code": "OP-15",
+            },
+            {
+                "lookup_code": "OP15-001@OP-15-RE",
+                "card_code": "OP15-001",
+                "edition_code": "OP-15-RE",
+            },
+        ]
+
+        with mock.patch.object(
+            edition_cache.liga,
+            "upsert_supabase_rows",
+        ) as upsert:
+            written = edition_cache.upsert_rows(rows)
+
+        self.assertEqual(2, written)
+        stored = upsert.call_args.args[0]
+        self.assertEqual(
+            ["OP15-001", "OP15-001@OP-15-RE"],
+            [row["lookup_code"] for row in stored],
+        )
+
     def test_uses_versioned_catalog_for_requested_edition(self):
         payload = [
             {

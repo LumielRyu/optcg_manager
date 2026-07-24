@@ -68,6 +68,21 @@ class LigaOnePieceService {
     return normalizedCode;
   }
 
+  String priceReferenceKeyForCard({
+    required String cardName,
+    required String cardCode,
+    String imageUrl = '',
+  }) {
+    final lookupCode = lookupCodeForCard(
+      cardName: cardName,
+      cardCode: cardCode,
+    );
+    final imageIdentity = _imageIdentity(imageUrl);
+    return imageIdentity.isEmpty
+        ? lookupCode
+        : '$lookupCode::IMG::$imageIdentity';
+  }
+
   String buildPublicCardUrl({
     required String cardName,
     required String cardCode,
@@ -112,6 +127,7 @@ class LigaOnePieceService {
   Future<LigaOnePieceCardSnapshot> fetchPublicCardSnapshotForCard({
     required String cardName,
     required String cardCode,
+    String imageUrl = '',
   }) async {
     final normalizedCode = cardCode.trim().toUpperCase();
     final lookupCode = lookupCodeForCard(
@@ -119,13 +135,24 @@ class LigaOnePieceService {
       cardCode: normalizedCode,
     );
 
-    final remoteCached = await _remoteSnapshotForCardCode(lookupCode);
+    final referenceKey = priceReferenceKeyForCard(
+      cardName: cardName,
+      cardCode: normalizedCode,
+      imageUrl: imageUrl,
+    );
+    final remoteCached = await _remoteSnapshotForCard(
+      cardName: cardName,
+      cardCode: normalizedCode,
+      imageUrl: imageUrl,
+    );
     if (remoteCached != null) {
-      _saveSnapshotForCardCode(lookupCode, remoteCached);
+      _saveSnapshotForCardCode(referenceKey, remoteCached);
       return remoteCached;
     }
 
-    final memoryCached = _memorySnapshotForCardCode(lookupCode);
+    final memoryCached =
+        _memorySnapshotForCardCode(referenceKey) ??
+        _memorySnapshotForCardCode(lookupCode);
     if (memoryCached != null) {
       return memoryCached;
     }
@@ -244,6 +271,7 @@ class LigaOnePieceService {
   Future<LigaOnePieceCardSnapshot?> fetchCachedPublicCardSnapshotForCard({
     required String cardName,
     required String cardCode,
+    String imageUrl = '',
   }) async {
     final lookupCode = lookupCodeForCard(
       cardName: cardName,
@@ -253,13 +281,24 @@ class LigaOnePieceService {
       return null;
     }
 
-    final remoteCached = await _remoteSnapshotForCardCode(lookupCode);
+    final referenceKey = priceReferenceKeyForCard(
+      cardName: cardName,
+      cardCode: cardCode,
+      imageUrl: imageUrl,
+    );
+    final remoteCached = await _remoteSnapshotForCard(
+      cardName: cardName,
+      cardCode: cardCode,
+      imageUrl: imageUrl,
+    );
     if (remoteCached != null) {
-      _saveSnapshotForCardCode(lookupCode, remoteCached);
+      _saveSnapshotForCardCode(referenceKey, remoteCached);
       return remoteCached;
     }
 
-    final memoryCached = _memorySnapshotForCardCode(lookupCode);
+    final memoryCached =
+        _memorySnapshotForCardCode(referenceKey) ??
+        _memorySnapshotForCardCode(lookupCode);
     if (memoryCached != null) {
       return memoryCached;
     }
@@ -281,54 +320,106 @@ class LigaOnePieceService {
 
   Future<Map<String, LigaOnePieceCardSnapshot>>
   fetchCachedPublicCardSnapshotsForCards(
-    Iterable<({String cardName, String cardCode})> cards,
+    Iterable<({String cardName, String cardCode, String imageUrl})> cards,
   ) async {
-    final lookupCodes = cards
-        .map(
-          (card) => lookupCodeForCard(
+    final references = cards.toList(growable: false);
+    final cardCodes = references
+        .expand((card) {
+          final normalizedCode = _normalizeLookupCode(card.cardCode);
+          final lookupCode = lookupCodeForCard(
             cardName: card.cardName,
             cardCode: card.cardCode,
-          ),
-        )
+          );
+          return <String>{normalizedCode, lookupCode};
+        })
         .where((code) => code.isNotEmpty)
         .toSet();
-    if (lookupCodes.isEmpty) {
+    if (cardCodes.isEmpty) {
       return const <String, LigaOnePieceCardSnapshot>{};
     }
 
     final snapshots = <String, LigaOnePieceCardSnapshot>{};
-    final missingCodes = <String>[];
-    for (final code in lookupCodes) {
-      final cached = _memorySnapshotForCardCode(code);
+    final missingReferences =
+        <
+          ({
+            String cardName,
+            String cardCode,
+            String imageUrl,
+            String referenceKey,
+          })
+        >[];
+    for (final card in references) {
+      final referenceKey = priceReferenceKeyForCard(
+        cardName: card.cardName,
+        cardCode: card.cardCode,
+        imageUrl: card.imageUrl,
+      );
+      final cached = _memorySnapshotForCardCode(referenceKey);
       if (cached == null) {
-        missingCodes.add(code);
+        missingReferences.add((
+          cardName: card.cardName,
+          cardCode: card.cardCode,
+          imageUrl: card.imageUrl,
+          referenceKey: referenceKey,
+        ));
       } else {
-        snapshots[code] = cached;
+        snapshots[referenceKey] = cached;
       }
     }
 
+    final rowsByCardCode = <String, List<Map<String, dynamic>>>{};
     const chunkSize = 80;
-    for (var offset = 0; offset < missingCodes.length; offset += chunkSize) {
-      final end = (offset + chunkSize).clamp(0, missingCodes.length);
-      final chunk = missingCodes.sublist(offset, end);
+    final queryCodes = missingReferences
+        .expand(
+          (card) => <String>{
+            _normalizeLookupCode(card.cardCode),
+            lookupCodeForCard(cardName: card.cardName, cardCode: card.cardCode),
+          },
+        )
+        .where((code) => code.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    for (var offset = 0; offset < queryCodes.length; offset += chunkSize) {
+      final end = (offset + chunkSize).clamp(0, queryCodes.length);
+      final chunk = queryCodes.sublist(offset, end);
       try {
         final rows = await _supabase
             .from(_remoteCacheTable)
             .select()
-            .inFilter('lookup_code', chunk);
+            .inFilter('card_code', chunk);
         for (final rawRow in rows) {
           final row = Map<String, dynamic>.from(rawRow);
-          final lookupCode = _normalizeLookupCode(
-            row['lookup_code']?.toString() ?? '',
+          final cardCode = _normalizeLookupCode(
+            row['card_code']?.toString() ?? '',
           );
-          if (lookupCode.isEmpty) continue;
-          final snapshot = _snapshotFromRemoteRow(row);
-          _saveSnapshotForCardCode(lookupCode, snapshot);
-          snapshots[lookupCode] = snapshot;
+          if (cardCode.isEmpty) continue;
+          rowsByCardCode.putIfAbsent(cardCode, () => []).add(row);
         }
       } catch (_) {
         // A lista continua utilizavel mesmo se o cache remoto estiver offline.
       }
+    }
+
+    for (final card in missingReferences) {
+      final normalizedCode = _normalizeLookupCode(card.cardCode);
+      final lookupCode = lookupCodeForCard(
+        cardName: card.cardName,
+        cardCode: card.cardCode,
+      );
+      final candidates = <Map<String, dynamic>>[
+        ...?rowsByCardCode[normalizedCode],
+        if (lookupCode != normalizedCode) ...?rowsByCardCode[lookupCode],
+      ];
+      final row = selectBestRemoteRow(
+        candidates,
+        cardName: card.cardName,
+        lookupCode: lookupCode,
+        imageUrl: card.imageUrl,
+      );
+      if (row == null) continue;
+      final snapshot = _snapshotFromRemoteRow(row);
+      _saveSnapshotForCardCode(card.referenceKey, snapshot);
+      snapshots[card.referenceKey] = snapshot;
     }
 
     return snapshots;
@@ -512,6 +603,126 @@ class LigaOnePieceService {
     } catch (_) {
       return null;
     }
+  }
+
+  Future<LigaOnePieceCardSnapshot?> _remoteSnapshotForCard({
+    required String cardName,
+    required String cardCode,
+    required String imageUrl,
+  }) async {
+    try {
+      final normalizedCode = _normalizeLookupCode(cardCode);
+      final lookupCode = lookupCodeForCard(
+        cardName: cardName,
+        cardCode: cardCode,
+      );
+      final queryCodes = <String>{
+        normalizedCode,
+        lookupCode,
+      }.where((code) => code.isNotEmpty).toList(growable: false);
+      if (queryCodes.isEmpty) return null;
+
+      final rows = await _supabase
+          .from(_remoteCacheTable)
+          .select()
+          .inFilter('card_code', queryCodes);
+      final candidates = rows
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList(growable: false);
+      final selected = selectBestRemoteRow(
+        candidates,
+        cardName: cardName,
+        lookupCode: lookupCode,
+        imageUrl: imageUrl,
+      );
+      if (selected != null) {
+        return _snapshotFromRemoteRow(selected);
+      }
+    } catch (_) {
+      // Tenta a chave legada abaixo.
+    }
+
+    return _remoteSnapshotForCardCode(
+      lookupCodeForCard(cardName: cardName, cardCode: cardCode),
+    );
+  }
+
+  @visibleForTesting
+  static Map<String, dynamic>? selectBestRemoteRow(
+    Iterable<Map<String, dynamic>> rows, {
+    required String cardName,
+    required String lookupCode,
+    required String imageUrl,
+  }) {
+    Map<String, dynamic>? best;
+    var bestScore = -1 << 30;
+    DateTime? bestResolvedAt;
+    final normalizedName = cardName
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+        .trim();
+    final wantsPreRelease =
+        normalizedName.contains('pre release') ||
+        normalizedName.contains('prerelease');
+    final wantsReleaseEvent =
+        normalizedName.contains('release event') ||
+        normalizedName.contains('release version');
+    final wantsReprint = normalizedName.contains('reprint');
+    final requestedImage = imageUrl.trim();
+    final requestedImageIdentity = _imageIdentity(requestedImage);
+
+    for (final row in rows) {
+      var score = 0;
+      final rowLookup = (row['lookup_code']?.toString() ?? '')
+          .trim()
+          .toUpperCase();
+      final edition = (row['edition_code']?.toString() ?? '')
+          .trim()
+          .toUpperCase();
+      final rowImage = row['image_url']?.toString().trim() ?? '';
+      final rowImageIdentity = _imageIdentity(rowImage);
+      final isAuxiliary =
+          rowLookup.contains('@') || RegExp(r'-(?:PR|RE)$').hasMatch(edition);
+
+      if (rowLookup == lookupCode) score += 160;
+      if (requestedImage.isNotEmpty && rowImage == requestedImage) {
+        score += 1200;
+      } else if (requestedImageIdentity.isNotEmpty &&
+          rowImageIdentity == requestedImageIdentity) {
+        score += 900;
+      }
+
+      if (wantsPreRelease) {
+        score += edition.endsWith('-PR') ? 500 : -100;
+      } else if (wantsReleaseEvent || wantsReprint) {
+        score += edition.endsWith('-RE') ? 500 : -100;
+      } else {
+        score += isAuxiliary ? -20 : 20;
+      }
+
+      final resolvedAt = DateTime.tryParse(
+        row['resolved_at']?.toString() ?? '',
+      );
+      if (score > bestScore ||
+          (score == bestScore &&
+              resolvedAt != null &&
+              (bestResolvedAt == null || resolvedAt.isAfter(bestResolvedAt)))) {
+        best = row;
+        bestScore = score;
+        bestResolvedAt = resolvedAt;
+      }
+    }
+
+    return best;
+  }
+
+  static String _imageIdentity(String imageUrl) {
+    final value = imageUrl.trim();
+    if (value.isEmpty) return '';
+    final uri = Uri.tryParse(value);
+    final path = uri?.path ?? value;
+    final fileName = path.split('/').last.toLowerCase();
+    return fileName.replaceAll(RegExp(r'[^a-z0-9]+'), '');
   }
 
   LigaOnePieceCardSnapshot _snapshotFromRemoteRow(Map<String, dynamic> row) {

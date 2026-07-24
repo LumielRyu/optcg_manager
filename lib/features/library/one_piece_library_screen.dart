@@ -446,6 +446,7 @@ class _OnePieceLibraryScreenState extends ConsumerState<OnePieceLibraryScreen> {
                           (card) => LigaPriceCardReference(
                             cardName: card.name,
                             cardCode: card.code,
+                            imageUrl: card.image,
                           ),
                         )
                         .toList(growable: false),
@@ -501,6 +502,7 @@ class _OnePieceLibraryScreenState extends ConsumerState<OnePieceLibraryScreen> {
                                   footer: LigaPriceLabel(
                                     cardName: card.name,
                                     cardCode: card.code,
+                                    imageUrl: card.image,
                                   ),
                                   trailingActions: [
                                     IconButton(
