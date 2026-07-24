@@ -407,3 +407,9 @@ git diff --stat
   Hub One Piece.
 - Validacoes aprovadas: build web release, E2E da home, E2E da protecao da rota
   administrativa, `flutter analyze` e 50 testes Flutter.
+- Commit funcional `bae5c09`, enviado para `origin/main`.
+- Deploy Vercel de producao
+  `dpl_D4j7VF5eeY7WWEhakP8BxgxazzUc`, status READY no alias
+  `https://optcgbh.vercel.app`.
+- A home e a protecao da rota administrativa foram aprovadas novamente em
+  producao; a consulta de logs do novo deploy nao encontrou erros.
