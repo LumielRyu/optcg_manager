@@ -3,12 +3,16 @@ import json
 import re
 import time
 import urllib.parse
+import urllib.error
 from dataclasses import dataclass
+from pathlib import Path
 
 import update_liga_price_cache as liga
 
 
 EDITIONS_URL = "https://www.ligaonepiece.com.br/?view=cards/edicoes"
+ROOT = Path(__file__).resolve().parents[1]
+EDITIONS_FALLBACK_PATH = ROOT / "assets" / "liga_one_piece_editions.json"
 DEFAULT_CRAWL_DELAY_SECONDS = 360.0
 DEFAULT_PRIORITY_EDITIONS = 3
 DEFAULT_BATCH_SIZE = 250
@@ -155,6 +159,71 @@ def parse_editions_page(source: str) -> list[LigaEdition]:
     return editions
 
 
+def load_fallback_editions(
+    path: Path = EDITIONS_FALLBACK_PATH,
+) -> list[LigaEdition]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise RuntimeError(
+            f"Catalogo local de edicoes indisponivel: {path}."
+        ) from error
+
+    editions = []
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        try:
+            edition_id = int(item.get("edition_id") or 0)
+        except (TypeError, ValueError):
+            edition_id = 0
+        acronym = str(item.get("acronym") or "").strip().upper()
+        if edition_id <= 0 or not acronym:
+            continue
+        editions.append(
+            LigaEdition(
+                edition_id=edition_id,
+                acronym=acronym,
+                name=str(item.get("name") or acronym).strip(),
+                release_date=str(item.get("release_date") or "").strip(),
+                group=str(item.get("group") or "main").strip(),
+            )
+        )
+
+    editions.sort(
+        key=lambda edition: (edition.release_date, edition.edition_id),
+        reverse=True,
+    )
+    if not editions:
+        raise RuntimeError("Catalogo local de edicoes esta vazio.")
+    return editions
+
+
+def discover_editions(
+    requested: list[str],
+    *,
+    fallback_path: Path = EDITIONS_FALLBACK_PATH,
+) -> tuple[list[LigaEdition], str]:
+    fallback = load_fallback_editions(fallback_path)
+    normalized_requested = {
+        value.strip().upper() for value in requested if value.strip()
+    }
+    if normalized_requested and normalized_requested.issubset(
+        {edition.acronym for edition in fallback}
+    ):
+        return fallback, "catalogo local versionado"
+
+    try:
+        source = liga.fetch_text(EDITIONS_URL)
+        return parse_editions_page(source), "pagina publica de edicoes"
+    except (RuntimeError, urllib.error.URLError) as error:
+        print(
+            "Aviso: pagina de edicoes indisponivel; usando catalogo local "
+            f"versionado ({error})."
+        )
+        return fallback, "catalogo local versionado"
+
+
 def select_editions(
     editions: list[LigaEdition],
     *,
@@ -297,8 +366,7 @@ def main():
     if args.delay < 0:
         raise ValueError("--delay nao pode ser negativo.")
 
-    editions_source = liga.fetch_text(EDITIONS_URL)
-    editions = parse_editions_page(editions_source)
+    editions, catalog_source = discover_editions(args.edition)
     selected = select_editions(
         editions,
         requested=args.edition,
@@ -310,6 +378,7 @@ def main():
         selected = selected[: max(0, args.limit)]
 
     print(f"Edicoes publicadas pela Liga: {len(editions)}")
+    print(f"Origem do catalogo de edicoes: {catalog_source}")
     print(f"Edicoes selecionadas nesta execucao: {len(selected)}")
     for edition in selected:
         print(

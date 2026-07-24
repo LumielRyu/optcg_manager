@@ -312,3 +312,28 @@ git diff --stat
   `https://optcgbh.vercel.app`.
 - A rota da Biblioteca, health check e protecao de origem foram aprovados
   novamente em producao; os logs do deploy nao apresentaram erros.
+
+### 23/07/2026 - Fallback para bloqueio 403 no catalogo de edicoes
+
+- O teste manual do usuario confirmou que os secrets passaram pela validacao,
+  mas o runner hospedado do GitHub recebeu HTTP 403 ao abrir a pagina publica
+  que lista as edicoes da Liga.
+- Foi criado `assets/liga_one_piece_editions.json`, com as 78 edicoes
+  observadas, seus IDs, datas e grupos.
+- Quando uma edicao especifica e solicitada, o coletor usa diretamente o
+  catalogo versionado e nao consulta a pagina de edicoes bloqueada.
+- Nas execucoes agendadas, o coletor ainda tenta descobrir edicoes novas pela
+  pagina publica; em caso de bloqueio, continua com o catalogo local.
+- A pagina individual da OP-16 permaneceu legivel a partir da maquina local e
+  retornou 159 cartas/variantes.
+- O esquema de tres rodadas diarias foi mantido:
+  - 00:17, 08:17 e 16:17 em Brasilia;
+  - 360 segundos entre paginas;
+  - tres edicoes recentes em todas as rodadas;
+  - edicoes antigas divididas em tres grupos, resultando em uma atualizacao
+    diaria por edicao.
+- Validacoes: 6 testes Python aprovados, `--edition OP-16 --dry-run` aprovado e
+  leitura/parser da pagina individual OP-16 aprovados.
+- Ainda e necessario testar a pagina individual a partir do runner do GitHub;
+  se ela tambem responder 403, sera necessario um runner auto-hospedado ou um
+  agendador local, pois o bloqueio sera do IP do datacenter.

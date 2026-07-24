@@ -2,6 +2,8 @@ import json
 import sys
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -183,6 +185,32 @@ class LigaEditionPriceCacheTest(unittest.TestCase):
             "2026-07-23T12:00:00Z",
             rows[0]["resolved_at"],
         )
+
+    def test_uses_versioned_catalog_for_requested_edition(self):
+        payload = [
+            {
+                "edition_id": 81,
+                "acronym": "OP-16",
+                "name": "The Time of Battle",
+                "release_date": "2026-06-12 00:00:00",
+                "group": "main",
+            }
+        ]
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "editions.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            with mock.patch.object(
+                edition_cache.liga,
+                "fetch_text",
+                side_effect=AssertionError("remote catalog should not be read"),
+            ):
+                editions, source = edition_cache.discover_editions(
+                    ["OP-16"],
+                    fallback_path=path,
+                )
+
+        self.assertEqual("catalogo local versionado", source)
+        self.assertEqual(["OP-16"], [edition.acronym for edition in editions])
 
 
 if __name__ == "__main__":
