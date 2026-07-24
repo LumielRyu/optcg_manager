@@ -606,3 +606,36 @@ git diff --stat
 - Deploy Vercel final de producao
   `dpl_C6gNoApvbfJMRTb3rwR7tXo1pkuB`, status READY no alias
   `https://optcgbh.vercel.app`.
+
+### 24/07/2026 - Planejamento da pagina de produtos personalizados
+
+- O usuario forneceu `Deck Box One Piece.3mf` e duas fotos da deck box
+  impressa, separada e montada.
+- O arquivo foi validado como projeto Bambu Studio 2.7 completo, com unidade
+  em milimetros, seis placas, geometria preservada e todas as malhas
+  `manifold`.
+- As seis placas/grupos de personalizacao identificados sao:
+  1. base inferior com encaixes (`Ultimate_Bottom`);
+  2. berco interno para cartas (`Ultimate_Insert_Long`);
+  3. oito marcadores, duas copias de Freeze, Negate, Used e Blocker;
+  4. corpo externo (`Ultimate_Box_Long`);
+  5. bandeja/tampa dos marcadores (`Ultimate_Lid_Tokens`);
+  6. quatro suportes altos e quatro baixos, agrupados na placa `Montagem`.
+- Dimensoes principais aproximadas:
+  - corpo externo: 90,4 x 79,4 x 111 mm;
+  - berco interno: 76 x 64 x 99 mm;
+  - base inferior: 80,4 x 79,4 x 20,9 mm;
+  - tampa dos marcadores: 81,55 x 79,4 x 15 mm;
+  - marcadores: 31,6 x 14,8 x 3 mm cada;
+  - suportes: secao de 13 x 13 mm, alturas de 30 e 11,5 mm.
+- O projeto possui quatro filamentos configurados: amarelo `#F6DA5A`, preto
+  `#000000`, vermelho `#C52C18` e azul-claro `#A4DAE6`.
+- Os marcadores sao internamente bicolores: corpo no extrusor 1 e
+  simbolos/letras no extrusor 2. Deve ser decidido se o cliente escolhe as
+  duas cores ou apenas a cor-base.
+- O 3MF preserva uma disposicao explodida, nao as coordenadas finais
+  encaixadas. A montagem web precisara ser reconstruida a partir das malhas,
+  dimensoes e fotos.
+- Direcao recomendada para o configurador: um GLB com malhas nomeadas,
+  visualizacao 3D com rotacao/zoom, selecao das cores por grupo e alternancia
+  entre os modos `Montada` e `Explodida`.
