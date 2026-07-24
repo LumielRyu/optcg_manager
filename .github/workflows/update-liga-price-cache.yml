@@ -33,9 +33,12 @@ concurrency:
   group: update-liga-price-cache
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   update-cache:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Windows, X64, liga-price-cache]
     timeout-minutes: 210
     steps:
       - name: Checkout
@@ -55,26 +58,46 @@ jobs:
           EDITION: ${{ inputs.edition }}
           MANUAL_SHARD_INDEX: ${{ inputs.shard_index }}
           SCHEDULE_EXPRESSION: ${{ github.event.schedule }}
+        shell: powershell
         run: |
-          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
-            echo "::error::SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY nao configurado. Cache da Liga nao foi atualizado."
+          $ErrorActionPreference = "Stop"
+          if (
+            [string]::IsNullOrWhiteSpace($env:SUPABASE_URL) -or
+            [string]::IsNullOrWhiteSpace($env:SUPABASE_SERVICE_ROLE_KEY)
+          ) {
+            Write-Output "::error::SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY nao configurado. Cache da Liga nao foi atualizado."
             exit 1
-          fi
+          }
 
-          if [ -n "$CARD_CODE" ]; then
-            python scripts/update_marketplace_liga_price_cache.py --code "$CARD_CODE" --name "$CARD_NAME" --refresh-days 0 --sleep 0.8
-          elif [ -n "$EDITION" ]; then
-            python scripts/update_liga_edition_price_cache.py --edition "$EDITION"
-          else
-            case "$SCHEDULE_EXPRESSION" in
-              "17 3 * * *") shard_index=0 ;;
-              "17 11 * * *") shard_index=1 ;;
-              "17 19 * * *") shard_index=2 ;;
-              *) shard_index="${MANUAL_SHARD_INDEX:-0}" ;;
-            esac
-            python scripts/update_liga_edition_price_cache.py \
-              --shard-count 3 \
-              --shard-index "$shard_index" \
-              --priority-editions 3 \
+          if (-not [string]::IsNullOrWhiteSpace($env:CARD_CODE)) {
+            python scripts/update_marketplace_liga_price_cache.py `
+              --code "$env:CARD_CODE" `
+              --name "$env:CARD_NAME" `
+              --refresh-days 0 `
+              --sleep 0.8
+          } elseif (-not [string]::IsNullOrWhiteSpace($env:EDITION)) {
+            python scripts/update_liga_edition_price_cache.py `
+              --edition "$env:EDITION"
+          } else {
+            $shardIndex = switch ($env:SCHEDULE_EXPRESSION) {
+              "17 3 * * *" { "0"; break }
+              "17 11 * * *" { "1"; break }
+              "17 19 * * *" { "2"; break }
+              default {
+                if ([string]::IsNullOrWhiteSpace($env:MANUAL_SHARD_INDEX)) {
+                  "0"
+                } else {
+                  $env:MANUAL_SHARD_INDEX
+                }
+              }
+            }
+            python scripts/update_liga_edition_price_cache.py `
+              --shard-count 3 `
+              --shard-index "$shardIndex" `
+              --priority-editions 3 `
               --delay 360
-          fi
+          }
+
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
