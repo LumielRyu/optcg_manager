@@ -30,22 +30,23 @@ enum _DeckPart {
 
 class _FilamentColor {
   final String name;
+  final String assetKey;
   final Color color;
-  const _FilamentColor(this.name, this.color);
+  const _FilamentColor(this.name, this.assetKey, this.color);
 }
 
 const _palette = <_FilamentColor>[
-  _FilamentColor('Preto', Color(0xFF17191D)),
-  _FilamentColor('Branco', Color(0xFFF1F0E9)),
-  _FilamentColor('Verde', Color(0xFF238A52)),
-  _FilamentColor('Amarelo', Color(0xFFF1C62E)),
-  _FilamentColor('Azul', Color(0xFF2458B8)),
-  _FilamentColor('Azul claro', Color(0xFF83CEE4)),
-  _FilamentColor('Vermelho', Color(0xFFC93832)),
-  _FilamentColor('Roxo', Color(0xFF7440A7)),
-  _FilamentColor('Laranja', Color(0xFFE87525)),
-  _FilamentColor('Marrom', Color(0xFF76503A)),
-  _FilamentColor('Rosa', Color(0xFFE56F9F)),
+  _FilamentColor('Preto', 'preto', Color(0xFF17191D)),
+  _FilamentColor('Branco', 'branco', Color(0xFFF1F0E9)),
+  _FilamentColor('Verde', 'verde', Color(0xFF238A52)),
+  _FilamentColor('Amarelo', 'amarelo', Color(0xFFF1C62E)),
+  _FilamentColor('Azul', 'azul', Color(0xFF2458B8)),
+  _FilamentColor('Azul claro', 'azul_claro', Color(0xFF83CEE4)),
+  _FilamentColor('Vermelho', 'vermelho', Color(0xFFC93832)),
+  _FilamentColor('Roxo', 'roxo', Color(0xFF7440A7)),
+  _FilamentColor('Laranja', 'laranja', Color(0xFFE87525)),
+  _FilamentColor('Marrom', 'marrom', Color(0xFF76503A)),
+  _FilamentColor('Rosa', 'rosa', Color(0xFFE56F9F)),
 ];
 
 class _ProductsScreenState extends State<ProductsScreen> {
@@ -307,7 +308,7 @@ class _PreviewPanel extends StatelessWidget {
                     child: _ModelPartTile(
                       label: 'Base inferior',
                       asset: 'plate_1.png',
-                      color: colors[_DeckPart.bottom]!.color,
+                      filament: colors[_DeckPart.bottom]!,
                     ),
                   ),
                   SizedBox(
@@ -315,14 +316,14 @@ class _PreviewPanel extends StatelessWidget {
                     child: _ModelPartTile(
                       label: 'Berço interno',
                       asset: 'plate_2.png',
-                      color: colors[_DeckPart.innerCradle]!.color,
+                      filament: colors[_DeckPart.innerCradle]!,
                     ),
                   ),
                   SizedBox(
                     width: tileWidth,
                     child: _ModelPartTile.tokens(
-                      bodyColor: colors[_DeckPart.tokenBody]!.color,
-                      detailColor: colors[_DeckPart.tokenDetail]!.color,
+                      bodyFilament: colors[_DeckPart.tokenBody]!,
+                      detailFilament: colors[_DeckPart.tokenDetail]!,
                     ),
                   ),
                   SizedBox(
@@ -330,7 +331,7 @@ class _PreviewPanel extends StatelessWidget {
                     child: _ModelPartTile(
                       label: 'Corpo externo',
                       asset: 'plate_4.png',
-                      color: colors[_DeckPart.outerBody]!.color,
+                      filament: colors[_DeckPart.outerBody]!,
                     ),
                   ),
                   SizedBox(
@@ -338,7 +339,7 @@ class _PreviewPanel extends StatelessWidget {
                     child: _ModelPartTile(
                       label: 'Tampa e bandeja',
                       asset: 'plate_5.png',
-                      color: colors[_DeckPart.lid]!.color,
+                      filament: colors[_DeckPart.lid]!,
                     ),
                   ),
                   SizedBox(
@@ -346,7 +347,7 @@ class _PreviewPanel extends StatelessWidget {
                     child: _ModelPartTile(
                       label: 'Bases altas',
                       asset: 'plate_6.png',
-                      color: colors[_DeckPart.tallBases]!.color,
+                      filament: colors[_DeckPart.tallBases]!,
                     ),
                   ),
                   SizedBox(
@@ -354,7 +355,7 @@ class _PreviewPanel extends StatelessWidget {
                     child: _ModelPartTile(
                       label: 'Bases baixas',
                       asset: 'plate_7.png',
-                      color: colors[_DeckPart.shortBases]!.color,
+                      filament: colors[_DeckPart.shortBases]!,
                     ),
                   ),
                 ],
@@ -395,25 +396,25 @@ class _ModelPartTile extends StatelessWidget {
 
   final String label;
   final String? asset;
-  final Color? color;
-  final Color? tokenBodyColor;
-  final Color? tokenDetailColor;
+  final _FilamentColor? filament;
+  final _FilamentColor? tokenBodyFilament;
+  final _FilamentColor? tokenDetailFilament;
 
   const _ModelPartTile({
     required this.label,
     required this.asset,
-    required this.color,
-  }) : tokenBodyColor = null,
-       tokenDetailColor = null;
+    required this.filament,
+  }) : tokenBodyFilament = null,
+       tokenDetailFilament = null;
 
   const _ModelPartTile.tokens({
-    required Color bodyColor,
-    required Color detailColor,
+    required _FilamentColor bodyFilament,
+    required _FilamentColor detailFilament,
   }) : label = 'Fichas com ímã',
        asset = null,
-       color = null,
-       tokenBodyColor = bodyColor,
-       tokenDetailColor = detailColor;
+       filament = null,
+       tokenBodyFilament = bodyFilament,
+       tokenDetailFilament = detailFilament;
 
   @override
   Widget build(BuildContext context) {
@@ -422,7 +423,7 @@ class _ModelPartTile extends StatelessWidget {
         ? _TintedModelAsset(
             key: ValueKey('model-part-$asset'),
             asset: '$_assetRoot/$asset',
-            color: color!,
+            filament: filament!,
           )
         : Stack(
             fit: StackFit.expand,
@@ -430,12 +431,12 @@ class _ModelPartTile extends StatelessWidget {
               _TintedModelAsset(
                 key: const ValueKey('model-part-plate-3-body'),
                 asset: '$_assetRoot/plate_3_body.png',
-                color: tokenBodyColor!,
+                filament: tokenBodyFilament!,
               ),
               _TintedModelAsset(
                 key: const ValueKey('model-part-plate-3-detail'),
                 asset: '$_assetRoot/plate_3_detail.png',
-                color: tokenDetailColor!,
+                filament: tokenDetailFilament!,
               ),
             ],
           );
@@ -490,28 +491,27 @@ class _ModelPartTile extends StatelessWidget {
 
 class _TintedModelAsset extends StatelessWidget {
   final String asset;
-  final Color color;
+  final _FilamentColor filament;
 
   const _TintedModelAsset({
     super.key,
     required this.asset,
-    required this.color,
+    required this.filament,
   });
 
   @override
   Widget build(BuildContext context) {
-    return ColorFiltered(
-      colorFilter: ColorFilter.mode(color, BlendMode.modulate),
-      child: Image.asset(
-        asset,
-        fit: BoxFit.contain,
-        filterQuality: FilterQuality.high,
-        errorBuilder: (context, error, stackTrace) {
-          return const Center(
-            child: Icon(Icons.broken_image_outlined, size: 38),
-          );
-        },
-      ),
+    final coloredAsset = asset.replaceFirst(
+      '.png',
+      '_${filament.assetKey}.png',
+    );
+    return Image.asset(
+      coloredAsset,
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.high,
+      errorBuilder: (context, error, stackTrace) {
+        return const Center(child: Icon(Icons.broken_image_outlined, size: 38));
+      },
     );
   }
 }

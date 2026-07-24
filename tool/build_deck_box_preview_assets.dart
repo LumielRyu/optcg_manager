@@ -2,6 +2,20 @@ import 'dart:io';
 
 import 'package:image/image.dart' as image;
 
+const filamentColors = <String, (int, int, int)>{
+  'preto': (0x17, 0x19, 0x1D),
+  'branco': (0xF1, 0xF0, 0xE9),
+  'verde': (0x23, 0x8A, 0x52),
+  'amarelo': (0xF1, 0xC6, 0x2E),
+  'azul': (0x24, 0x58, 0xB8),
+  'azul_claro': (0x83, 0xCE, 0xE4),
+  'vermelho': (0xC9, 0x38, 0x32),
+  'roxo': (0x74, 0x40, 0xA7),
+  'laranja': (0xE8, 0x75, 0x25),
+  'marrom': (0x76, 0x50, 0x3A),
+  'rosa': (0xE5, 0x6F, 0x9F),
+};
+
 void main(List<String> arguments) {
   if (arguments.length != 2) {
     stderr.writeln(
@@ -35,9 +49,8 @@ void main(List<String> arguments) {
       return;
     }
     final transparent = _removeBlackBackground(decoded);
-    File(
-      '${outputDirectory.path}/plate_$plate.png',
-    ).writeAsBytesSync(image.encodePng(_grayscaleForTint(transparent)));
+    final grayscale = _grayscaleForTint(transparent);
+    _writePreviewAndColors(outputDirectory, 'plate_$plate', grayscale);
     if (plate == 3) tokenPreview = transparent;
   }
 
@@ -76,12 +89,16 @@ void main(List<String> arguments) {
     );
   }
 
-  File(
-    '${outputDirectory.path}/plate_3_body.png',
-  ).writeAsBytesSync(image.encodePng(_grayscaleForTint(body)));
-  File(
-    '${outputDirectory.path}/plate_3_detail.png',
-  ).writeAsBytesSync(image.encodePng(_grayscaleForTint(detail)));
+  _writePreviewAndColors(
+    outputDirectory,
+    'plate_3_body',
+    _grayscaleForTint(body),
+  );
+  _writePreviewAndColors(
+    outputDirectory,
+    'plate_3_detail',
+    _grayscaleForTint(detail),
+  );
 
   stdout.writeln(
     'Previews originais e camadas das fichas gerados em '
@@ -151,7 +168,7 @@ image.Image _removeBlackBackground(image.Image source) {
 image.Image _grayscaleForTint(image.Image source) {
   var maximumLuminance = 1.0;
   for (final pixel in source) {
-    if (pixel.a == 0) continue;
+    if (pixel.a <= 128) continue;
     final luminance =
         pixel.r.toDouble() * 0.2126 +
         pixel.g.toDouble() * 0.7152 +
@@ -178,6 +195,45 @@ image.Image _grayscaleForTint(image.Image source) {
       normalized,
       normalized,
       normalized,
+      alpha,
+    );
+  }
+  return output;
+}
+
+void _writePreviewAndColors(
+  Directory outputDirectory,
+  String name,
+  image.Image grayscale,
+) {
+  File(
+    '${outputDirectory.path}/$name.png',
+  ).writeAsBytesSync(image.encodePng(grayscale));
+  for (final entry in filamentColors.entries) {
+    File('${outputDirectory.path}/${name}_${entry.key}.png').writeAsBytesSync(
+      image.encodePng(_applyFilamentColor(grayscale, entry.value)),
+    );
+  }
+}
+
+image.Image _applyFilamentColor(image.Image source, (int, int, int) color) {
+  final output = image.Image(
+    width: source.width,
+    height: source.height,
+    numChannels: 4,
+  );
+  final (targetRed, targetGreen, targetBlue) = color;
+  for (final pixel in source) {
+    final alpha = pixel.a.toDouble();
+    if (alpha == 0) continue;
+    final light = pixel.r.toDouble() / 255;
+    final shade = 0.42 + light * 0.58;
+    output.setPixelRgba(
+      pixel.x,
+      pixel.y,
+      targetRed * shade,
+      targetGreen * shade,
+      targetBlue * shade,
       alpha,
     );
   }

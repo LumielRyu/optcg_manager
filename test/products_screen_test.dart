@@ -37,6 +37,42 @@ void main() {
     }
   });
 
+  test('every token detail variant contains its requested color', () async {
+    const colors = <String, (int, int, int)>{
+      'preto': (0x17, 0x19, 0x1D),
+      'branco': (0xF1, 0xF0, 0xE9),
+      'verde': (0x23, 0x8A, 0x52),
+      'amarelo': (0xF1, 0xC6, 0x2E),
+      'azul': (0x24, 0x58, 0xB8),
+      'azul_claro': (0x83, 0xCE, 0xE4),
+      'vermelho': (0xC9, 0x38, 0x32),
+      'roxo': (0x74, 0x40, 0xA7),
+      'laranja': (0xE8, 0x75, 0x25),
+      'marrom': (0x76, 0x50, 0x3A),
+      'rosa': (0xE5, 0x6F, 0x9F),
+    };
+    for (final entry in colors.entries) {
+      final data = await rootBundle.load(
+        'assets/products/deck_box/model_parts/'
+        'plate_3_detail_${entry.key}.png',
+      );
+      final decoded = image.decodePng(data.buffer.asUint8List());
+      expect(decoded, isNotNull, reason: entry.key);
+      final (red, green, blue) = entry.value;
+      expect(
+        decoded!.any(
+          (pixel) =>
+              pixel.a > 128 &&
+              (pixel.r - red).abs() <= 1 &&
+              (pixel.g - green).abs() <= 1 &&
+              (pixel.b - blue).abs() <= 1,
+        ),
+        isTrue,
+        reason: entry.key,
+      );
+    }
+  });
+
   testWidgets('product configurator exposes every customizable group', (
     tester,
   ) async {
@@ -97,14 +133,14 @@ void main() {
     await tester.pumpAndSettle();
 
     final bodyModel = find.byKey(const ValueKey('model-part-plate_4.png'));
-    final filterFinder = find.descendant(
+    final imageFinder = find.descendant(
       of: bodyModel,
-      matching: find.byType(ColorFiltered),
+      matching: find.byType(Image),
     );
-    final filter = tester.widget<ColorFiltered>(filterFinder);
+    final renderedImage = tester.widget<Image>(imageFinder);
     expect(
-      filter.colorFilter.toString(),
-      const ColorFilter.mode(Color(0xFFC93832), BlendMode.modulate).toString(),
+      (renderedImage.image as AssetImage).assetName,
+      endsWith('plate_4_vermelho.png'),
     );
   });
 
@@ -126,12 +162,12 @@ void main() {
     await tester.pumpAndSettle();
 
     final detailModel = find.byKey(const ValueKey('model-part-plate-3-detail'));
-    final filter = tester.widget<ColorFiltered>(
-      find.descendant(of: detailModel, matching: find.byType(ColorFiltered)),
+    final renderedImage = tester.widget<Image>(
+      find.descendant(of: detailModel, matching: find.byType(Image)),
     );
     expect(
-      filter.colorFilter.toString(),
-      const ColorFilter.mode(Color(0xFF83CEE4), BlendMode.modulate).toString(),
+      (renderedImage.image as AssetImage).assetName,
+      endsWith('plate_3_detail_azul_claro.png'),
     );
   });
 }

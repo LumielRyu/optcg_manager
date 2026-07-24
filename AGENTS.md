@@ -766,3 +766,27 @@ git diff --stat
 - Deploy Vercel de producao
   `dpl_A283SH7dRFTwjBrzhwov6R3wPvEq`, status READY no alias
   `https://optcgbh.vercel.app`; o E2E posterior ao deploy passou sem erros.
+
+### 24/07/2026 - Cores deterministicas nos modelos e fichas
+
+- A gravacao `Gravacao de Tela 2026-07-24 040407.mp4` confirmou que
+  `BlendMode.modulate` escurecia ou deslocava alguns tons e que a escrita fina
+  das fichas permanecia branca em vez de acompanhar o ultimo seletor.
+- O filtro de cor em tempo real foi removido completamente da visualizacao.
+- O gerador passa a criar uma variante PNG pronta para cada uma das onze cores
+  e para cada vista usada pela pagina. Corpo e detalhes das fichas continuam
+  sendo gerados em arquivos independentes.
+- Os nomes dos assets usam chaves estaveis como `plate_4_vermelho.png`,
+  `plate_3_body_rosa.png` e `plate_3_detail_azul_claro.png`.
+- Cada variante usa exatamente o RGB exibido no seletor na area iluminada e
+  apenas escurece o mesmo tom nas sombras; pixels quase transparentes nao
+  participam mais da normalizacao da luminosidade.
+- A pagina agora troca diretamente o arquivo da variante, eliminando
+  diferencas de composicao entre navegadores e garantindo a segunda cor nas
+  letras, linhas e contornos.
+- Os 108 previews ocupam aproximadamente 1,52 MB no total.
+- O teste de regressao abre as onze variantes dos detalhes e confirma que cada
+  uma contem exatamente o RGB solicitado, alem de validar os nomes dos assets
+  escolhidos apos as interacoes.
+- Validacoes desta etapa: testes dedicados aprovados, `flutter analyze`, build
+  web e E2E local sem erros ou assets ausentes.
