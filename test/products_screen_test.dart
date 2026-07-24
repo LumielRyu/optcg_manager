@@ -27,6 +27,13 @@ void main() {
       expect(decoded, isNotNull, reason: filename);
       expect(decoded!.getPixel(0, 0).a, 0, reason: filename);
       expect(decoded.any((pixel) => pixel.a > 0), isTrue, reason: filename);
+      if (filename == 'plate_3_detail.png') {
+        expect(
+          decoded.where((pixel) => pixel.a > 128).length,
+          greaterThan(500),
+          reason: 'A escrita e a linha das fichas precisam formar uma camada.',
+        );
+      }
     }
   });
 
@@ -98,6 +105,33 @@ void main() {
     expect(
       filter.colorFilter.toString(),
       const ColorFilter.mode(Color(0xFFC93832), BlendMode.modulate).toString(),
+    );
+  });
+
+  testWidgets('token detail color updates its own rendered layer', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const MaterialApp(home: ProductsScreen()));
+    await tester.pumpAndSettle();
+
+    final dropdowns = find.byWidgetPredicate(
+      (widget) => widget is DropdownButton,
+    );
+    await tester.tap(dropdowns.last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Azul claro').last);
+    await tester.pumpAndSettle();
+
+    final detailModel = find.byKey(const ValueKey('model-part-plate-3-detail'));
+    final filter = tester.widget<ColorFiltered>(
+      find.descendant(of: detailModel, matching: find.byType(ColorFiltered)),
+    );
+    expect(
+      filter.colorFilter.toString(),
+      const ColorFilter.mode(Color(0xFF83CEE4), BlendMode.modulate).toString(),
     );
   });
 }

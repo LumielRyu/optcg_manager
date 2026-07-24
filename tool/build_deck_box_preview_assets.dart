@@ -61,10 +61,8 @@ void main(List<String> arguments) {
     final alpha = pixel.a.toDouble();
     if (alpha == 0) continue;
 
-    final maximum = [red, green, blue].reduce((a, b) => a > b ? a : b);
-    final minimum = [red, green, blue].reduce((a, b) => a < b ? a : b);
-    final saturation = maximum == 0 ? 0.0 : (maximum - minimum) / maximum;
-    final bodyWeight = ((saturation - 0.06) / 0.16).clamp(0.0, 1.0);
+    final yellowStrength = (red < green ? red : green) - blue;
+    final bodyWeight = ((yellowStrength - 7) / 24).clamp(0.0, 1.0);
     final detailWeight = 1 - bodyWeight;
 
     body.setPixelRgba(pixel.x, pixel.y, red, green, blue, alpha * bodyWeight);

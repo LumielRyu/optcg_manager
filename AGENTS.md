@@ -745,3 +745,19 @@ git diff --stat
 - Deploy Vercel de producao
   `dpl_2pMtRx67icRyKcW4jBnJLbNwRp5Q`, status READY no alias
   `https://optcgbh.vercel.app`; o E2E posterior ao deploy passou sem erros.
+
+### 24/07/2026 - Correcao da segunda cor das fichas
+
+- A cor escolhida em `Detalhes das fichas` chegava ao widget correto, mas a
+  mascara de escrita/linha quase nao continha pixels porque a separacao usava
+  apenas saturacao.
+- A separacao agora identifica a base amarela pelo dominio combinado dos
+  canais vermelho/verde sobre o azul. Pixels neutros e escuros da escrita,
+  contorno e linha passam integralmente para a camada de detalhes.
+- Os assets `plate_3_body.png` e `plate_3_detail.png` foram regenerados; a
+  segunda camada agora mostra claramente os nomes e contornos das oito fichas.
+- O teste de assets exige mais de 500 pixels opacos na camada de detalhes, e
+  um novo teste de widget escolhe `Azul claro` e confirma que essa cor foi
+  aplicada especificamente em `model-part-plate-3-detail`.
+- Validacoes aprovadas: testes dedicados da pagina, `flutter analyze`, build
+  web e E2E local da rota de produtos.
