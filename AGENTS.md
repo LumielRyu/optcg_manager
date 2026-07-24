@@ -490,3 +490,13 @@ git diff --stat
   edicao apareca no GitHub Actions em tempo real.
 - Foi adicionado um teste de regressao para codigos repetidos; os 7 testes
   Python foram aprovados.
+- A carga corrigida `30063945621`, no commit `15c44f3`, terminou com sucesso
+  as 00:59:51 de 24/07/2026.
+- Resultado confirmado diretamente no Supabase:
+  - 78 paginas de edicao consultadas;
+  - EB-04 ignorada por ainda nao possuir cartas publicadas;
+  - 5.315 codigos unicos consolidados e gravados;
+  - 5.315 registros com menor preco e horario recente da nova execucao;
+  - 62 siglas permanecem nos registros finais porque edicoes auxiliares e
+    reimpressoes que so repetem codigos sao consolidadas sob a edicao mais
+    recente.
