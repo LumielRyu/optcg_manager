@@ -380,3 +380,30 @@ git diff --stat
   - leitura publica confirmou os novos horarios e valores.
 - Qualidade completa aprovada antes da publicacao: 6 testes Python, 9 testes
   Node, 48 testes Flutter e `flutter analyze` sem problemas.
+
+### 23/07/2026 - Tela administrativa do monitor de precos
+
+- Criada a rota protegida `/admin/liga-prices`, acessivel apenas para usuarios
+  autenticados com o claim `app_metadata.is_weekly_admin`.
+- Administradores veem um novo atalho `Monitor de precos` no Hub One Piece.
+- A tela combina as 78 edicoes do catalogo
+  `assets/liga_one_piece_editions.json` com todos os registros salvos em
+  `liga_card_price_cache`.
+- A leitura do Supabase e paginada em blocos de 1.000 linhas para nao truncar
+  o resultado no limite padrao da API.
+- Para cada edicao a tela mostra:
+  - quantidade de cartas verificadas;
+  - quantidade com menor preco disponivel;
+  - cobertura visual por barra de progresso;
+  - data e hora local da ultima atualizacao;
+  - estado `Atualizada`, `Parcial`, `Atrasada` ou `Nunca atualizada`.
+- Uma edicao e considerada atual quando todos os registros foram resolvidos
+  nas ultimas 30 horas. Se somente parte das linhas for recente, fica
+  `Parcial`; se nenhuma linha recente existir, fica `Atrasada`.
+- Foram adicionados busca por sigla, filtros por estado, totais resumidos e
+  botao de recarga.
+- A protecao existe tanto no roteador quanto na propria tela; usuarios sem
+  sessao sao enviados ao login e usuarios sem claim administrativo voltam ao
+  Hub One Piece.
+- Validacoes aprovadas: build web release, E2E da home, E2E da protecao da rota
+  administrativa, `flutter analyze` e 50 testes Flutter.

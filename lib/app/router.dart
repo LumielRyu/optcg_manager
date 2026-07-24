@@ -5,11 +5,13 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/constants/collection_types.dart';
+import '../core/utils/admin_access.dart';
 import '../data/models/op_card.dart';
 import '../features/auth/auth_gate.dart';
 import '../features/auth/complete_profile_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
+import '../features/admin/liga_price_admin_screen.dart';
 import '../features/collection/collection_screen.dart';
 import '../features/collection/shared_sale_card_screen.dart';
 import '../features/collection/shared_store_screen.dart';
@@ -81,9 +83,15 @@ final GoRouter appRouter = GoRouter(
         isSharedSaleRoute ||
         isSharedStoreRoute ||
         isSharedWantedRoute;
+    final isAdminRoute = location.startsWith('/admin/');
 
     if (isSharedRoute) {
       return null;
+    }
+
+    if (isAdminRoute) {
+      if (!loggedIn) return '/login';
+      if (!isApplicationAdmin(user)) return '/home/one-piece';
     }
 
     if (!loggedIn) {
@@ -256,6 +264,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/integrations/liga-one-piece-test',
       builder: (context, state) => const LigaOnePieceTestScreen(),
+    ),
+    GoRoute(
+      path: '/admin/liga-prices',
+      builder: (context, state) => const LigaPriceAdminScreen(),
     ),
     GoRoute(
       path: '/library',

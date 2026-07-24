@@ -52,6 +52,12 @@ const ROUTES = [
     title: 'Biblioteca One Piece | OPTCG BH',
     content: ['Biblioteca One Piece', 'Liga:'],
   },
+  {
+    name: 'admin-price-guard',
+    hash: '#/admin/liga-prices',
+    title: 'Monitor de preços da Liga | OPTCG BH',
+    content: ['Entrar', 'Criar conta'],
+  },
 ];
 
 function parseArguments(argv) {

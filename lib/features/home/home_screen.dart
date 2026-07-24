@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/providers/theme_mode_provider.dart';
 import '../../core/utils/auth_action_guard.dart';
+import '../../core/utils/admin_access.dart';
 import '../../core/widgets/accessible_action_surface.dart';
 import '../../core/widgets/app_page_shell.dart';
 import '../../core/widgets/primary_bottom_navigation.dart';
@@ -17,6 +18,7 @@ class HomeScreen extends ConsumerWidget {
     final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
     ref.watch(authStateProvider);
     final isLoggedIn = ref.watch(currentUserProvider) != null;
+    final isAdmin = isApplicationAdmin(ref.watch(currentUserProvider));
 
     return Scaffold(
       appBar: AppBar(
@@ -134,6 +136,19 @@ class HomeScreen extends ConsumerWidget {
                         route: '/library',
                       ),
                     ),
+                    if (isAdmin)
+                      SizedBox(
+                        width: cardWidth,
+                        child: const _HomeFeatureCard(
+                          icon: Icons.monitor_heart_outlined,
+                          title: 'Monitor de precos',
+                          subtitle:
+                              'Confira todas as edicoes da Liga, cobertura dos precos e horario da ultima atualizacao.',
+                          buttonLabel: 'Abrir administracao',
+                          route: '/admin/liga-prices',
+                          requiresAuth: true,
+                        ),
+                      ),
                     SizedBox(
                       width: cardWidth,
                       child: const _HomeFeatureCard(
