@@ -720,3 +720,9 @@ git diff --stat
 - A recoloracao usa a luminosidade dos renders originais. Assim, encaixes,
   recortes e relevos permanecem visiveis em todas as cores; os tons continuam
   identificados como aproximacoes visuais dos filamentos.
+- Validacoes aprovadas: 60 testes Flutter, `flutter analyze`, build web com
+  variaveis publicas e E2E local/produçao da rota de produtos.
+- Commit funcional `1804732`, enviado para `origin/main`.
+- Deploy Vercel de producao
+  `dpl_DicH6VP7w6gTzTJE68meY81NY7Z6`, status READY no alias
+  `https://optcgbh.vercel.app`.
