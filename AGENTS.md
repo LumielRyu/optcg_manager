@@ -337,3 +337,15 @@ git diff --stat
 - Ainda e necessario testar a pagina individual a partir do runner do GitHub;
   se ela tambem responder 403, sera necessario um runner auto-hospedado ou um
   agendador local, pois o bloqueio sera do IP do datacenter.
+- Commits `60fa2d4` e `a6e7d8e` enviados para `origin/main`.
+- Diagnosticos disparados pela API do GitHub:
+  - a primeira execucao foi cancelada porque aguardava 360 segundos antes da
+    primeira pagina; isso foi corrigido sem remover os intervalos entre
+    requisicoes;
+  - a execucao `30060604795` usou o catalogo local, tentou somente OP-16 e
+    recebeu HTTP 403 na pagina individual;
+  - portanto, a Liga bloqueia o IP do runner hospedado do GitHub, e nao apenas a
+    pagina de catalogo.
+- Proxima solucao recomendada: runner auto-hospedado Windows instalado como
+  servico na maquina/rede do usuario, ou agendador local. Isso e uma mudanca
+  persistente no sistema e requer autorizacao explicita antes da instalacao.
