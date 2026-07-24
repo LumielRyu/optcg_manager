@@ -741,3 +741,7 @@ git diff --stat
   transparencia no fundo e valida a troca do corpo externo para vermelho.
 - Validacoes aprovadas: 62 testes Flutter, `flutter analyze`, build web e E2E
   visual local sem erros.
+- Commit funcional `de6d231`, enviado para `origin/main`.
+- Deploy Vercel de producao
+  `dpl_2pMtRx67icRyKcW4jBnJLbNwRp5Q`, status READY no alias
+  `https://optcgbh.vercel.app`; o E2E posterior ao deploy passou sem erros.
