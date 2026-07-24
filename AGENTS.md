@@ -817,3 +817,24 @@ git diff --stat
 - Deploy Vercel de producao
   `dpl_3MxCzMCPUSQ4CUpTGtXtY5eJrxsV`, status READY no alias
   `https://optcgbh.vercel.app`; o E2E posterior ao deploy passou sem erros.
+
+### 24/07/2026 - Calibracao neutra e cache das cores 3D
+
+- O relato de que `Branco` ainda aparecia amarelo foi reproduzido e
+  investigado comparando o PNG local com o arquivo entregue pela producao.
+- A geracao atual ja neutralizava a imagem original em escala de cinza antes
+  de aplicar o RGB do filamento. O arquivo publicado estava correto, mas
+  variantes antigas continuavam reutilizadas pelo cache do navegador porque
+  as versoes corrigidas mantiveram os mesmos nomes.
+- Todas as variantes foram regeneradas diretamente das sete placas contidas
+  no `Deck Box One Piece.3mf`, sem usar a pasta `Downloads/Metadata`
+  desatualizada que continha somente tres placas.
+- Os novos arquivos usam o sufixo versionado `calibrated_v2`, forcando o
+  navegador a baixar as imagens corrigidas em vez de reutilizar o cache.
+- O branco foi ajustado para o RGB neutro `#F2F2F2`, sem diferenca entre os
+  canais vermelho, verde e azul.
+- Um teste de regressao agora abre as 88 combinacoes efetivamente exibidas
+  (oito camadas/pecas por onze cores) e exige que cada PNG contenha exatamente
+  o RGB configurado.
+- A troca de `Tampa e bandeja` para `Branco` foi validada no navegador e a
+  captura confirmou a geometria branca, sem amarelo residual.

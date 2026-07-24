@@ -55,7 +55,7 @@ void main() {
   test('every token detail variant contains its requested color', () async {
     const colors = <String, (int, int, int)>{
       'preto': (0x17, 0x19, 0x1D),
-      'branco': (0xF1, 0xF0, 0xE9),
+      'branco': (0xF2, 0xF2, 0xF2),
       'verde': (0x23, 0x8A, 0x52),
       'amarelo': (0xF1, 0xC6, 0x2E),
       'azul': (0x24, 0x58, 0xB8),
@@ -69,7 +69,7 @@ void main() {
     for (final entry in colors.entries) {
       final data = await rootBundle.load(
         'assets/products/deck_box/model_parts/'
-        'plate_3_detail_${entry.key}.png',
+        'plate_3_detail_${entry.key}_calibrated_v2.png',
       );
       final decoded = image.decodePng(data.buffer.asUint8List());
       expect(decoded, isNotNull, reason: entry.key);
@@ -85,6 +85,55 @@ void main() {
         isTrue,
         reason: entry.key,
       );
+    }
+  });
+
+  test('every model part uses the exact calibrated filament color', () async {
+    const parts = [
+      'plate_1',
+      'plate_2',
+      'plate_3_body',
+      'plate_3_detail',
+      'plate_4',
+      'plate_5',
+      'plate_6',
+      'plate_7',
+    ];
+    const colors = <String, (int, int, int)>{
+      'preto': (0x17, 0x19, 0x1D),
+      'branco': (0xF2, 0xF2, 0xF2),
+      'verde': (0x23, 0x8A, 0x52),
+      'amarelo': (0xF1, 0xC6, 0x2E),
+      'azul': (0x24, 0x58, 0xB8),
+      'azul_claro': (0x83, 0xCE, 0xE4),
+      'vermelho': (0xC9, 0x38, 0x32),
+      'roxo': (0x74, 0x40, 0xA7),
+      'laranja': (0xE8, 0x75, 0x25),
+      'marrom': (0x76, 0x50, 0x3A),
+      'rosa': (0xE5, 0x6F, 0x9F),
+    };
+
+    for (final part in parts) {
+      for (final entry in colors.entries) {
+        final data = await rootBundle.load(
+          'assets/products/deck_box/model_parts/'
+          '${part}_${entry.key}_calibrated_v2.png',
+        );
+        final decoded = image.decodePng(data.buffer.asUint8List());
+        expect(decoded, isNotNull, reason: '$part ${entry.key}');
+        final (red, green, blue) = entry.value;
+        expect(
+          decoded!.any(
+            (pixel) =>
+                pixel.a > 128 &&
+                pixel.r == red &&
+                pixel.g == green &&
+                pixel.b == blue,
+          ),
+          isTrue,
+          reason: '$part ${entry.key}',
+        );
+      }
     }
   });
 
@@ -176,7 +225,7 @@ void main() {
     final renderedImage = tester.widget<Image>(imageFinder);
     expect(
       (renderedImage.image as AssetImage).assetName,
-      endsWith('plate_4_vermelho.png'),
+      endsWith('plate_4_vermelho_calibrated_v2.png'),
     );
   });
 
@@ -203,7 +252,7 @@ void main() {
     );
     expect(
       (renderedImage.image as AssetImage).assetName,
-      endsWith('plate_3_detail_azul_claro.png'),
+      endsWith('plate_3_detail_azul_claro_calibrated_v2.png'),
     );
   });
 }

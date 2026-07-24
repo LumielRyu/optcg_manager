@@ -4,7 +4,7 @@ import 'package:image/image.dart' as image;
 
 const filamentColors = <String, (int, int, int)>{
   'preto': (0x17, 0x19, 0x1D),
-  'branco': (0xF1, 0xF0, 0xE9),
+  'branco': (0xF2, 0xF2, 0xF2),
   'verde': (0x23, 0x8A, 0x52),
   'amarelo': (0xF1, 0xC6, 0x2E),
   'azul': (0x24, 0x58, 0xB8),
@@ -210,7 +210,9 @@ void _writePreviewAndColors(
     '${outputDirectory.path}/$name.png',
   ).writeAsBytesSync(image.encodePng(grayscale));
   for (final entry in filamentColors.entries) {
-    File('${outputDirectory.path}/${name}_${entry.key}.png').writeAsBytesSync(
+    File(
+      '${outputDirectory.path}/${name}_${entry.key}_calibrated_v2.png',
+    ).writeAsBytesSync(
       image.encodePng(_applyFilamentColor(grayscale, entry.value)),
     );
   }

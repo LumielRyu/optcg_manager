@@ -47,7 +47,7 @@ class _FilamentColor {
 
 const _palette = <_FilamentColor>[
   _FilamentColor('Preto', 'preto', Color(0xFF17191D)),
-  _FilamentColor('Branco', 'branco', Color(0xFFF1F0E9)),
+  _FilamentColor('Branco', 'branco', Color(0xFFF2F2F2)),
   _FilamentColor('Verde', 'verde', Color(0xFF238A52)),
   _FilamentColor('Amarelo', 'amarelo', Color(0xFFF1C62E)),
   _FilamentColor('Azul', 'azul', Color(0xFF2458B8)),
@@ -481,6 +481,7 @@ class _PreviewPanel extends StatelessWidget {
 
 class _ModelPartTile extends StatelessWidget {
   static const _assetRoot = 'assets/products/deck_box/model_parts';
+  static const _colorAssetVersion = 'calibrated_v2';
 
   final String label;
   final String? asset;
@@ -591,7 +592,7 @@ class _TintedModelAsset extends StatelessWidget {
   Widget build(BuildContext context) {
     final coloredAsset = asset.replaceFirst(
       '.png',
-      '_${filament.assetKey}.png',
+      '_${filament.assetKey}_${_ModelPartTile._colorAssetVersion}.png',
     );
     return Image.asset(
       coloredAsset,
