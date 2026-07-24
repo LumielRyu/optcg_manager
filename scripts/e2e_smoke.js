@@ -260,6 +260,17 @@ async function checkRoute(browser, baseUrl, route) {
         { timeout: 30_000 },
       );
     }
+    if (route.name === 'library') {
+      await page.waitForFunction(
+        () =>
+          Array.from(document.querySelectorAll('flt-semantics')).some((item) =>
+            (item.getAttribute('aria-label') || item.textContent || '').includes(
+              'Liga:',
+            ),
+          ),
+        { timeout: 60_000 },
+      );
+    }
 
     const title = await page.title();
     const accessibleText = await readAccessibleText(page);

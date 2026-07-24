@@ -306,3 +306,9 @@ git diff --stat
 - Validacoes: `flutter analyze`, 48 testes Flutter, 5 testes Python, build web e
   E2E visual da Biblioteca aprovados. A captura confirmou os estados
   `desatualizado` e `nao verificada`.
+- Commit da interface e auditoria: `7ff43d6`.
+- Deploy Vercel de producao:
+  `dpl_4xs1bqAeb81kjXo3QmjvTtAUvrxn`, READY no alias
+  `https://optcgbh.vercel.app`.
+- A rota da Biblioteca, health check e protecao de origem foram aprovados
+  novamente em producao; os logs do deploy nao apresentaram erros.
