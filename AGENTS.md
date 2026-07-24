@@ -596,3 +596,13 @@ git diff --stat
   edicao principal e auxiliar no mesmo upsert e selecao correta de variante.
 - Validacoes aprovadas: 9 testes Python, `flutter analyze`, 58 testes Flutter
   e build web release.
+- A carga inicial das 21 edicoes auxiliares foi executada em sequencia com 30
+  segundos entre paginas e terminou sem falhas.
+- O Supabase foi atualizado com 1.198 linhas auxiliares. A conferencia por
+  sigla encontrou 1.198/1.198 registros esperados e nenhuma divergencia;
+  `OP-15-RE` ficou com 90/90 e `OP-14-RE` com 89/89.
+- Commit funcional `7fc923c` e endurecimento da paginacao `c13983c`, ambos
+  enviados para `origin/main`.
+- Deploy Vercel final de producao
+  `dpl_C6gNoApvbfJMRTb3rwR7tXo1pkuB`, status READY no alias
+  `https://optcgbh.vercel.app`.
