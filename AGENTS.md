@@ -413,3 +413,33 @@ git diff --stat
   `https://optcgbh.vercel.app`.
 - A home e a protecao da rota administrativa foram aprovadas novamente em
   producao; a consulta de logs do novo deploy nao encontrou erros.
+
+### 23/07/2026 - Auditoria da primeira atualizacao automatica completa
+
+- A consulta foi feita as 23:30 (Brasilia), pouco depois da instalacao do
+  runner local.
+- O unico job executado pelo novo runner ate esse momento foi o teste manual
+  da OP-16, entre 23:09 e 23:10. Por isso a OP-16 era a unica edicao recente
+  no monitor administrativo.
+- Nenhuma rodada automatica da nova agenda havia ocorrido ainda. A primeira
+  esta prevista para 24/07/2026 as 00:17 (03:17 UTC).
+- Agenda confirmada:
+  - 00:17: grupo 0;
+  - 08:17: grupo 1;
+  - 16:17: grupo 2.
+- Os tres grupos foram validados em `--dry-run`: cada rodada seleciona 28
+  edicoes, sendo as 3 mais recentes em todas as rodadas e 25 antigas por
+  grupo. A uniao cobre as 78 edicoes do catalogo.
+- Com intervalo de 360 segundos, cada rodada gasta no minimo 162 minutos em
+  espera entre paginas, mais o tempo das requisicoes. O limite do job e 210
+  minutos, deixando aproximadamente 48 minutos para rede e gravacao.
+- O runner estava ativo no PID 21088, conectado desde 23:07:54, e a entrada
+  `HKCU\...\Run\OPTCGLigaPriceRunner` estava configurada para reinicia-lo
+  automaticamente no proximo login.
+- Restricao operacional: como o runner nao e um servico do Windows, o
+  computador precisa permanecer ligado, sem suspensao, e com este usuario
+  conectado durante toda a rodada. Se isso nao ocorrer, o job fica aguardando
+  o runner ou e interrompido.
+- Estado do Supabase na auditoria: 640 linhas em 28 siglas historicas; somente
+  OP-16 possuia uma importacao completa e recente, com 159 linhas resolvidas
+  em `2026-07-24T02:10:29Z`.
