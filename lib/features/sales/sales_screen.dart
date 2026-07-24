@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -1282,17 +1284,21 @@ class _SalesCardDetailsDialogState
 
   Future<LigaOnePieceCardSnapshot?> _loadLigaSnapshot() async {
     final service = ref.read(ligaOnePieceServiceProvider);
-    try {
-      return await service.fetchPublicCardSnapshotForCard(
-        cardName: widget.card.name,
-        cardCode: widget.card.cardCode,
-      );
-    } catch (_) {
-      return service.requestLigaCacheRefreshForCard(
-        cardName: widget.card.name,
-        cardCode: widget.card.cardCode,
-      );
+    final cached = await service.fetchCachedPublicCardSnapshotForCard(
+      cardName: widget.card.name,
+      cardCode: widget.card.cardCode,
+    );
+    if (cached != null) {
+      return cached;
     }
+
+    unawaited(
+      service.requestLigaCacheRefreshForCard(
+        cardName: widget.card.name,
+        cardCode: widget.card.cardCode,
+      ),
+    );
+    return null;
   }
 
   Future<void> _translateText() async {

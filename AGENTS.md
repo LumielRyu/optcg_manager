@@ -144,16 +144,11 @@ estar desatualizados em relacao ao codigo atual.
 - Confirmar o estado atual do deploy de producao; ele nao foi consultado nesta
   sessao.
 - Reformular a atualizacao de precos da Liga One Piece:
-  - hoje o workflow atualiza apenas cartas ativas em vendas, uma vez ao dia;
-  - a pagina de cada edicao oferece todas as cartas em um JSON `cardsjson`, o
-    que permite uma requisicao por edicao em vez de uma por carta;
-  - o `robots.txt` da Liga declara `Crawl-delay: 360`, portanto uma varredura
-    rapida de todas as edicoes tres vezes ao dia nao deve ser implementada sem
-    autorizacao ou API oficial;
-  - o cache remoto precisa de correspondencia exata de variantes e protecao de
-    escrita apenas pelo backend/service role;
-  - o componente de preco existe na tela de detalhes da biblioteca, mas nao esta
-    conectado ao layout atual.
+  - a coleta por edicao, correspondencia de variantes, interface e agenda foram
+    implementadas e publicadas em 23/07/2026;
+  - `sql/liga_card_price_cache.sql` foi aplicado pelo usuario e verificado em
+    23/07/2026: leitura publica funciona e escrita autenticada comum retorna
+    HTTP 403.
 - Decidir se `tmp_video_frames/`, `tmp_video_frames_2/`, `artifacts/`,
   `android/build/` e saidas locais da Vercel devem ser ignorados ou removidos do
   conjunto a versionar. Nao apagar sem verificar o uso e a intencao do usuario.
@@ -207,3 +202,75 @@ git diff --stat
   tres vezes ao dia.
 - Nenhuma implementacao, commit, deploy ou mudanca no banco foi feita durante
   esta revisao.
+
+### 23/07/2026 - Precos automaticos por edicao e deploy de producao
+
+- Criado `scripts/update_liga_edition_price_cache.py`.
+- O coletor descobre 78 edicoes, atualiza sempre as tres mais recentes e divide
+  as demais em tres grupos. Com tres execucoes diarias, edicoes recentes sao
+  atualizadas tres vezes e as antigas uma vez ao dia.
+- O intervalo padrao entre paginas e 360 segundos, conforme o `robots.txt`.
+- O workflow `update-liga-price-cache.yml` agenda execucoes as 03:17, 11:17 e
+  19:17 UTC, equivalentes a 00:17, 08:17 e 16:17 em Brasilia.
+- Variantes como `-AA`, `-SP`, `-MA`, `-DP`, `-TR`, `-FA`, `-G` e `-RE` sao
+  armazenadas separadamente.
+- A biblioteca passou a mostrar menor preco, fonte, horario da coleta e alerta
+  para cache com mais de 30 horas.
+- A escrita remota pelo cliente Flutter foi removida. O SQL local agora revoga
+  escrita de `anon` e `authenticated`, mas a migracao nao pode ser aplicada
+  remotamente sem acesso administrativo SQL ao projeto Supabase.
+- Carga inicial da OP-16 executada: 159 registros gravados e confirmados por
+  leitura publica. `OP16-001` ficou em R$ 0,19 e `OP16-001-AA` em R$ 168,99 na
+  coleta de `2026-07-24T01:18:04Z`.
+- Validacoes:
+  - 4 testes Python do coletor;
+  - 9 testes Node;
+  - 48 testes Flutter;
+  - `flutter analyze` sem problemas;
+  - cobertura de 23,38%;
+  - build web e seis fluxos E2E aprovados;
+  - verificacao visual de `OP16-001-AA` em producao aprovada.
+- Commit publicado: `9e36dfd` (`main`).
+- Deploy Vercel de producao: `dpl_DVprUuQBUT56sH8tTNX13NM9Sahu`, alias
+  `https://optcgbh.vercel.app`, estado READY.
+
+### 23/07/2026 - Checkout da migracao SQL de precos
+
+- O usuario informou que executou `sql/liga_card_price_cache.sql`.
+- Leitura anonima de `OP16-001-AA` retornou HTTP 200.
+- Foi criado um usuario temporario, autenticado e usado para tentar inserir uma
+  linha exclusiva de teste em `liga_card_price_cache`.
+- A insercao recebeu HTTP 403, confirmando que usuarios autenticados comuns nao
+  possuem mais escrita.
+- O usuario temporario foi removido e foi confirmado que nenhuma linha
+  `SECURITY-CHECK-*` permaneceu no banco.
+- O health check de producao retornou `ok` para funcao, configuracao e banco.
+- A tela publica de `OP16-001-AA` retornou HTTP 200 e continuou exibindo
+  `R$ 168,99`, sem falhas de rede.
+
+### 23/07/2026 - Precos na Biblioteca, Colecao e correcao do carregamento
+
+- Criado `lib/core/widgets/liga_price_display.dart`, com:
+  - escopo de carregamento em lote para as listas;
+  - rotulo compacto `Liga: R$ ...`;
+  - painel de detalhes com menor preco, estado da sincronizacao e alerta de
+    dado desatualizado.
+- `LigaOnePieceService` ganhou leitura em lote do cache Supabase, em blocos de
+  ate 80 codigos, preservando a identificacao exata de variantes.
+- A pagina principal da Biblioteca passou a mostrar o menor preco da Liga em
+  cada card. O detalhe da Biblioteca manteve o painel completo que ja existia.
+- A Colecao passou a mostrar o preco nos modos grade e lista, e tambem no
+  dialogo aberto ao clicar em uma carta.
+- A tela de vendas agora consulta primeiro o cache compartilhado. Quando o
+  preco ainda nao existe, solicita atualizacao em segundo plano e deixa de
+  manter o dialogo preso em `Liga: consultando...`.
+- O smoke E2E passou a incluir a rota publica da Biblioteca e salva a captura
+  `artifacts/e2e/library-prices.png`.
+- Validacoes locais:
+  - `flutter analyze`: sem problemas;
+  - 48 testes Flutter aprovados;
+  - 9 testes Node/API aprovados;
+  - build web oficial com variaveis publicas aprovado;
+  - 6 fluxos publicos gerais e a rota da Biblioteca aprovados no Chrome;
+  - captura visual confirmou precos reais na grade, incluindo `Liga: R$ 0,20`.
+- Esta alteracao ainda nao havia sido publicada no momento deste registro.

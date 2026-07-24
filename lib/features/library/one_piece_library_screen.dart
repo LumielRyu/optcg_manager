@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/widgets/catalog_grid_card.dart';
+import '../../core/widgets/liga_price_display.dart';
 import '../../data/models/op_card.dart';
 import '../../data/repositories/library_preferences_repository.dart';
 import '../../data/services/op_api_service.dart';
@@ -439,138 +440,156 @@ class _OnePieceLibraryScreenState extends ConsumerState<OnePieceLibraryScreen> {
                     ),
                   )
                 else
-                  SliverPadding(
-                    padding: const EdgeInsets.all(12),
-                    sliver: SliverLayoutBuilder(
-                      builder: (context, constraints) {
-                        final layout = _gridLayoutForWidth(
-                          constraints.crossAxisExtent,
-                        );
-
-                        return SliverGrid(
-                          key: ValueKey(
-                            'library-grid-$gridStateKey-${layout.columns}',
+                  LigaPriceScope(
+                    cards: visibleItems
+                        .map(
+                          (card) => LigaPriceCardReference(
+                            cardName: card.name,
+                            cardCode: card.code,
                           ),
-                          delegate: SliverChildBuilderDelegate(
-                            (context, index) {
-                              if (index >= visibleItems.length) {
-                                return const Card(
-                                  child: Center(
-                                    child: Padding(
-                                      padding: EdgeInsets.all(16),
-                                      child: CircularProgressIndicator(),
+                        )
+                        .toList(growable: false),
+                    child: SliverPadding(
+                      padding: const EdgeInsets.all(12),
+                      sliver: SliverLayoutBuilder(
+                        builder: (context, constraints) {
+                          final layout = _gridLayoutForWidth(
+                            constraints.crossAxisExtent,
+                          );
+
+                          return SliverGrid(
+                            key: ValueKey(
+                              'library-grid-$gridStateKey-${layout.columns}',
+                            ),
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) {
+                                if (index >= visibleItems.length) {
+                                  return const Card(
+                                    child: Center(
+                                      child: Padding(
+                                        padding: EdgeInsets.all(16),
+                                        child: CircularProgressIndicator(),
+                                      ),
                                     ),
-                                  ),
+                                  );
+                                }
+
+                                final card = visibleItems[index];
+                                final normalizedCode = api.normalizeCode(
+                                  card.code,
                                 );
-                              }
+                                final isFavorite = _favoriteCodes.contains(
+                                  normalizedCode,
+                                );
+                                final isComparing = _compareCodes.contains(
+                                  normalizedCode,
+                                );
+                                final cardVariantKey =
+                                    '${card.code}-${card.name}-${card.image}';
 
-                              final card = visibleItems[index];
-                              final normalizedCode = api.normalizeCode(
-                                card.code,
-                              );
-                              final isFavorite = _favoriteCodes.contains(
-                                normalizedCode,
-                              );
-                              final isComparing = _compareCodes.contains(
-                                normalizedCode,
-                              );
-                              final cardVariantKey =
-                                  '${card.code}-${card.name}-${card.image}';
-
-                              return CatalogGridCard(
-                                key: ValueKey('library-card-$cardVariantKey'),
-                                code: card.code,
-                                title: card.name,
-                                metadata: [
-                                  card.type.isEmpty ? '-' : card.type,
-                                  card.subTypes.isEmpty ? '-' : card.subTypes,
-                                  card.color.isEmpty ? '-' : card.color,
-                                ],
-                                maxMetadataItems: layout.maxMetadataItems,
-                                textScale: layout.textScale,
-                                trailingActions: [
-                                  IconButton(
-                                    tooltip: isComparing
-                                        ? 'Remover da comparacao'
-                                        : 'Adicionar para comparar',
-                                    onPressed: () {
-                                      final next = prefs.toggleCompareCode(
-                                        normalizedCode,
-                                      );
-                                      setState(() {
-                                        _compareCodes
-                                          ..clear()
-                                          ..addAll(next);
-                                      });
-                                    },
-                                    icon: Icon(
-                                      isComparing
-                                          ? Icons.compare_arrows
-                                          : Icons.compare_arrows_outlined,
+                                return CatalogGridCard(
+                                  key: ValueKey('library-card-$cardVariantKey'),
+                                  code: card.code,
+                                  title: card.name,
+                                  metadata: [
+                                    card.type.isEmpty ? '-' : card.type,
+                                    card.subTypes.isEmpty ? '-' : card.subTypes,
+                                    card.color.isEmpty ? '-' : card.color,
+                                  ],
+                                  maxMetadataItems: layout.maxMetadataItems,
+                                  textScale: layout.textScale,
+                                  footer: LigaPriceLabel(
+                                    cardName: card.name,
+                                    cardCode: card.code,
+                                  ),
+                                  trailingActions: [
+                                    IconButton(
+                                      tooltip: isComparing
+                                          ? 'Remover da comparacao'
+                                          : 'Adicionar para comparar',
+                                      onPressed: () {
+                                        final next = prefs.toggleCompareCode(
+                                          normalizedCode,
+                                        );
+                                        setState(() {
+                                          _compareCodes
+                                            ..clear()
+                                            ..addAll(next);
+                                        });
+                                      },
+                                      icon: Icon(
+                                        isComparing
+                                            ? Icons.compare_arrows
+                                            : Icons.compare_arrows_outlined,
+                                      ),
                                     ),
-                                  ),
-                                  IconButton(
-                                    tooltip: isFavorite
-                                        ? 'Remover dos favoritos'
-                                        : 'Salvar nos favoritos',
-                                    onPressed: () {
-                                      final next = prefs.toggleFavoriteCode(
-                                        normalizedCode,
-                                      );
-                                      setState(() {
-                                        _favoriteCodes
-                                          ..clear()
-                                          ..addAll(next);
-                                      });
-                                    },
-                                    icon: Icon(
-                                      isFavorite
-                                          ? Icons.favorite
-                                          : Icons.favorite_border,
+                                    IconButton(
+                                      tooltip: isFavorite
+                                          ? 'Remover dos favoritos'
+                                          : 'Salvar nos favoritos',
+                                      onPressed: () {
+                                        final next = prefs.toggleFavoriteCode(
+                                          normalizedCode,
+                                        );
+                                        setState(() {
+                                          _favoriteCodes
+                                            ..clear()
+                                            ..addAll(next);
+                                        });
+                                      },
+                                      icon: Icon(
+                                        isFavorite
+                                            ? Icons.favorite
+                                            : Icons.favorite_border,
+                                      ),
                                     ),
+                                  ],
+                                  image: Image.network(
+                                    key: ValueKey(
+                                      'library-image-$cardVariantKey',
+                                    ),
+                                    card.image,
+                                    fit: BoxFit.contain,
+                                    webHtmlElementStrategy:
+                                        WebHtmlElementStrategy.prefer,
+                                    filterQuality: FilterQuality.high,
+                                    errorBuilder: (_, _, _) {
+                                      return const Center(
+                                        child: Icon(
+                                          Icons.broken_image_outlined,
+                                        ),
+                                      );
+                                    },
                                   ),
-                                ],
-                                image: Image.network(
-                                  key: ValueKey(
-                                    'library-image-$cardVariantKey',
-                                  ),
-                                  card.image,
-                                  fit: BoxFit.contain,
-                                  webHtmlElementStrategy:
-                                      WebHtmlElementStrategy.prefer,
-                                  filterQuality: FilterQuality.high,
-                                  errorBuilder: (_, _, _) {
-                                    return const Center(
-                                      child: Icon(Icons.broken_image_outlined),
+                                  onTap: () {
+                                    showDialog<void>(
+                                      context: context,
+                                      builder: (_) =>
+                                          LibraryCardDetailsDialog(card: card),
                                     );
                                   },
-                                ),
-                                onTap: () {
-                                  showDialog<void>(
-                                    context: context,
-                                    builder: (_) =>
-                                        LibraryCardDetailsDialog(card: card),
-                                  );
-                                },
-                              );
-                            },
-                            childCount: visibleItems.length + (hasMore ? 1 : 0),
-                          ),
-                          gridDelegate: layout.usesFixedColumns
-                              ? SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: layout.columns,
-                                  crossAxisSpacing: 12,
-                                  mainAxisSpacing: 12,
-                                  childAspectRatio: layout.childAspectRatio,
-                                )
-                              : SliverGridDelegateWithMaxCrossAxisExtent(
-                                  maxCrossAxisExtent: layout.maxCrossAxisExtent,
-                                  crossAxisSpacing: 12,
-                                  mainAxisSpacing: 12,
-                                  childAspectRatio: layout.childAspectRatio,
-                                ),
-                        );
-                      },
+                                );
+                              },
+                              childCount:
+                                  visibleItems.length + (hasMore ? 1 : 0),
+                            ),
+                            gridDelegate: layout.usesFixedColumns
+                                ? SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: layout.columns,
+                                    crossAxisSpacing: 12,
+                                    mainAxisSpacing: 12,
+                                    childAspectRatio: layout.childAspectRatio,
+                                  )
+                                : SliverGridDelegateWithMaxCrossAxisExtent(
+                                    maxCrossAxisExtent:
+                                        layout.maxCrossAxisExtent,
+                                    crossAxisSpacing: 12,
+                                    mainAxisSpacing: 12,
+                                    childAspectRatio: layout.childAspectRatio,
+                                  ),
+                          );
+                        },
+                      ),
                     ),
                   ),
               ],

@@ -46,6 +46,12 @@ const ROUTES = [
     title: 'Criar conta | OPTCG BH',
     content: ['Criar conta'],
   },
+  {
+    name: 'library',
+    hash: '#/library',
+    title: 'Biblioteca One Piece | OPTCG BH',
+    content: ['Biblioteca One Piece', 'Liga:'],
+  },
 ];
 
 function parseArguments(argv) {
@@ -322,6 +328,13 @@ async function checkRoute(browser, baseUrl, route) {
       fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
       await page.screenshot({
         path: path.join(ARTIFACTS_DIR, 'pokemon-tv-1920x1080.png'),
+      });
+    }
+    if (route.name === 'library') {
+      fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
+      await page.screenshot({
+        path: path.join(ARTIFACTS_DIR, 'library-prices.png'),
+        fullPage: true,
       });
     }
     if (actionableConsoleErrors.length > 0 || pageErrors.length > 0) {

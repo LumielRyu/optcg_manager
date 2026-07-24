@@ -279,6 +279,61 @@ class LigaOnePieceService {
     return null;
   }
 
+  Future<Map<String, LigaOnePieceCardSnapshot>>
+  fetchCachedPublicCardSnapshotsForCards(
+    Iterable<({String cardName, String cardCode})> cards,
+  ) async {
+    final lookupCodes = cards
+        .map(
+          (card) => lookupCodeForCard(
+            cardName: card.cardName,
+            cardCode: card.cardCode,
+          ),
+        )
+        .where((code) => code.isNotEmpty)
+        .toSet();
+    if (lookupCodes.isEmpty) {
+      return const <String, LigaOnePieceCardSnapshot>{};
+    }
+
+    final snapshots = <String, LigaOnePieceCardSnapshot>{};
+    final missingCodes = <String>[];
+    for (final code in lookupCodes) {
+      final cached = _memorySnapshotForCardCode(code);
+      if (cached == null) {
+        missingCodes.add(code);
+      } else {
+        snapshots[code] = cached;
+      }
+    }
+
+    const chunkSize = 80;
+    for (var offset = 0; offset < missingCodes.length; offset += chunkSize) {
+      final end = (offset + chunkSize).clamp(0, missingCodes.length);
+      final chunk = missingCodes.sublist(offset, end);
+      try {
+        final rows = await _supabase
+            .from(_remoteCacheTable)
+            .select()
+            .inFilter('lookup_code', chunk);
+        for (final rawRow in rows) {
+          final row = Map<String, dynamic>.from(rawRow);
+          final lookupCode = _normalizeLookupCode(
+            row['lookup_code']?.toString() ?? '',
+          );
+          if (lookupCode.isEmpty) continue;
+          final snapshot = _snapshotFromRemoteRow(row);
+          _saveSnapshotForCardCode(lookupCode, snapshot);
+          snapshots[lookupCode] = snapshot;
+        }
+      } catch (_) {
+        // A lista continua utilizavel mesmo se o cache remoto estiver offline.
+      }
+    }
+
+    return snapshots;
+  }
+
   Future<LigaOnePieceCardSnapshot?> requestLigaCacheRefreshForCard({
     required String cardName,
     required String cardCode,
@@ -453,31 +508,35 @@ class LigaOnePieceService {
         return null;
       }
 
-      final snapshot = LigaOnePieceCardSnapshot.fromJson({
-        'sourceUrl': row['source_url'],
-        'cardName': row['card_name'],
-        'cardCode': row['card_code'],
-        'editionCode': row['edition_code'],
-        'imageUrl': row['image_url'],
-        'minimumPrice': row['minimum_price'],
-        'averagePrice': row['average_price'],
-        'maximumPrice': row['maximum_price'],
-        'listingCount': row['listing_count'],
-        'lowestListing': row['lowest_listing'],
-        'lowestStore': row['lowest_store'],
-        'historyEndpointRequiresLogin': true,
-        'usedVerifiedFallback': row['used_verified_fallback'] == true,
-        'note': row['note'],
-        'resolvedAt': row['resolved_at'],
-      });
-
-      return snapshot.copyWith(
-        note:
-            'Cache compartilhado do app salvo no Supabase. A leitura direta da LigaOnePiece pode falhar no web.',
-      );
+      return _snapshotFromRemoteRow(Map<String, dynamic>.from(row));
     } catch (_) {
       return null;
     }
+  }
+
+  LigaOnePieceCardSnapshot _snapshotFromRemoteRow(Map<String, dynamic> row) {
+    final snapshot = LigaOnePieceCardSnapshot.fromJson({
+      'sourceUrl': row['source_url'],
+      'cardName': row['card_name'],
+      'cardCode': row['card_code'],
+      'editionCode': row['edition_code'],
+      'imageUrl': row['image_url'],
+      'minimumPrice': row['minimum_price'],
+      'averagePrice': row['average_price'],
+      'maximumPrice': row['maximum_price'],
+      'listingCount': row['listing_count'],
+      'lowestListing': row['lowest_listing'],
+      'lowestStore': row['lowest_store'],
+      'historyEndpointRequiresLogin': true,
+      'usedVerifiedFallback': row['used_verified_fallback'] == true,
+      'note': row['note'],
+      'resolvedAt': row['resolved_at'],
+    });
+
+    return snapshot.copyWith(
+      note:
+          'Cache compartilhado do app salvo no Supabase. A leitura direta da LigaOnePiece pode falhar no web.',
+    );
   }
 
   Future<LigaOnePieceCardSnapshot?> _assetSnapshotForCardCode(

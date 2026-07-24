@@ -10,6 +10,7 @@ import '../../core/widgets/catalog_dropdown_field.dart';
 import '../../core/widgets/catalog_search_field.dart';
 import '../../core/widgets/catalog_grid_card.dart';
 import '../../core/widgets/catalog_list_card.dart';
+import '../../core/widgets/liga_price_display.dart';
 import '../../core/widgets/dashboard_header_panel.dart';
 import '../../core/widgets/summary_stat_card.dart';
 import '../../data/models/card_record.dart';
@@ -207,9 +208,19 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                       );
                     },
                   )
-                : _StandardLibraryView(
-                    items: filteredItems,
-                    viewMode: viewMode,
+                : LigaPriceScope(
+                    cards: filteredItems
+                        .map(
+                          (card) => LigaPriceCardReference(
+                            cardName: card.name,
+                            cardCode: card.cardCode,
+                          ),
+                        )
+                        .toList(growable: false),
+                    child: _StandardLibraryView(
+                      items: filteredItems,
+                      viewMode: viewMode,
+                    ),
                   ),
           ],
         ),
@@ -955,6 +966,13 @@ class _StandardLibraryView extends StatelessWidget {
               'Set: ${item.setName.isEmpty ? '-' : item.setName}',
               'Quantidade: ${item.quantity}x',
             ],
+            trailing: SizedBox(
+              width: 145,
+              child: LigaPriceLabel(
+                cardName: item.name,
+                cardCode: item.cardCode,
+              ),
+            ),
             image: _CollectionCardImage(
               key: ValueKey(
                 'list-image-${item.id}-${item.cardCode}-${item.imageUrl}',
@@ -996,6 +1014,10 @@ class _StandardLibraryView extends StatelessWidget {
             code: item.cardCode,
             title: item.name,
             metadata: ['Quantidade: ${item.quantity}x'],
+            footer: LigaPriceLabel(
+              cardName: item.name,
+              cardCode: item.cardCode,
+            ),
             image: _CollectionCardImage(
               key: ValueKey(
                 'grid-image-${item.id}-${item.cardCode}-${item.imageUrl}',
@@ -1412,6 +1434,11 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
                     if (card.deckName != null &&
                         card.deckName!.trim().isNotEmpty)
                       _infoRow('Deck', card.deckName!),
+                    const SizedBox(height: 16),
+                    LigaPriceDetailsPanel(
+                      cardName: card.name,
+                      cardCode: card.cardCode,
+                    ),
                     const SizedBox(height: 16),
                     Row(
                       children: [
