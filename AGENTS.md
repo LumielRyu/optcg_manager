@@ -545,3 +545,9 @@ git diff --stat
   duplicacao e bloqueio de quantidade excedente.
 - Validacoes aprovadas: `flutter analyze`, 55 testes Flutter e build web
   release.
+- Commit funcional `b29a25b`, enviado para `origin/main`.
+- Deploy Vercel de producao
+  `dpl_7PzDESykhWgSiEHLB3jCjAd2iKkG`, status READY no alias
+  `https://optcgbh.vercel.app`.
+- O dominio de producao respondeu HTTP 200, carregou o bootstrap do Flutter e
+  a consulta de logs do novo deploy nao encontrou erros.
