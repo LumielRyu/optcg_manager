@@ -795,3 +795,19 @@ git diff --stat
 - Deploy Vercel de producao
   `dpl_BUvR39QHgCFEYorpGWbStNSrbqsg`, status READY no alias
   `https://optcgbh.vercel.app`; o E2E posterior ao deploy passou sem erros.
+
+### 24/07/2026 - Preco e pedido direto da Deck Box
+
+- A Deck Box personalizada passou a exibir o preco fixo de `R$ 80,00` por
+  unidade na area `Sua configuracao`.
+- Foi adicionado um seletor de quantidade com calculo imediato do valor total.
+- O botao principal agora usa o texto `Fazer pedido no WhatsApp` e abre uma
+  conversa direta com o numero informado pelo usuario, normalizado como
+  `+55 31 99353-3860` (`5531993533860` no link `wa.me`).
+- A mensagem do pedido inclui todas as cores escolhidas, quantidade, valor
+  unitario e valor total.
+- A composicao do link foi isolada em uma funcao testavel. Os testes confirmam
+  o destino, a preservacao da mensagem e a atualizacao do total de `R$ 80,00`
+  para `R$ 160,00` ao selecionar duas unidades.
+- O bloco de preco e quantidade usa quebra responsiva para evitar estouro
+  horizontal em larguras intermediarias.

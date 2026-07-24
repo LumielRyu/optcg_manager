@@ -7,6 +7,21 @@ import 'package:optcg_manager/features/products/products_screen.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  test('WhatsApp order uses the store number and keeps the message', () {
+    const message =
+        'Quantidade: 2\n'
+        'Valor unitário: R\$ 80,00\n'
+        'Valor total: R\$ 160,00';
+    final uri = buildDeckBoxWhatsAppUri(message);
+
+    expect(deckBoxUnitPrice, 80);
+    expect(deckBoxWhatsAppNumber, '5531993533860');
+    expect(uri.scheme, 'https');
+    expect(uri.host, 'wa.me');
+    expect(uri.path, '/5531993533860');
+    expect(uri.queryParameters['text'], message);
+  });
+
   test('original model previews keep their backgrounds transparent', () async {
     const assets = [
       'plate_1.png',
@@ -90,6 +105,27 @@ void main() {
     );
     expect(find.text('Base das fichas'), findsOneWidget);
     expect(find.text('Detalhes das fichas'), findsOneWidget);
+  });
+
+  testWidgets('quantity updates the deck box total', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const MaterialApp(home: ProductsScreen()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('R\$ 80,00 por unidade'), findsOneWidget);
+    expect(find.text('Total: R\$ 80,00'), findsOneWidget);
+    expect(find.text('Fazer pedido no WhatsApp'), findsOneWidget);
+
+    final increaseButton = find.byTooltip('Aumentar quantidade');
+    await tester.ensureVisible(increaseButton);
+    await tester.pumpAndSettle();
+    await tester.tap(increaseButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Total: R\$ 160,00'), findsOneWidget);
+    expect(find.text('unidades'), findsOneWidget);
   });
 
   testWidgets('product preview uses the original separated model views', (

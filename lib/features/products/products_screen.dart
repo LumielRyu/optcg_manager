@@ -7,6 +7,16 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/widgets/app_page_shell.dart';
 
+const int deckBoxUnitPrice = 80;
+const String deckBoxWhatsAppNumber = '5531993533860';
+
+Uri buildDeckBoxWhatsAppUri(String message) {
+  return Uri.parse(
+    'https://wa.me/$deckBoxWhatsAppNumber'
+    '?text=${Uri.encodeComponent(message)}',
+  );
+}
+
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
 
@@ -53,13 +63,20 @@ class _ProductsScreenState extends State<ProductsScreen> {
   late final Map<_DeckPart, _FilamentColor> _colors = {
     for (final part in _DeckPart.values) part: _palette.first,
   };
+  int _quantity = 1;
+
+  String get _totalPriceLabel => 'R\$ ${_quantity * deckBoxUnitPrice},00';
 
   String get _configurationText {
     final selections = _DeckPart.values
         .map((part) => '• ${part.label}: ${_colors[part]!.name}')
         .join('\n');
     return 'Olá! Gostaria de pedir uma Deck Box One Piece personalizada.\n\n'
-        '$selections\n\nConfiguração criada no OPTCG BH.';
+        '$selections\n\n'
+        'Quantidade: $_quantity\n'
+        'Valor unitário: R\$ $deckBoxUnitPrice,00\n'
+        'Valor total: $_totalPriceLabel\n\n'
+        'Configuração criada no OPTCG BH.';
   }
 
   Future<void> _copyConfiguration() async {
@@ -71,9 +88,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
   }
 
   Future<void> _shareOnWhatsApp() async {
-    final uri = Uri.parse(
-      'https://wa.me/?text=${Uri.encodeComponent(_configurationText)}',
-    );
+    final uri = buildDeckBoxWhatsAppUri(_configurationText);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
         mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -181,8 +196,81 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'A escolha fica pronta para copiar ou enviar. A confirmação de valor e prazo acontece no atendimento.',
+                        'A escolha fica pronta para copiar ou enviar. O prazo é confirmado no atendimento.',
                         style: theme.textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 14,
+                        runSpacing: 10,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 9,
+                            ),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primary.withValues(
+                                alpha: 0.1,
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: theme.colorScheme.primary.withValues(
+                                  alpha: 0.24,
+                                ),
+                              ),
+                            ),
+                            child: const Text(
+                              'R\$ 80,00 por unidade',
+                              style: TextStyle(fontWeight: FontWeight.w900),
+                            ),
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton.outlined(
+                                tooltip: 'Diminuir quantidade',
+                                onPressed: _quantity > 1
+                                    ? () => setState(() => _quantity--)
+                                    : null,
+                                icon: const Icon(Icons.remove),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      '$_quantity',
+                                      style: theme.textTheme.titleLarge
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                    ),
+                                    Text(
+                                      _quantity == 1 ? 'unidade' : 'unidades',
+                                      style: theme.textTheme.bodySmall,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton.outlined(
+                                tooltip: 'Aumentar quantidade',
+                                onPressed: () => setState(() => _quantity++),
+                                icon: const Icon(Icons.add),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            'Total: $_totalPriceLabel',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   );
@@ -198,7 +286,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       FilledButton.icon(
                         onPressed: _shareOnWhatsApp,
                         icon: const Icon(Icons.chat_outlined),
-                        label: const Text('Enviar pelo WhatsApp'),
+                        label: const Text('Fazer pedido no WhatsApp'),
                       ),
                     ],
                   );
