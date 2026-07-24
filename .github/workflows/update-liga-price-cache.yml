@@ -47,6 +47,7 @@ jobs:
           CARD_CODE: ${{ inputs.card_code }}
           CARD_NAME: ${{ inputs.card_name }}
           EDITION: ${{ inputs.edition }}
+          PYTHONUNBUFFERED: "1"
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"

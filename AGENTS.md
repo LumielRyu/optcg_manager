@@ -471,3 +471,22 @@ git diff --stat
   `0 19 * * *`.
 - Cada horario continua percorrendo as 78 edicoes em sequencia, com intervalo
   de 30 segundos entre paginas.
+
+### 24/07/2026 - Primeira carga completa e correcao de codigos repetidos
+
+- A carga manual `30062088626` percorreu as 78 edicoes em aproximadamente 40
+  minutos e a Liga respondeu normalmente.
+- A EB-04 ainda nao possui cartas publicadas na pagina e retornou uma lista
+  vazia.
+- A gravacao inicial falhou antes do primeiro lote com HTTP 500 porque cartas
+  reimpressas aparecem em mais de uma edicao com o mesmo `lookup_code`, chave
+  primaria de `liga_card_price_cache`.
+- O coletor passou a consolidar os registros antes do upsert, mantendo a
+  primeira ocorrencia do codigo. Como o catalogo vem do mais recente para o
+  mais antigo, a edicao mais recente tem prioridade.
+- Edicoes sem nenhuma carta publicada agora geram aviso e nao fazem o job
+  inteiro falhar.
+- `PYTHONUNBUFFERED=1` foi adicionado ao workflow para que o progresso por
+  edicao apareca no GitHub Actions em tempo real.
+- Foi adicionado um teste de regressao para codigos repetidos; os 7 testes
+  Python foram aprovados.

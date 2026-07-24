@@ -327,9 +327,16 @@ def upsert_rows(rows: list[dict], batch_size: int = DEFAULT_BATCH_SIZE) -> int:
     if batch_size <= 0:
         raise ValueError("batch_size precisa ser maior que zero.")
 
+    unique_rows = {}
+    for row in rows:
+        lookup_code = liga.normalize_code(str(row.get("lookup_code") or ""))
+        if lookup_code and lookup_code not in unique_rows:
+            unique_rows[lookup_code] = row
+
+    consolidated = list(unique_rows.values())
     count = 0
-    for start in range(0, len(rows), batch_size):
-        batch = rows[start : start + batch_size]
+    for start in range(0, len(consolidated), batch_size):
+        batch = consolidated[start : start + batch_size]
         liga.upsert_supabase_rows(batch)
         count += len(batch)
     return count
@@ -405,7 +412,8 @@ def main():
                 resolved_at=resolved_at,
             )
             if not rows:
-                raise RuntimeError("Nenhuma carta com preco foi encontrada.")
+                print("  nenhuma carta publicada; edicao ignorada.")
+                continue
             all_rows.extend(rows)
             print(f"  {len(rows)} cartas e variantes preparadas.")
         except Exception as error:

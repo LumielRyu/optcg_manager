@@ -150,6 +150,39 @@ class LigaEditionPriceCacheTest(unittest.TestCase):
             edition_cache.base_card_code("OP16-001"),
         )
 
+    def test_upsert_consolidates_duplicate_codes_and_keeps_newest_edition(self):
+        rows = [
+            {
+                "lookup_code": "OP01-001",
+                "edition_code": "NEWEST",
+                "minimum_price": 10,
+            },
+            {
+                "lookup_code": "op01-001",
+                "edition_code": "OLDER",
+                "minimum_price": 8,
+            },
+            {
+                "lookup_code": "OP01-002",
+                "edition_code": "OLDER",
+                "minimum_price": 5,
+            },
+        ]
+
+        with mock.patch.object(
+            edition_cache.liga,
+            "upsert_supabase_rows",
+        ) as upsert:
+            written = edition_cache.upsert_rows(rows, batch_size=2)
+
+        self.assertEqual(2, written)
+        upsert.assert_called_once()
+        batch = upsert.call_args.args[0]
+        self.assertEqual(["OP01-001", "OP01-002"], [
+            row["lookup_code"] for row in batch
+        ])
+        self.assertEqual("NEWEST", batch[0]["edition_code"])
+
     def test_keeps_verified_card_without_public_offer(self):
         edition = edition_cache.LigaEdition(
             81,
