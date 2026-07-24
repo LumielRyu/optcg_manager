@@ -639,3 +639,28 @@ git diff --stat
 - Direcao recomendada para o configurador: um GLB com malhas nomeadas,
   visualizacao 3D com rotacao/zoom, selecao das cores por grupo e alternancia
   entre os modos `Montada` e `Explodida`.
+
+### 24/07/2026 - Revisao do modelo e paleta da deck box
+
+- O usuario atualizou `Deck Box One Piece.3mf`, separando a antiga placa
+  `Montagem` em duas placas. O projeto agora possui sete placas.
+- As novas placas mostram quatro bases altas, com 30 mm, e quatro bases
+  baixas, com 11,5 mm. No metadata ambas ainda aparecem como `Montagem`; no
+  configurador serao tratadas provisoriamente como `Bases altas` e
+  `Bases baixas`.
+- A placa das fichas passou a exibir corretamente duas cores: uma para o corpo
+  e outra para contorno, linha e escrita.
+- Com a separacao nova, o configurador tera oito seletores:
+  1. base inferior;
+  2. berco interno;
+  3. corpo/base das fichas;
+  4. linhas e escrita das fichas;
+  5. corpo externo;
+  6. tampa/bandeja das fichas;
+  7. bases altas;
+  8. bases baixas.
+- Paleta comercial informada pelo usuario: Preto, Branco, Verde, Amarelo,
+  Azul, Azul Claro, Vermelho, Roxo, Laranja, Marrom e Rosa.
+- Os valores hexadecimais usados na visualizacao ainda devem ser definidos
+  como aproximacoes da cor real dos filamentos ou fornecidos conforme
+  marca/material usados na impressao.
