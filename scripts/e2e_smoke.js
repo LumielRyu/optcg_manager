@@ -53,6 +53,15 @@ const ROUTES = [
     content: ['Biblioteca One Piece', 'Liga:'],
   },
   {
+    name: 'products',
+    hash: '#/products',
+    title: 'Produtos personalizados | OPTCG BH',
+    // Flutter CanvasKit does not expose text until browser accessibility is
+    // enabled. This route is still checked for first frame, title, errors and
+    // desktop/mobile screenshots; widget tests cover its interactive content.
+    content: [],
+  },
+  {
     name: 'admin-price-guard',
     hash: '#/admin/liga-prices',
     title: 'Monitor de preços da Liga | OPTCG BH',
@@ -276,6 +285,24 @@ async function checkRoute(browser, baseUrl, route) {
           ),
         { timeout: 60_000 },
       );
+    }
+    if (route.name === 'products') {
+      fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
+      await page.screenshot({
+        path: path.join(ARTIFACTS_DIR, 'products-desktop.png'),
+        fullPage: true,
+      });
+      await page.setViewport({
+        width: 390,
+        height: 844,
+        deviceScaleFactor: 1,
+        isMobile: true,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 750));
+      await page.screenshot({
+        path: path.join(ARTIFACTS_DIR, 'products-mobile.png'),
+        fullPage: true,
+      });
     }
 
     const title = await page.title();

@@ -30,6 +30,7 @@ import '../features/library/one_piece_library_screen.dart';
 import '../features/marketplace/global_marketplace_screen.dart';
 import '../features/magic/magic_library_screen.dart';
 import '../features/pokemon/pokemon_library_screen.dart';
+import '../features/products/products_screen.dart';
 import '../features/riftbound/riftbound_library_screen.dart';
 import '../features/sales/sales_screen.dart';
 import '../features/tcg/tcg_hub_screen.dart';
@@ -276,6 +277,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/marketplace',
       builder: (context, state) => const GlobalMarketplaceScreen(),
+    ),
+    GoRoute(
+      path: '/products',
+      builder: (context, state) => const ProductsScreen(),
     ),
     GoRoute(
       path: '/wanted',

@@ -664,3 +664,30 @@ git diff --stat
 - Os valores hexadecimais usados na visualizacao ainda devem ser definidos
   como aproximacoes da cor real dos filamentos ou fornecidos conforme
   marca/material usados na impressao.
+
+### 24/07/2026 - Primeira versao da pagina de produtos
+
+- Foi criada a rota publica `/products`, acessivel pelo novo card `Produtos
+  personalizados` no hub One Piece.
+- A pagina apresenta a Deck Box One Piece com as duas fotos reais fornecidas,
+  uma secao para a futura caixa de bulk em MDF e chamada para producao local
+  sob encomenda.
+- O configurador possui os oito controles definidos no modelo atualizado:
+  corpo externo, berco interno, base inferior, tampa/bandeja, bases altas,
+  bases baixas, base das fichas e detalhes das fichas.
+- A paleta foi cadastrada com aproximacoes visuais para Preto, Branco, Verde,
+  Amarelo, Azul, Azul claro, Vermelho, Roxo, Laranja, Marrom e Rosa. A pagina
+  avisa que luz, tela e lote do filamento podem mudar a percepcao da cor.
+- A previa ilustrativa responde imediatamente as escolhas, permite alterar o
+  angulo e alternar entre `Montada` e `Pecas`. Ela representa os grupos
+  separados do 3MF sem depender de carregamento externo.
+- O cliente pode copiar a configuracao completa ou compartilhar o texto pelo
+  WhatsApp; valor e prazo permanecem para confirmacao no atendimento.
+- As fotos foram adicionadas em `assets/products/deck_box/` e os metadados da
+  rota foram registrados no HTML web.
+- A verificacao permanente ganhou o fluxo `products`, com capturas para
+  desktop e celular. Tambem foram adicionados testes de widget para os oito
+  seletores e para a troca de visualizacao.
+- Validacoes locais aprovadas nesta etapa: `flutter analyze`, suite Flutter,
+  build web com variaveis publicas e E2E da rota sem erros de console ou de
+  pagina.

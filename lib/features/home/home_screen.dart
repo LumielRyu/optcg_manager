@@ -128,6 +128,17 @@ class HomeScreen extends ConsumerWidget {
                     SizedBox(
                       width: cardWidth,
                       child: const _HomeFeatureCard(
+                        icon: Icons.view_in_ar_outlined,
+                        title: 'Produtos personalizados',
+                        subtitle:
+                            'Monte sua deck box, escolha a cor de cada peça e veja a combinação antes de pedir.',
+                        buttonLabel: 'Personalizar produto',
+                        route: '/products',
+                      ),
+                    ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: const _HomeFeatureCard(
                         icon: Icons.auto_stories_outlined,
                         title: 'Biblioteca One Piece',
                         subtitle:
