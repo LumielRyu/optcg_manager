@@ -519,3 +519,9 @@ git diff --stat
   cartas sem preco e valores ausentes.
 - Validacoes aprovadas: `flutter analyze`, 52 testes Flutter e build web
   release.
+- Commit funcional `2fa7e58`, enviado para `origin/main`.
+- Deploy Vercel de producao
+  `dpl_6qgTLtSzXkD2oinWnmZWGkqTPyH6`, status READY no alias
+  `https://optcgbh.vercel.app`.
+- A home foi validada novamente em producao e a consulta de logs do novo
+  deploy nao encontrou erros.
