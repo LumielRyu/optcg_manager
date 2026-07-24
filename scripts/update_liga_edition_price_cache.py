@@ -203,7 +203,7 @@ def discover_editions(
     requested: list[str],
     *,
     fallback_path: Path = EDITIONS_FALLBACK_PATH,
-) -> tuple[list[LigaEdition], str]:
+) -> tuple[list[LigaEdition], str, bool]:
     fallback = load_fallback_editions(fallback_path)
     normalized_requested = {
         value.strip().upper() for value in requested if value.strip()
@@ -211,17 +211,17 @@ def discover_editions(
     if normalized_requested and normalized_requested.issubset(
         {edition.acronym for edition in fallback}
     ):
-        return fallback, "catalogo local versionado"
+        return fallback, "catalogo local versionado", False
 
     try:
         source = liga.fetch_text(EDITIONS_URL)
-        return parse_editions_page(source), "pagina publica de edicoes"
+        return parse_editions_page(source), "pagina publica de edicoes", True
     except (RuntimeError, urllib.error.URLError) as error:
         print(
             "Aviso: pagina de edicoes indisponivel; usando catalogo local "
             f"versionado ({error})."
         )
-        return fallback, "catalogo local versionado"
+        return fallback, "catalogo local versionado", True
 
 
 def select_editions(
@@ -366,7 +366,9 @@ def main():
     if args.delay < 0:
         raise ValueError("--delay nao pode ser negativo.")
 
-    editions, catalog_source = discover_editions(args.edition)
+    editions, catalog_source, catalog_request_attempted = discover_editions(
+        args.edition
+    )
     selected = select_editions(
         editions,
         requested=args.edition,
@@ -391,7 +393,8 @@ def main():
     all_rows = []
     failures = []
     for index, edition in enumerate(selected, start=1):
-        time.sleep(args.delay)
+        if index > 1 or catalog_request_attempted:
+            time.sleep(args.delay)
         print(f"[{index}/{len(selected)}] Coletando {edition.acronym}")
         try:
             source = liga.fetch_text(edition.source_url)

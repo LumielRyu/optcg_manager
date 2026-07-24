@@ -204,12 +204,15 @@ class LigaEditionPriceCacheTest(unittest.TestCase):
                 "fetch_text",
                 side_effect=AssertionError("remote catalog should not be read"),
             ):
-                editions, source = edition_cache.discover_editions(
-                    ["OP-16"],
-                    fallback_path=path,
+                editions, source, request_attempted = (
+                    edition_cache.discover_editions(
+                        ["OP-16"],
+                        fallback_path=path,
+                    )
                 )
 
         self.assertEqual("catalogo local versionado", source)
+        self.assertFalse(request_attempted)
         self.assertEqual(["OP-16"], [edition.acronym for edition in editions])
 
 
