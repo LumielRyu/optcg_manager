@@ -116,6 +116,53 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
     final destination = _selectedLibrary == CollectionTypes.deck
         ? CollectionTypes.deck
         : CollectionTypes.owned;
+    final header = _HeaderSection(
+      selectedLibrary: _selectedLibrary,
+      libraryOptions: _collectionLibraries,
+      onLibraryChanged: (value) {
+        setState(() {
+          _selectedLibrary = value;
+        });
+      },
+      totalUnique: totalUnique,
+      totalCards: totalCards,
+      valuationItems: libraryItems
+          .map(
+            (card) => LigaPriceCollectionItemReference(
+              cardName: card.name,
+              cardCode: card.cardCode,
+              quantity: card.quantity,
+            ),
+          )
+          .toList(growable: false),
+      searchController: _searchController,
+      favoritesOnly: _favoritesOnly,
+      activeFilterCount: _activeFilterCount(),
+      viewMode: viewMode,
+      onViewModeChanged: (mode) {
+        ref.read(collectionViewModeProvider.notifier).setMode(mode);
+      },
+      isCollapsed: false,
+      onToggleCollapsed: () {},
+      onFavoritesOnlyChanged: () {
+        setState(() {
+          _favoritesOnly = !_favoritesOnly;
+        });
+      },
+      onOpenFilters: () {
+        _openFiltersPanel(context, libraryItems);
+      },
+      onScanWithCamera: () => _openCameraImport(destination),
+      onImportImage: () => _openImageImport(destination),
+      onImportCode: () => _openCodeImport(destination),
+      onManualAdd: _openManualAddDialog,
+    );
+    final collectionContent = Column(
+      children: [
+        header,
+        _StandardLibraryView(items: filteredItems, viewMode: viewMode),
+      ],
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -161,42 +208,11 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
         ],
       ),
       body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _HeaderSection(
-              selectedLibrary: _selectedLibrary,
-              libraryOptions: _collectionLibraries,
-              onLibraryChanged: (value) {
-                setState(() {
-                  _selectedLibrary = value;
-                });
-              },
-              totalUnique: totalUnique,
-              totalCards: totalCards,
-              searchController: _searchController,
-              favoritesOnly: _favoritesOnly,
-              activeFilterCount: _activeFilterCount(),
-              viewMode: viewMode,
-              onViewModeChanged: (mode) {
-                ref.read(collectionViewModeProvider.notifier).setMode(mode);
-              },
-              isCollapsed: false,
-              onToggleCollapsed: () {},
-              onFavoritesOnlyChanged: () {
-                setState(() {
-                  _favoritesOnly = !_favoritesOnly;
-                });
-              },
-              onOpenFilters: () {
-                _openFiltersPanel(context, libraryItems);
-              },
-              onScanWithCamera: () => _openCameraImport(destination),
-              onImportImage: () => _openImageImport(destination),
-              onImportCode: () => _openCodeImport(destination),
-              onManualAdd: _openManualAddDialog,
-            ),
-            _selectedLibrary == CollectionTypes.deck
-                ? _DeckLibraryView(
+        child: _selectedLibrary == CollectionTypes.deck
+            ? Column(
+                children: [
+                  header,
+                  _DeckLibraryView(
                     items: filteredItems,
                     onOpenDeck: (deckName, deckItems) {
                       showDialog(
@@ -207,23 +223,20 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                         ),
                       );
                     },
-                  )
-                : LigaPriceScope(
-                    cards: filteredItems
-                        .map(
-                          (card) => LigaPriceCardReference(
-                            cardName: card.name,
-                            cardCode: card.cardCode,
-                          ),
-                        )
-                        .toList(growable: false),
-                    child: _StandardLibraryView(
-                      items: filteredItems,
-                      viewMode: viewMode,
-                    ),
                   ),
-          ],
-        ),
+                ],
+              )
+            : LigaPriceScope(
+                cards: libraryItems
+                    .map(
+                      (card) => LigaPriceCardReference(
+                        cardName: card.name,
+                        cardCode: card.cardCode,
+                      ),
+                    )
+                    .toList(growable: false),
+                child: collectionContent,
+              ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openAddCardsSheet(destination),
@@ -593,6 +606,7 @@ class _HeaderSection extends StatelessWidget {
   final ValueChanged<String> onLibraryChanged;
   final int totalUnique;
   final int totalCards;
+  final List<LigaPriceCollectionItemReference> valuationItems;
   final TextEditingController searchController;
   final bool favoritesOnly;
   final int activeFilterCount;
@@ -613,6 +627,7 @@ class _HeaderSection extends StatelessWidget {
     required this.onLibraryChanged,
     required this.totalUnique,
     required this.totalCards,
+    required this.valuationItems,
     required this.searchController,
     required this.favoritesOnly,
     required this.activeFilterCount,
@@ -748,6 +763,8 @@ class _HeaderSection extends StatelessWidget {
               value: '$totalCards',
               icon: Icons.format_list_numbered,
             ),
+            if (selectedLibrary == CollectionTypes.owned)
+              LigaCollectionValueCard(items: valuationItems),
           ];
 
           if (compact) {

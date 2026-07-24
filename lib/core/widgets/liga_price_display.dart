@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/services/liga_one_piece_service.dart';
+import 'summary_stat_card.dart';
 
 class LigaPriceCardReference {
   final String cardName;
@@ -11,6 +12,64 @@ class LigaPriceCardReference {
     required this.cardName,
     required this.cardCode,
   });
+}
+
+class LigaPriceCollectionItemReference extends LigaPriceCardReference {
+  final int quantity;
+
+  const LigaPriceCollectionItemReference({
+    required super.cardName,
+    required super.cardCode,
+    required this.quantity,
+  });
+}
+
+class LigaCollectionValuation {
+  final double totalValue;
+  final int totalUnits;
+  final int pricedUnits;
+  final int totalUniqueCards;
+  final int pricedUniqueCards;
+
+  const LigaCollectionValuation({
+    required this.totalValue,
+    required this.totalUnits,
+    required this.pricedUnits,
+    required this.totalUniqueCards,
+    required this.pricedUniqueCards,
+  });
+
+  int get unpricedUniqueCards => totalUniqueCards - pricedUniqueCards;
+}
+
+LigaCollectionValuation calculateLigaCollectionValuation({
+  required List<LigaPriceCollectionItemReference> items,
+  required Map<String, double?> prices,
+  required String Function(String cardName, String cardCode) lookupCodeForCard,
+}) {
+  var totalValue = 0.0;
+  var totalUnits = 0;
+  var pricedUnits = 0;
+  var pricedUniqueCards = 0;
+
+  for (final item in items) {
+    final quantity = item.quantity < 0 ? 0 : item.quantity;
+    totalUnits += quantity;
+    final lookupCode = lookupCodeForCard(item.cardName, item.cardCode);
+    final price = prices[lookupCode];
+    if (price == null) continue;
+    totalValue += price * quantity;
+    pricedUnits += quantity;
+    pricedUniqueCards++;
+  }
+
+  return LigaCollectionValuation(
+    totalValue: totalValue,
+    totalUnits: totalUnits,
+    pricedUnits: pricedUnits,
+    totalUniqueCards: items.length,
+    pricedUniqueCards: pricedUniqueCards,
+  );
 }
 
 class LigaPriceScope extends ConsumerStatefulWidget {
@@ -75,6 +134,52 @@ class _LigaPriceScopeState extends ConsumerState<LigaPriceScope> {
       snapshots: _snapshots,
       loading: _loading,
       child: widget.child,
+    );
+  }
+}
+
+class LigaCollectionValueCard extends ConsumerWidget {
+  final List<LigaPriceCollectionItemReference> items;
+
+  const LigaCollectionValueCard({super.key, required this.items});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final data = _LigaPriceData.maybeOf(context);
+    if (data == null || data.loading) {
+      return const SummaryStatCard(
+        label: 'Valor pela Liga',
+        value: 'Calculando...',
+        icon: Icons.payments_outlined,
+      );
+    }
+
+    final service = ref.read(ligaOnePieceServiceProvider);
+    final prices = data.snapshots.map(
+      (code, snapshot) => MapEntry(
+        code,
+        snapshot.minimumPrice ?? snapshot.lowestListing?.price,
+      ),
+    );
+    final valuation = calculateLigaCollectionValuation(
+      items: items,
+      prices: prices,
+      lookupCodeForCard: (cardName, cardCode) =>
+          service.lookupCodeForCard(cardName: cardName, cardCode: cardCode),
+    );
+    final coverage =
+        '${valuation.pricedUniqueCards}/${valuation.totalUniqueCards} com preço';
+    final missing = valuation.unpricedUniqueCards;
+
+    return Tooltip(
+      message: missing == 0
+          ? 'Todas as cartas únicas possuem preço da Liga.'
+          : '$missing cartas únicas ainda estão sem preço da Liga.',
+      child: SummaryStatCard(
+        label: 'Valor pela Liga • $coverage',
+        value: formatLigaPrice(valuation.totalValue),
+        icon: Icons.payments_outlined,
+      ),
     );
   }
 }

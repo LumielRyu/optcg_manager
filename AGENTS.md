@@ -500,3 +500,22 @@ git diff --stat
   - 62 siglas permanecem nos registros finais porque edicoes auxiliares e
     reimpressoes que so repetem codigos sao consolidadas sob a edicao mais
     recente.
+
+### 24/07/2026 - Valor total da colecao pelos precos da Liga
+
+- O cabecalho da aba `Colecao` passou a mostrar o indicador `Valor pela Liga`.
+- O total multiplica o menor preco salvo no cache da Liga pela quantidade
+  possuida de cada carta e soma toda a colecao propria.
+- Cartas cadastradas em decks nao entram na conta, evitando somar novamente
+  itens que ja pertencem a colecao.
+- O valor considera a colecao inteira, independentemente de busca, favoritos
+  ou filtros visuais ativos.
+- O indicador mostra a cobertura no formato `X/Y com preco`; cartas sem
+  verificacao ou sem oferta nao entram no total e aparecem como pendentes no
+  tooltip.
+- O carregamento reutiliza a consulta em lote do `LigaPriceScope`, sem fazer
+  uma requisicao individual adicional para cada carta.
+- Foi criada uma funcao pura de calculo e dois testes cobrindo quantidade,
+  cartas sem preco e valores ausentes.
+- Validacoes aprovadas: `flutter analyze`, 52 testes Flutter e build web
+  release.
