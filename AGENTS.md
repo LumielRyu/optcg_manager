@@ -811,3 +811,9 @@ git diff --stat
   para `R$ 160,00` ao selecionar duas unidades.
 - O bloco de preco e quantidade usa quebra responsiva para evitar estouro
   horizontal em larguras intermediarias.
+- Validacoes aprovadas: 66 testes Flutter, `flutter analyze`, build web e E2E
+  local e de producao da rota de produtos.
+- Commit funcional `be09a09`, enviado para `origin/main`.
+- Deploy Vercel de producao
+  `dpl_3MxCzMCPUSQ4CUpTGtXtY5eJrxsV`, status READY no alias
+  `https://optcgbh.vercel.app`; o E2E posterior ao deploy passou sem erros.
