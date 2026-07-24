@@ -6,8 +6,10 @@ const DEFAULT_ALLOWED_ORIGINS = new Set([
   'https://optcgmanager-lumielryus-projects.vercel.app',
   'https://optcgmanager-lumielryu-lumielryus-projects.vercel.app',
 ]);
+const {observeRequest} = require('../server/api-observability');
 
 module.exports = async (req, res) => {
+  const observation = observeRequest(req, res, '/api/liga-one-piece');
   setCorsHeaders(res, req);
 
   if (req.method === 'OPTIONS') {
@@ -65,6 +67,7 @@ module.exports = async (req, res) => {
       historyEndpointRequiresLogin: true,
     });
   } catch (error) {
+    observation.error(error, 'liga_fetch_failed');
     const statusCode =
       typeof error?.statusCode === 'number' ? error.statusCode : 500;
     const publicMessage =

@@ -6,10 +6,16 @@ const endpoints = [
 
 const jsonHeaders = {
   'Content-Type': 'application/json; charset=utf-8',
-  'Cache-Control': 's-maxage=21600, stale-while-revalidate=86400',
+  'Cache-Control':
+    'public, max-age=3600, s-maxage=21600, stale-while-revalidate=86400',
 };
 
+import observability from '../server/api-observability.js';
+
+const { observeRequest } = observability;
+
 export default async function handler(request, response) {
+  const observation = observeRequest(request, response, '/api/optcg-cards');
   if (request.method === 'OPTIONS') {
     response.setHeader('Allow', 'GET, OPTIONS');
     response.status(204).end();
@@ -48,6 +54,7 @@ export default async function handler(request, response) {
     response.setHeader('Cache-Control', jsonHeaders['Cache-Control']);
     response.status(200).json(payloads.flat());
   } catch (error) {
+    observation.error(error, 'optcg_cards_fetch_failed');
     response
       .status(502)
       .setHeader('Content-Type', jsonHeaders['Content-Type'])

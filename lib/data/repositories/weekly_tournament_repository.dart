@@ -134,7 +134,7 @@ class WeeklyTournamentRepository {
         if (code.isEmpty || name.isEmpty) continue;
         leadersByCode.putIfAbsent(
           code,
-          () => WeeklyLeaderOption(code: code, name: name),
+          () => WeeklyLeaderOption(code: code, name: name, image: card.image),
         );
       }
       final leaders = leadersByCode.values.toList();

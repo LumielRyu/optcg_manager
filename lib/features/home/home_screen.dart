@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/providers/theme_mode_provider.dart';
 import '../../core/utils/auth_action_guard.dart';
+import '../../core/widgets/accessible_action_surface.dart';
 import '../../core/widgets/app_page_shell.dart';
 import '../../core/widgets/primary_bottom_navigation.dart';
 import '../../data/repositories/auth_repository.dart';
@@ -85,7 +86,7 @@ class HomeScreen extends ConsumerWidget {
                   eyebrow: 'OPTCG BH',
                   title: 'Hub One Piece',
                   subtitle:
-                      'Controle colecao, vendas, cartas procuradas, biblioteca e ranking semanal em uma interface mais rapida para a comunidade de BH.',
+                      'Controle colecao, vendas, cartas procuradas e biblioteca em uma interface mais rapida para a comunidade de BH.',
                   icon: Icons.waves_outlined,
                   visualAsset: 'assets/editorial/marketplace_hero.png',
                   badges: const [
@@ -122,17 +123,6 @@ class HomeScreen extends ConsumerWidget {
                   spacing: 16,
                   runSpacing: 16,
                   children: [
-                    SizedBox(
-                      width: cardWidth,
-                      child: const _HomeFeatureCard(
-                        icon: Icons.emoji_events_outlined,
-                        title: 'Semanais STOP TCG',
-                        subtitle:
-                            'Consulte historico de partidas, pontuacao mensal e ranking dos encontros da loja STOP TCG.',
-                        buttonLabel: 'Abrir semanais',
-                        route: '/weeklies/one-piece',
-                      ),
-                    ),
                     SizedBox(
                       width: cardWidth,
                       child: const _HomeFeatureCard(
@@ -249,91 +239,81 @@ class _HomeFeatureCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final compact = MediaQuery.of(context).size.width < 600;
+    void openFeature() {
+      if (requiresAuth && !requireSignedIn(context)) return;
+      context.go(route);
+    }
 
     return AppHoverLift(
       scale: 1.01,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(8),
-          splashColor: theme.colorScheme.primary.withValues(alpha: 0.05),
-          highlightColor: Colors.transparent,
-          hoverColor: theme.colorScheme.primary.withValues(alpha: 0.035),
-          onTap: () {
-            if (requiresAuth && !requireSignedIn(context)) {
-              return;
-            }
-            context.go(route);
-          },
-          child: Container(
-            constraints: BoxConstraints(minHeight: compact ? 132 : 150),
-            padding: EdgeInsets.all(compact ? 14 : 16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  theme.colorScheme.surface.withValues(alpha: 0.2),
-                  theme.colorScheme.primary.withValues(alpha: 0.035),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(8),
-              border: Border(
-                left: BorderSide(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.7),
-                  width: 3,
-                ),
-              ),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  icon,
-                  size: compact ? 24 : 28,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 13),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          fontSize: compact ? 16 : null,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 7),
-                      Text(
-                        subtitle,
-                        maxLines: compact ? 4 : 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontSize: compact ? 13 : null,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        buttonLabel,
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Icon(
-                  Icons.arrow_forward,
-                  color: theme.colorScheme.primary.withValues(alpha: 0.85),
-                ),
+      child: AccessibleActionSurface(
+        label: title,
+        hint: '$buttonLabel. $subtitle',
+        onTap: openFeature,
+        child: Container(
+          constraints: BoxConstraints(minHeight: compact ? 132 : 150),
+          padding: EdgeInsets.all(compact ? 14 : 16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                theme.colorScheme.surface.withValues(alpha: 0.2),
+                theme.colorScheme.primary.withValues(alpha: 0.035),
               ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
+            borderRadius: BorderRadius.circular(8),
+            border: Border(
+              left: BorderSide(
+                color: theme.colorScheme.primary.withValues(alpha: 0.7),
+                width: 3,
+              ),
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                icon,
+                size: compact ? 24 : 28,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        fontSize: compact ? 16 : null,
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    Text(
+                      subtitle,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontSize: compact ? 13 : null,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      buttonLabel,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.arrow_forward,
+                color: theme.colorScheme.primary.withValues(alpha: 0.85),
+              ),
+            ],
           ),
         ),
       ),

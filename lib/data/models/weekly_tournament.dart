@@ -130,8 +130,13 @@ class WeeklyGameProfile {
 class WeeklyLeaderOption {
   final String code;
   final String name;
+  final String image;
 
-  const WeeklyLeaderOption({required this.code, required this.name});
+  const WeeklyLeaderOption({
+    required this.code,
+    required this.name,
+    this.image = '',
+  });
 
   String get label => code.isEmpty ? name : '$name ($code)';
 }

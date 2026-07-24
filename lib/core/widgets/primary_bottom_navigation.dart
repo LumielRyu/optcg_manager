@@ -54,47 +54,52 @@ class PrimaryBottomNavigation extends StatelessWidget {
             ),
           ],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: NavigationBar(
-            selectedIndex: _selectedIndex(),
-            onDestinationSelected: (index) {
-              final target = _routes[index];
-              if (target == currentRoute) return;
-              context.go(target);
-            },
-            destinations: const [
-              NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home),
-                label: 'One Piece',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.collections_bookmark_outlined),
-                selectedIcon: Icon(Icons.collections_bookmark),
-                label: 'Colecao',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.storefront_outlined),
-                selectedIcon: Icon(Icons.storefront),
-                label: 'Vendas',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.travel_explore_outlined),
-                selectedIcon: Icon(Icons.travel_explore),
-                label: 'Buscas',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.auto_stories_outlined),
-                selectedIcon: Icon(Icons.auto_stories),
-                label: 'Biblioteca',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.center_focus_strong_outlined),
-                selectedIcon: Icon(Icons.center_focus_strong),
-                label: 'Scanner',
-              ),
-            ],
+        child: Semantics(
+          container: true,
+          explicitChildNodes: true,
+          label: 'Navegacao principal',
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: NavigationBar(
+              selectedIndex: _selectedIndex(),
+              onDestinationSelected: (index) {
+                final target = _routes[index];
+                if (target == currentRoute) return;
+                context.go(target);
+              },
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.home_outlined),
+                  selectedIcon: Icon(Icons.home),
+                  label: 'One Piece',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.collections_bookmark_outlined),
+                  selectedIcon: Icon(Icons.collections_bookmark),
+                  label: 'Colecao',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.storefront_outlined),
+                  selectedIcon: Icon(Icons.storefront),
+                  label: 'Vendas',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.travel_explore_outlined),
+                  selectedIcon: Icon(Icons.travel_explore),
+                  label: 'Buscas',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.auto_stories_outlined),
+                  selectedIcon: Icon(Icons.auto_stories),
+                  label: 'Biblioteca',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.center_focus_strong_outlined),
+                  selectedIcon: Icon(Icons.center_focus_strong),
+                  label: 'Scanner',
+                ),
+              ],
+            ),
           ),
         ),
       ),

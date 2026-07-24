@@ -96,6 +96,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             children: [
               TextField(
                 controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                autofillHints: const [AutofillHints.email],
+                textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
                   labelText: 'Email',
                   border: OutlineInputBorder(),
@@ -105,6 +108,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               TextField(
                 controller: _passwordController,
                 obscureText: true,
+                autofillHints: const [AutofillHints.password],
+                textInputAction: TextInputAction.done,
                 onSubmitted: (_) => _login(),
                 decoration: const InputDecoration(
                   labelText: 'Senha',
@@ -113,11 +118,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               const SizedBox(height: 12),
               if (_error != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(
-                    _error!,
-                    style: const TextStyle(color: Colors.red),
+                Semantics(
+                  liveRegion: true,
+                  label: 'Erro ao entrar: ${_error!}',
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      _error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
                   ),
                 ),
               SizedBox(

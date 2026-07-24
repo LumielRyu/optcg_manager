@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://optcgbh.vercel.app/sitemap.xml

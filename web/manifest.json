@@ -1,13 +1,41 @@
 {
   "name": "OPTCG BH",
   "short_name": "OPTCG BH",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "background_color": "#060A10",
   "theme_color": "#28D7E8",
-  "description": "Colecao, biblioteca e marketplace do One Piece TCG em Belo Horizonte.",
-  "orientation": "portrait-primary",
+  "description": "Bibliotecas de card games, marketplace local e rankings dos semanais da STOP TCG em Belo Horizonte.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "categories": ["games", "shopping", "social"],
   "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Semanais STOP TCG",
+      "short_name": "Semanais",
+      "description": "Abrir rankings e resultados dos semanais",
+      "url": "/#/weeklies",
+      "icons": [{ "src": "icons/Icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Marketplace",
+      "short_name": "Marketplace",
+      "description": "Abrir o marketplace de cartas",
+      "url": "/#/marketplace",
+      "icons": [{ "src": "icons/Icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Biblioteca One Piece",
+      "short_name": "Biblioteca",
+      "description": "Consultar a biblioteca de cartas One Piece",
+      "url": "/#/library",
+      "icons": [{ "src": "icons/Icon-192.png", "sizes": "192x192" }]
+    }
+  ],
   "icons": [
     {
       "src": "icons/Icon-192.png",

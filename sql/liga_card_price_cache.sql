@@ -21,6 +21,20 @@ on public.liga_card_price_cache (resolved_at desc);
 
 alter table public.liga_card_price_cache enable row level security;
 
+revoke insert, update, delete, truncate, references, trigger
+on public.liga_card_price_cache
+from anon, authenticated;
+
+grant select
+on public.liga_card_price_cache
+to anon, authenticated;
+
+drop policy if exists "Authenticated users can insert liga card price cache"
+on public.liga_card_price_cache;
+
+drop policy if exists "Authenticated users can update liga card price cache"
+on public.liga_card_price_cache;
+
 do $$
 begin
   if not exists (
@@ -36,30 +50,4 @@ begin
     using (true);
   end if;
 
-  if not exists (
-    select 1
-    from pg_policies
-    where schemaname = 'public'
-      and tablename = 'liga_card_price_cache'
-      and policyname = 'Authenticated users can insert liga card price cache'
-  ) then
-    create policy "Authenticated users can insert liga card price cache"
-    on public.liga_card_price_cache
-    for insert
-    with check (auth.uid() is not null);
-  end if;
-
-  if not exists (
-    select 1
-    from pg_policies
-    where schemaname = 'public'
-      and tablename = 'liga_card_price_cache'
-      and policyname = 'Authenticated users can update liga card price cache'
-  ) then
-    create policy "Authenticated users can update liga card price cache"
-    on public.liga_card_price_cache
-    for update
-    using (auth.uid() is not null)
-    with check (auth.uid() is not null);
-  end if;
 end $$;

@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../core/utils/auth_action_guard.dart';
 import '../../data/models/weekly_tournament.dart';
 import '../../data/repositories/weekly_tournament_repository.dart';
+import 'one_piece_official_report_panel.dart';
 
 const String _weeklyStoreName = 'STOP TCG';
 const Color _pirateInk = Color(0xFF061017);
@@ -164,7 +165,7 @@ class _WeeklyDashboardScreenState extends ConsumerState<WeeklyDashboardScreen> {
         appBar: AppBar(
           leading: IconButton(
             tooltip: 'Voltar',
-            onPressed: () => context.go(_hubRoute(widget.gameSlug)),
+            onPressed: () => context.go('/weeklies'),
             icon: const Icon(Icons.arrow_back),
           ),
           title: Row(
@@ -176,7 +177,7 @@ class _WeeklyDashboardScreenState extends ConsumerState<WeeklyDashboardScreen> {
             ],
           ),
           actions: [
-            if (isAdmin)
+            if (isAdmin && widget.gameSlug != 'one-piece')
               Padding(
                 padding: const EdgeInsets.only(right: 12),
                 child: FilledButton.icon(
@@ -199,56 +200,61 @@ class _WeeklyDashboardScreenState extends ConsumerState<WeeklyDashboardScreen> {
               ),
           ],
         ),
-        body: FutureBuilder<WeeklyDashboardData>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const _PirateBackdrop(
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-            if (snapshot.hasError) {
-              return _PirateBackdrop(
-                child: _ErrorState(error: snapshot.error, onRetry: _refresh),
-              );
-            }
+        body: widget.gameSlug == 'one-piece'
+            ? const _PirateBackdrop(child: _OnePieceOfficialPage())
+            : FutureBuilder<WeeklyDashboardData>(
+                future: _future,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const _PirateBackdrop(
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  if (snapshot.hasError) {
+                    return _PirateBackdrop(
+                      child: _ErrorState(
+                        error: snapshot.error,
+                        onRetry: _refresh,
+                      ),
+                    );
+                  }
 
-            final data = snapshot.data;
-            if (data == null) {
-              return _PirateBackdrop(
-                child: _ErrorState(
-                  error: 'O servidor nao retornou os dados dos semanais.',
-                  onRetry: _refresh,
-                ),
-              );
-            }
+                  final data = snapshot.data;
+                  if (data == null) {
+                    return _PirateBackdrop(
+                      child: _ErrorState(
+                        error: 'O servidor nao retornou os dados dos semanais.',
+                        onRetry: _refresh,
+                      ),
+                    );
+                  }
 
-            if (isAdmin && _showAdminPanel) {
-              return _PirateBackdrop(
-                child: _AdminPanel(
-                  data: data,
-                  gameSlug: widget.gameSlug,
-                  month: _month,
-                  repository: _repository,
-                  onChanged: _refresh,
-                ),
-              );
-            }
+                  if (isAdmin && _showAdminPanel) {
+                    return _PirateBackdrop(
+                      child: _AdminPanel(
+                        data: data,
+                        gameSlug: widget.gameSlug,
+                        month: _month,
+                        repository: _repository,
+                        onChanged: _refresh,
+                      ),
+                    );
+                  }
 
-            return _PirateBackdrop(
-              child: _PlayerPanel(
-                data: data,
-                gameSlug: widget.gameSlug,
-                currentUserId: _repository.currentUserId,
-                repository: _repository,
-                month: _month,
-                onPreviousMonth: () => _changeMonth(-1),
-                onNextMonth: () => _changeMonth(1),
-                onRefresh: _refresh,
+                  return _PirateBackdrop(
+                    child: _PlayerPanel(
+                      data: data,
+                      gameSlug: widget.gameSlug,
+                      currentUserId: _repository.currentUserId,
+                      repository: _repository,
+                      month: _month,
+                      onPreviousMonth: () => _changeMonth(-1),
+                      onNextMonth: () => _changeMonth(1),
+                      onRefresh: _refresh,
+                    ),
+                  );
+                },
               ),
-            );
-          },
-        ),
       ),
     );
   }
@@ -276,6 +282,25 @@ class _PirateBackdrop extends StatelessWidget {
           child,
         ],
       ),
+    );
+  }
+}
+
+class _OnePieceOfficialPage extends StatelessWidget {
+  const _OnePieceOfficialPage();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1320),
+            child: const OnePieceOfficialReportPanel(),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -3856,10 +3881,6 @@ String _gameTitle(String slug) {
     'riftbound' => 'Riftbound',
     _ => slug,
   };
-}
-
-String _hubRoute(String slug) {
-  return slug == 'one-piece' ? '/home/one-piece' : '/$slug';
 }
 
 String weeklyMonthLabel(DateTime month) {

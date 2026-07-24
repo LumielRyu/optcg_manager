@@ -25,6 +25,8 @@ class AppPageShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final compact = MediaQuery.sizeOf(context).width < 640;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     final dark = theme.colorScheme.brightness == Brightness.dark;
 
     return DecoratedBox(
@@ -64,8 +66,10 @@ class AppPageShell extends StatelessWidget {
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: maxWidth),
                 child: TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0, end: 1),
-                  duration: const Duration(milliseconds: 420),
+                  tween: Tween(begin: reduceMotion ? 1 : 0, end: 1),
+                  duration: reduceMotion
+                      ? Duration.zero
+                      : const Duration(milliseconds: 420),
                   curve: Curves.easeOutCubic,
                   builder: (context, value, animatedChild) {
                     return Opacity(
@@ -233,29 +237,29 @@ class AppHeroPanel extends StatelessWidget {
         ? null
         : ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Stack(
-              children: [
-                Image.asset(
-                  visualAsset!,
-                  width: 300,
-                  height: 210,
-                  fit: BoxFit.cover,
-                ),
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withValues(alpha: dark ? 0.32 : 0.16),
-                        ],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
+            child: SizedBox(
+              width: compact ? double.infinity : 300,
+              child: AspectRatio(
+                aspectRatio: 10 / 7,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.asset(visualAsset!, fit: BoxFit.cover),
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: dark ? 0.32 : 0.16),
+                          ],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
           );
     final copy = Column(
@@ -270,11 +274,14 @@ class AppHeroPanel extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        Text(
-          title,
-          style: theme.textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.w900,
-            letterSpacing: 0,
+        Semantics(
+          header: true,
+          child: Text(
+            title,
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0,
+            ),
           ),
         ),
         const SizedBox(height: 8),
@@ -418,15 +425,21 @@ class _AppHoverLiftState extends State<AppHoverLift> {
     final theme = Theme.of(context);
     final dark = theme.colorScheme.brightness == Brightness.dark;
     final accent = widget.accent ?? theme.colorScheme.primary;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: AnimatedScale(
-        scale: _hovered ? widget.scale : 1,
-        duration: const Duration(milliseconds: 180),
+        scale: _hovered && !reduceMotion ? widget.scale : 1,
+        duration: reduceMotion
+            ? Duration.zero
+            : const Duration(milliseconds: 180),
         curve: Curves.easeOutCubic,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+          duration: reduceMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 180),
           curve: Curves.easeOutCubic,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
@@ -582,12 +595,15 @@ class AppSectionHeading extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  color: theme.colorScheme.onSurface,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0,
+              Semantics(
+                header: true,
+                child: Text(
+                  title,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: theme.colorScheme.onSurface,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0,
+                  ),
                 ),
               ),
               const SizedBox(height: 2),

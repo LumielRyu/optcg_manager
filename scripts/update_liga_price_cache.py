@@ -421,6 +421,15 @@ def snapshot_to_supabase_row(snapshot):
 
 
 def upsert_supabase_snapshots(snapshots):
+    rows = [
+        snapshot_to_supabase_row(snapshot)
+        for snapshot in snapshots
+        if normalize_code(str(snapshot.get("lookupCode") or ""))
+    ]
+    return upsert_supabase_rows(rows)
+
+
+def upsert_supabase_rows(rows):
     env = load_env()
     supabase_url = (env.get("SUPABASE_URL") or "").rstrip("/")
     service_key = env.get("SUPABASE_SERVICE_ROLE_KEY") or ""
@@ -429,11 +438,6 @@ def upsert_supabase_snapshots(snapshots):
             "SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY precisam existir no .env."
         )
 
-    rows = [
-        snapshot_to_supabase_row(snapshot)
-        for snapshot in snapshots
-        if normalize_code(str(snapshot.get("lookupCode") or ""))
-    ]
     if not rows:
         return 0
 

@@ -11,7 +11,6 @@ class TcgHubScreen extends StatelessWidget {
   final Color accent;
   final IconData heroIcon;
   final String libraryRoute;
-  final String weeklyRoute;
   final List<String> highlights;
 
   const TcgHubScreen({
@@ -22,7 +21,6 @@ class TcgHubScreen extends StatelessWidget {
     required this.accent,
     required this.heroIcon,
     required this.libraryRoute,
-    required this.weeklyRoute,
     required this.highlights,
   });
 
@@ -88,18 +86,6 @@ class TcgHubScreen extends StatelessWidget {
                         accent: accent,
                         buttonLabel: 'Abrir biblioteca',
                         onTap: () => context.go(libraryRoute),
-                      ),
-                    ),
-                    SizedBox(
-                      width: cardWidth,
-                      child: _HubFeatureCard(
-                        title: 'Semanais',
-                        description:
-                            'Acompanhe seu historico, pontuacao mensal e ranking dos encontros semanais.',
-                        icon: Icons.emoji_events_outlined,
-                        accent: accent,
-                        buttonLabel: 'Abrir semanais',
-                        onTap: () => context.go(weeklyRoute),
                       ),
                     ),
                     SizedBox(

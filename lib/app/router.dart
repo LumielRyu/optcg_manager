@@ -35,7 +35,9 @@ import '../features/tcg/tcg_selector_screen.dart';
 import '../features/wanted/wanted_cards_screen.dart';
 import '../features/wanted/shared_wanted_cards_screen.dart';
 import '../features/yugioh/yugioh_library_screen.dart';
+import '../features/weeklies/pokemon_weekly_report_screen.dart';
 import '../features/weeklies/weekly_dashboard_screen.dart';
+import '../features/weeklies/weekly_selector_screen.dart';
 import '../data/repositories/user_preferences_repository.dart';
 
 class AuthRouterNotifier extends ChangeNotifier {
@@ -176,7 +178,6 @@ final GoRouter appRouter = GoRouter(
         accent: Color(0xFF0F766E),
         heroIcon: Icons.memory_outlined,
         libraryRoute: '/digimon/library',
-        weeklyRoute: '/weeklies/digimon',
         highlights: ['Busca em API', 'Biblioteca inicial'],
       ),
     ),
@@ -194,7 +195,6 @@ final GoRouter appRouter = GoRouter(
         accent: Color(0xFFB45309),
         heroIcon: Icons.auto_fix_high_outlined,
         libraryRoute: '/magic/library',
-        weeklyRoute: '/weeklies/magic',
         highlights: ['Busca em API', 'Biblioteca inicial'],
       ),
     ),
@@ -212,7 +212,6 @@ final GoRouter appRouter = GoRouter(
         accent: Color(0xFFD62828),
         heroIcon: Icons.catching_pokemon,
         libraryRoute: '/pokemon/library',
-        weeklyRoute: '/weeklies/pokemon',
         highlights: ['Busca em API', 'Biblioteca inicial'],
       ),
     ),
@@ -230,7 +229,6 @@ final GoRouter appRouter = GoRouter(
         accent: Color(0xFF2563EB),
         heroIcon: Icons.bolt_outlined,
         libraryRoute: '/riftbound/library',
-        weeklyRoute: '/weeklies/riftbound',
         highlights: ['Busca em API', 'Biblioteca inicial'],
       ),
     ),
@@ -248,7 +246,6 @@ final GoRouter appRouter = GoRouter(
         accent: Color(0xFF4A4E9B),
         heroIcon: Icons.auto_awesome_outlined,
         libraryRoute: '/yugioh/library',
-        weeklyRoute: '/weeklies/yugioh',
         highlights: ['Busca em API', 'Biblioteca inicial'],
       ),
     ),
@@ -303,6 +300,14 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/collection',
       builder: (context, state) => const CollectionScreen(),
+    ),
+    GoRoute(
+      path: '/weeklies',
+      builder: (context, state) => const WeeklySelectorScreen(),
+    ),
+    GoRoute(
+      path: '/weeklies/pokemon',
+      builder: (context, state) => const PokemonWeeklyReportScreen(),
     ),
     GoRoute(
       path: '/weeklies/:gameSlug',

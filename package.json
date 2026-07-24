@@ -1,5 +1,12 @@
 {
   "scripts": {
+    "analyze": "flutter analyze --fatal-infos --fatal-warnings",
+    "test": "flutter test",
+    "test:api": "node --test test/*.test.js",
+    "test:e2e": "node scripts/e2e_smoke.js",
+    "test:coverage": "flutter test --coverage",
+    "quality": "python scripts/quality_gate.py",
+    "quality:full": "python scripts/quality_gate.py --coverage --min-coverage 20 --build",
     "build:web": "python scripts/build_web_public_env.py"
   },
   "dependencies": {

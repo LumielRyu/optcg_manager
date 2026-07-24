@@ -1,12 +1,16 @@
-const DEFAULT_ALLOWED_ORIGINS = new Set([
-  'https://optcgbh.vercel.app',
-  'https://optcgmanager.vercel.app',
-  'https://optcgmanager-lumielryus-projects.vercel.app',
-  'https://optcgmanager-lumielryu-lumielryus-projects.vercel.app',
-]);
+const {
+  applyApiHeaders,
+  applyCorsHeaders,
+  rejectNonJson,
+  rejectRateLimited,
+  rejectUntrustedOrigin,
+} = require('../server/api-security');
+const {observeRequest} = require('../server/api-observability');
 
 module.exports = async (req, res) => {
-  setCorsHeaders(res, req);
+  const observation = observeRequest(req, res, '/api/translate-card-text');
+  applyApiHeaders(res);
+  applyCorsHeaders(req, res);
 
   if (req.method === 'OPTIONS') {
     return res.status(204).end();
@@ -15,6 +19,14 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+  if (rejectUntrustedOrigin(req, res) || rejectNonJson(req, res)) return;
+  if (
+    rejectRateLimited(req, res, {
+      name: 'translate-card-text',
+      limit: 30,
+      windowMs: 60 * 1000,
+    })
+  ) return;
 
   const text = stringValue(req.body?.text);
   if (!text) {
@@ -29,9 +41,9 @@ module.exports = async (req, res) => {
     const translatedText = await translateText(text);
     return res.status(200).json({ translatedText });
   } catch (error) {
+    observation.error(error, 'translation_failed');
     return res.status(502).json({
       error: 'Unable to translate card text',
-      detail: error instanceof Error ? error.message : String(error),
     });
   }
 };
@@ -71,29 +83,6 @@ function extractTranslatedText(payload) {
     .map((item) => (Array.isArray(item) ? stringValue(item[0]) : ''))
     .join('')
     .trim();
-}
-
-function setCorsHeaders(res, req) {
-  const origin = req?.headers?.origin || '';
-  if (isAllowedOrigin(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Vary', 'Origin');
-  }
-  res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate=604800');
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-}
-
-function isAllowedOrigin(origin) {
-  if (!origin) return false;
-  if (DEFAULT_ALLOWED_ORIGINS.has(origin)) return true;
-  if (/^https:\/\/optcgbh-[a-z0-9-]+-lumielryus-projects\.vercel\.app$/i.test(origin)) {
-    return true;
-  }
-  return /^https:\/\/optcgmanager-[a-z0-9-]+-lumielryus-projects\.vercel\.app$/i.test(
-    origin,
-  );
 }
 
 function stringValue(value) {

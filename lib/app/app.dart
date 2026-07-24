@@ -96,7 +96,12 @@ class OptcgManagerApp extends ConsumerWidget {
       theme: _buildTheme(lightScheme),
       darkTheme: _buildTheme(darkScheme),
       builder: (context, child) {
-        return _PreferenceBootstrapper(child: child ?? const SizedBox.shrink());
+        return _PreferenceBootstrapper(
+          child: FocusTraversalGroup(
+            policy: ReadingOrderTraversalPolicy(),
+            child: child ?? const SizedBox.shrink(),
+          ),
+        );
       },
     );
   }
@@ -107,6 +112,10 @@ class OptcgManagerApp extends ConsumerWidget {
       useMaterial3: true,
       colorScheme: scheme,
       scaffoldBackgroundColor: scheme.surface,
+      materialTapTargetSize: MaterialTapTargetSize.padded,
+      visualDensity: VisualDensity.standard,
+      focusColor: scheme.primary.withValues(alpha: dark ? 0.3 : 0.2),
+      hoverColor: scheme.primary.withValues(alpha: dark ? 0.1 : 0.07),
     );
 
     return base.copyWith(
@@ -178,6 +187,29 @@ class OptcgManagerApp extends ConsumerWidget {
           borderSide: BorderSide(color: scheme.primary, width: 1.6),
         ),
       ),
+      tooltipTheme: TooltipThemeData(
+        waitDuration: const Duration(milliseconds: 450),
+        showDuration: const Duration(seconds: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        textStyle: TextStyle(
+          color: scheme.onInverseSurface,
+          fontWeight: FontWeight.w700,
+        ),
+        decoration: BoxDecoration(
+          color: scheme.inverseSurface,
+          borderRadius: BorderRadius.circular(6),
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: ButtonStyle(
+          minimumSize: const WidgetStatePropertyAll(Size(48, 48)),
+          tapTargetSize: MaterialTapTargetSize.padded,
+          side: WidgetStateProperty.resolveWith((states) {
+            if (!states.contains(WidgetState.focused)) return null;
+            return BorderSide(color: scheme.primary, width: 2);
+          }),
+        ),
+      ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: scheme.inverseSurface,
         contentTextStyle: TextStyle(color: scheme.onInverseSurface),
@@ -225,12 +257,14 @@ class OptcgManagerApp extends ConsumerWidget {
           textStyle: const TextStyle(fontWeight: FontWeight.w900),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+          minimumSize: const Size(48, 48),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: scheme.primary,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          minimumSize: const Size(48, 48),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -239,6 +273,7 @@ class OptcgManagerApp extends ConsumerWidget {
           side: BorderSide(color: scheme.primary.withValues(alpha: 0.45)),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 13),
+          minimumSize: const Size(48, 48),
         ),
       ),
       chipTheme: base.chipTheme.copyWith(
@@ -269,6 +304,9 @@ class _PremiumPageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
+    if (MediaQuery.maybeOf(context)?.disableAnimations ?? false) {
+      return child;
+    }
     final curved = CurvedAnimation(
       parent: animation,
       curve: Curves.easeOutCubic,

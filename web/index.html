@@ -1,24 +1,64 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta
     name="description"
-    content="OPTCG BH: coleção, biblioteca e marketplace do One Piece TCG em Belo Horizonte."
+    content="OPTCG BH reúne bibliotecas de card games, marketplace local e rankings dos semanais da STOP TCG em Belo Horizonte."
   >
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="author" content="OPTCG BH">
+  <meta name="application-name" content="OPTCG BH">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="theme-color" content="#060A10" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#F4F7FB" media="(prefers-color-scheme: light)">
+
+  <link rel="canonical" href="https://optcgbh.vercel.app/">
+
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:site_name" content="OPTCG BH">
+  <meta property="og:title" content="OPTCG BH | Card games, marketplace e semanais">
+  <meta property="og:description" content="Bibliotecas de card games, marketplace local e rankings dos semanais da STOP TCG em Belo Horizonte.">
+  <meta property="og:url" content="https://optcgbh.vercel.app/">
+  <meta property="og:image" content="https://optcgbh.vercel.app/assets/assets/editorial/marketplace_hero.png">
+  <meta property="og:image:width" content="1672">
+  <meta property="og:image:height" content="941">
+  <meta property="og:image:alt" content="Cartas colecionaveis no hub digital do OPTCG BH">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="OPTCG BH | Card games, marketplace e semanais">
+  <meta name="twitter:description" content="Bibliotecas de card games, marketplace local e rankings dos semanais da STOP TCG em Belo Horizonte.">
+  <meta name="twitter:image" content="https://optcgbh.vercel.app/assets/assets/editorial/marketplace_hero.png">
+  <meta name="twitter:image:alt" content="Cartas colecionaveis no hub digital do OPTCG BH">
 
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="OPTCG BH">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>OPTCG BH</title>
+  <title>OPTCG BH | Card games, marketplace e semanais</title>
   <link rel="manifest" href="manifest.json">
+
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "OPTCG BH",
+      "url": "https://optcgbh.vercel.app/",
+      "description": "Bibliotecas de card games, marketplace local e rankings dos semanais da STOP TCG em Belo Horizonte.",
+      "applicationCategory": "GameApplication",
+      "operatingSystem": "Web",
+      "inLanguage": "pt-BR",
+      "isAccessibleForFree": true
+    }
+  </script>
 
   <style>
     :root {
@@ -124,19 +164,30 @@
       0% { transform: translateX(-110%); }
       100% { transform: translateX(320%); }
     }
+
+    @media (prefers-reduced-motion: reduce) {
+      #app-loader {
+        transition: none;
+      }
+
+      .loader-bar > span {
+        animation: none;
+        transform: none;
+      }
+    }
   </style>
 </head>
 <body>
-  <div id="app-loader" aria-live="polite">
+  <div id="app-loader" role="status" aria-live="polite" aria-label="Carregando OPTCG BH">
     <div class="loader-card">
       <h1 class="loader-title">OPTCG BH</h1>
       <p class="loader-subtitle">
-        Carregando sua coleção, biblioteca e marketplace do One Piece TCG em BH.
+        Carregando bibliotecas de card games, marketplace local e rankings dos semanais da STOP TCG em BH.
       </p>
       <div class="loader-bar" aria-hidden="true">
         <span></span>
       </div>
-      <div class="loader-tip">Preparando cartas e vitrine</div>
+      <div class="loader-tip">Preparando cartas, rankings e vitrine</div>
     </div>
   </div>
 
@@ -144,17 +195,59 @@
     window.addEventListener('flutter-first-frame', function () {
       const loader = document.getElementById('app-loader');
       if (loader) loader.classList.add('hidden');
+
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('pwa_service_worker.js').catch(function (error) {
+          console.warn('Unable to register the app service worker.', error);
+        });
+      }
     });
 
     window.setTimeout(function () {
       const loader = document.getElementById('app-loader');
       if (loader) loader.classList.add('hidden');
     }, 15000);
+
+    (function () {
+      const defaultDescription =
+        'OPTCG BH reúne bibliotecas de card games, marketplace local e rankings dos semanais da STOP TCG em Belo Horizonte.';
+      const routeMetadata = [
+        { prefix: '#/weeklies/pokemon', title: 'Semanal Pokemon | OPTCG BH', description: 'Ranking, classificação e relatórios dos semanais Pokemon da STOP TCG.' },
+        { prefix: '#/weeklies/one-piece', title: 'Semanal One Piece | OPTCG BH', description: 'Ranking mensal e resultados oficiais dos semanais One Piece da STOP TCG.' },
+        { prefix: '#/weeklies', title: 'Semanais STOP TCG | OPTCG BH', description: 'Resultados e rankings dos card games jogados na STOP TCG.' },
+        { prefix: '#/marketplace', title: 'Marketplace de cartas | OPTCG BH', description: 'Encontre cartas anunciadas por jogadores da comunidade de Belo Horizonte.' },
+        { prefix: '#/library', title: 'Biblioteca One Piece | OPTCG BH', description: 'Consulte cartas do One Piece Card Game com imagens, códigos e filtros.' },
+        { prefix: '#/home/one-piece', title: 'Hub One Piece | OPTCG BH', description: 'Coleção, biblioteca, vendas e ferramentas para One Piece Card Game.' },
+        { prefix: '#/login', title: 'Entrar | OPTCG BH', description: 'Entre na sua conta do OPTCG BH.' },
+        { prefix: '#/register', title: 'Criar conta | OPTCG BH', description: 'Crie sua conta gratuita no OPTCG BH.' }
+      ];
+
+      function updatePageMetadata() {
+        const hash = window.location.hash || '#/home';
+        const metadata = routeMetadata.find(function (item) {
+          return hash.startsWith(item.prefix);
+        });
+        document.title = metadata
+          ? metadata.title
+          : 'OPTCG BH | Card games, marketplace e semanais';
+        const description = document.querySelector('meta[name="description"]');
+        if (description) {
+          description.setAttribute(
+            'content',
+            metadata ? metadata.description : defaultDescription
+          );
+        }
+      }
+
+      window.addEventListener('hashchange', updatePageMetadata);
+      window.addEventListener('flutter-first-frame', updatePageMetadata);
+      updatePageMetadata();
+    }());
   </script>
 
   <script>
     (function () {
-      const cacheResetVersion = '2026-07-02-csp-v2';
+      const cacheResetVersion = '2026-07-17-pokemon-tv-v4';
       const tesseractUrl = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
       let tesseractLoadPromise = null;
 

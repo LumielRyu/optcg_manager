@@ -109,23 +109,34 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
             children: [
               TextField(
                 controller: _nameController,
+                autofillHints: const [AutofillHints.name],
+                textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(labelText: 'Nome'),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: _whatsAppController,
                 keyboardType: TextInputType.phone,
+                autofillHints: const [AutofillHints.telephoneNumber],
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _save(),
                 decoration: const InputDecoration(
                   labelText: 'Telefone / WhatsApp',
                 ),
               ),
               const SizedBox(height: 12),
               if (_error != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(
-                    _error!,
-                    style: const TextStyle(color: Colors.red),
+                Semantics(
+                  liveRegion: true,
+                  label: 'Erro ao salvar perfil: ${_error!}',
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      _error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
                   ),
                 ),
               SizedBox(

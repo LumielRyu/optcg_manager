@@ -41,13 +41,25 @@ class LigaOnePieceService {
     required String cardCode,
   }) {
     final normalizedCode = cardCode.trim().toUpperCase();
+    if (RegExp(
+      r'-(AA|DP|FA|G|MA|OP|PA|PR|RE|SP|TR)$',
+    ).hasMatch(normalizedCode)) {
+      return normalizedCode;
+    }
     final normalizedName = cardName
         .toLowerCase()
         .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
         .trim();
     final tokens = normalizedName.split(RegExp(r'\s+')).toSet();
 
+    if (normalizedName.contains('manga')) return '$normalizedCode-MA';
+    if (normalizedName.contains('treasure rare')) return '$normalizedCode-TR';
+    if (normalizedName.contains('full art')) return '$normalizedCode-FA';
+    if (normalizedName.contains('don parallel')) return '$normalizedCode-DP';
+    if (normalizedName.contains('gold')) return '$normalizedCode-G';
+    if (normalizedName.contains('reprint')) return '$normalizedCode-RE';
     if (tokens.contains('sp')) return '$normalizedCode-SP';
+    if (normalizedName.contains('special')) return '$normalizedCode-SP';
     if (normalizedName.contains('alternate art') ||
         normalizedName.contains('alt art')) {
       return '$normalizedCode-AA';
@@ -456,6 +468,7 @@ class LigaOnePieceService {
         'historyEndpointRequiresLogin': true,
         'usedVerifiedFallback': row['used_verified_fallback'] == true,
         'note': row['note'],
+        'resolvedAt': row['resolved_at'],
       });
 
       return snapshot.copyWith(
@@ -503,8 +516,6 @@ class LigaOnePieceService {
     } catch (_) {
       // Ignore persistence failures and keep the in-memory cache.
     }
-
-    unawaited(_saveSnapshotToRemoteCache(normalizedCode, snapshot));
   }
 
   void _storeInMemoryCache(String cardCode, LigaOnePieceCardSnapshot snapshot) {
@@ -552,34 +563,6 @@ class LigaOnePieceService {
     );
 
     _saveSnapshotForCardCode(lookupCode, snapshot);
-    await _saveSnapshotToRemoteCache(lookupCode, snapshot);
-  }
-
-  Future<void> _saveSnapshotToRemoteCache(
-    String cardCode,
-    LigaOnePieceCardSnapshot snapshot,
-  ) async {
-    try {
-      await _supabase.from(_remoteCacheTable).upsert({
-        'lookup_code': _normalizeLookupCode(cardCode),
-        'source_url': snapshot.sourceUrl,
-        'card_name': snapshot.cardName,
-        'card_code': snapshot.cardCode.toUpperCase(),
-        'edition_code': snapshot.editionCode,
-        'image_url': snapshot.imageUrl,
-        'minimum_price': snapshot.minimumPrice,
-        'average_price': snapshot.averagePrice,
-        'maximum_price': snapshot.maximumPrice,
-        'listing_count': snapshot.listingCount,
-        'lowest_listing': snapshot.lowestListing?.toJson(),
-        'lowest_store': snapshot.lowestStore?.toJson(),
-        'used_verified_fallback': snapshot.usedVerifiedFallback,
-        'note': snapshot.note,
-        'resolved_at': DateTime.now().toIso8601String(),
-      }, onConflict: 'lookup_code');
-    } catch (_) {
-      // The table may not exist yet or the current policy may reject the write.
-    }
   }
 
   Future<Map<String, LigaOnePieceCardSnapshot>> _loadAssetCache() {
@@ -610,6 +593,7 @@ class LigaOnePieceService {
         final cardCode = _stringValue(json['cardCode']).toUpperCase();
         final snapshot = LigaOnePieceCardSnapshot.fromJson({
           ...json,
+          'resolvedAt': decoded['updatedAt'],
           'usedVerifiedFallback': true,
           'note':
               'Cache local publicado do app, usado para garantir o menor valor no web.',
@@ -1262,6 +1246,8 @@ class LigaOnePieceService {
 }
 
 class LigaOnePieceCardSnapshot {
+  static const Duration staleAfter = Duration(hours: 30);
+
   final String sourceUrl;
   final String cardName;
   final String cardCode;
@@ -1276,6 +1262,7 @@ class LigaOnePieceCardSnapshot {
   final bool historyEndpointRequiresLogin;
   final bool usedVerifiedFallback;
   final String? note;
+  final DateTime? resolvedAt;
 
   const LigaOnePieceCardSnapshot({
     required this.sourceUrl,
@@ -1292,6 +1279,7 @@ class LigaOnePieceCardSnapshot {
     required this.historyEndpointRequiresLogin,
     required this.usedVerifiedFallback,
     required this.note,
+    this.resolvedAt,
   });
 
   factory LigaOnePieceCardSnapshot.fromJson(Map<String, dynamic> json) {
@@ -1319,7 +1307,14 @@ class LigaOnePieceCardSnapshot {
           json['historyEndpointRequiresLogin'] == true,
       usedVerifiedFallback: json['usedVerifiedFallback'] == true,
       note: json['note']?.toString(),
+      resolvedAt: DateTime.tryParse(json['resolvedAt']?.toString() ?? ''),
     );
+  }
+
+  bool get isStale {
+    final value = resolvedAt;
+    if (value == null) return true;
+    return DateTime.now().toUtc().difference(value.toUtc()) > staleAfter;
   }
 
   Map<String, dynamic> toJson() {
@@ -1338,6 +1333,7 @@ class LigaOnePieceCardSnapshot {
       'historyEndpointRequiresLogin': historyEndpointRequiresLogin,
       'usedVerifiedFallback': usedVerifiedFallback,
       'note': note,
+      'resolvedAt': resolvedAt?.toUtc().toIso8601String(),
     };
   }
 
@@ -1356,6 +1352,7 @@ class LigaOnePieceCardSnapshot {
     bool? historyEndpointRequiresLogin,
     bool? usedVerifiedFallback,
     String? note,
+    DateTime? resolvedAt,
   }) {
     return LigaOnePieceCardSnapshot(
       sourceUrl: sourceUrl ?? this.sourceUrl,
@@ -1373,6 +1370,7 @@ class LigaOnePieceCardSnapshot {
           historyEndpointRequiresLogin ?? this.historyEndpointRequiresLogin,
       usedVerifiedFallback: usedVerifiedFallback ?? this.usedVerifiedFallback,
       note: note ?? this.note,
+      resolvedAt: resolvedAt ?? this.resolvedAt,
     );
   }
 

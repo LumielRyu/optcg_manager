@@ -86,6 +86,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             children: [
               TextField(
                 controller: _nameController,
+                autofillHints: const [AutofillHints.name],
+                textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
                   labelText: 'Nome',
                   border: OutlineInputBorder(),
@@ -94,6 +96,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               const SizedBox(height: 12),
               TextField(
                 controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                autofillHints: const [AutofillHints.email],
+                textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
                   labelText: 'Email',
                   border: OutlineInputBorder(),
@@ -103,6 +108,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               TextField(
                 controller: _passwordController,
                 obscureText: true,
+                autofillHints: const [AutofillHints.newPassword],
+                textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
                   labelText: 'Senha',
                   border: OutlineInputBorder(),
@@ -112,6 +119,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               TextField(
                 controller: _whatsAppController,
                 keyboardType: TextInputType.phone,
+                autofillHints: const [AutofillHints.telephoneNumber],
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _register(),
                 decoration: const InputDecoration(
                   labelText: 'Telefone / WhatsApp',
                   border: OutlineInputBorder(),
@@ -119,11 +129,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               ),
               const SizedBox(height: 12),
               if (_error != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(
-                    _error!,
-                    style: const TextStyle(color: Colors.red),
+                Semantics(
+                  liveRegion: true,
+                  label: 'Erro ao criar conta: ${_error!}',
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      _error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
                   ),
                 ),
               SizedBox(

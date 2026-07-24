@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/providers/theme_mode_provider.dart';
+import '../../core/widgets/accessible_action_surface.dart';
 import '../../core/widgets/app_page_shell.dart';
 import '../../data/repositories/auth_repository.dart';
 
@@ -75,7 +76,7 @@ class TcgSelectorScreen extends ConsumerWidget {
                   eyebrow: 'OPTCG BH',
                   title: 'Escolha seu card game',
                   subtitle:
-                      'Entre no jogo que deseja explorar. Cada hub concentra biblioteca, semanais e recursos da comunidade em uma experiencia mais limpa e rapida.',
+                      'Entre no jogo que deseja explorar. Cada hub concentra sua biblioteca e recursos da comunidade; os torneios da loja ficam reunidos nos Semanais STOP TCG.',
                   icon: Icons.style_outlined,
                   visualAsset: 'assets/editorial/scanner_card_stack.png',
                   badges: [
@@ -93,6 +94,8 @@ class TcgSelectorScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
+                const SizedBox(height: 24),
+                _StopWeekliesBanner(onTap: () => context.go('/weeklies')),
                 const SizedBox(height: 24),
                 const AppSectionHeading(
                   icon: Icons.explore_outlined,
@@ -188,6 +191,99 @@ class TcgSelectorScreen extends ConsumerWidget {
   }
 }
 
+class _StopWeekliesBanner extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _StopWeekliesBanner({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    const gold = Color(0xFFF4B740);
+    return AppHoverLift(
+      accent: gold,
+      child: AccessibleActionSurface(
+        label: 'Abrir Semanais STOP TCG',
+        hint: 'Resultados e rankings de todos os jogos da loja',
+        onTap: onTap,
+        focusColor: gold,
+        child: Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                const Color(0xFF173541).withValues(alpha: 0.96),
+                gold.withValues(alpha: 0.12),
+                const Color(0xFF2A75BB).withValues(alpha: 0.18),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: gold.withValues(alpha: 0.52)),
+          ),
+          child: Wrap(
+            spacing: 18,
+            runSpacing: 14,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: gold.withValues(alpha: 0.13),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: gold),
+                ),
+                child: const Icon(
+                  Icons.emoji_events_outlined,
+                  color: gold,
+                  size: 31,
+                ),
+              ),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'SEMANAIS STOP TCG',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: gold,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      'Resultados e rankings de todos os jogos da loja',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'One Piece e Pokemon ja estao disponiveis em uma area independente dos hubs de cada TCG.',
+                    ),
+                  ],
+                ),
+              ),
+              ExcludeFocus(
+                child: IgnorePointer(
+                  child: FilledButton.icon(
+                    onPressed: onTap,
+                    icon: const Icon(Icons.arrow_forward),
+                    label: const Text('Abrir semanais'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _TcgChoiceCard extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -212,77 +308,73 @@ class _TcgChoiceCard extends StatelessWidget {
     return AppHoverLift(
       accent: accent,
       scale: 1.01,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(8),
-          onTap: onTap,
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 210),
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  theme.colorScheme.surface.withValues(alpha: 0.2),
-                  accent.withValues(alpha: 0.045),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(8),
-              border: Border(
-                left: BorderSide(
-                  color: accent.withValues(alpha: 0.74),
-                  width: 3,
-                ),
-              ),
+      child: AccessibleActionSurface(
+        label: '$title. $chipLabel',
+        hint: 'Abrir $title. $subtitle',
+        onTap: onTap,
+        focusColor: accent,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 210),
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                theme.colorScheme.surface.withValues(alpha: 0.2),
+                accent.withValues(alpha: 0.045),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(icon, color: accent, size: 30),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                    Icon(
-                      Icons.arrow_forward,
-                      color: accent.withValues(alpha: 0.85),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Text(subtitle, style: theme.textTheme.bodyMedium),
-                const Spacer(),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
+            borderRadius: BorderRadius.circular(8),
+            border: Border(
+              left: BorderSide(color: accent.withValues(alpha: 0.74), width: 3),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, color: accent, size: 30),
+                  const SizedBox(width: 12),
+                  Expanded(
                     child: Text(
-                      chipLabel,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: accent,
-                        fontWeight: FontWeight.w800,
+                      title,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                   ),
+                  Icon(
+                    Icons.arrow_forward,
+                    color: accent.withValues(alpha: 0.85),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(subtitle, style: theme.textTheme.bodyMedium),
+              const Spacer(),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    chipLabel,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: accent,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

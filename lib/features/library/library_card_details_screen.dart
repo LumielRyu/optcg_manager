@@ -532,6 +532,8 @@ class _DetailsInfo extends StatelessWidget {
         _infoRow('Tipo', card.subTypes),
         _infoRow('Atributo', card.attribute),
         const SizedBox(height: 16),
+        _LibraryCardPriceSection(card: card),
+        const SizedBox(height: 16),
         const Text(
           'Texto da carta',
           style: TextStyle(fontWeight: FontWeight.w700),
@@ -590,6 +592,85 @@ class _DetailsInfo extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _LibraryCardPriceSection extends ConsumerStatefulWidget {
+  final OpCard card;
+
+  const _LibraryCardPriceSection({required this.card});
+
+  @override
+  ConsumerState<_LibraryCardPriceSection> createState() =>
+      _LibraryCardPriceSectionState();
+}
+
+class _LibraryCardPriceSectionState
+    extends ConsumerState<_LibraryCardPriceSection> {
+  late Future<LigaOnePieceCardSnapshot?> _snapshotFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _snapshotFuture = _loadSnapshot();
+  }
+
+  @override
+  void didUpdateWidget(covariant _LibraryCardPriceSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.card.code != widget.card.code ||
+        oldWidget.card.name != widget.card.name ||
+        oldWidget.card.image != widget.card.image) {
+      _snapshotFuture = _loadSnapshot();
+    }
+  }
+
+  Future<LigaOnePieceCardSnapshot?> _loadSnapshot() {
+    return ref
+        .read(ligaOnePieceServiceProvider)
+        .fetchCachedPublicCardSnapshotForCard(
+          cardName: widget.card.name,
+          cardCode: widget.card.code,
+        );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<LigaOnePieceCardSnapshot?>(
+      future: _snapshotFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return _LibraryMarketplaceInfoCard.loading();
+        }
+
+        final data = snapshot.data;
+        final price = data?.minimumPrice ?? data?.lowestListing?.price;
+        if (snapshot.hasError || data == null || price == null) {
+          return _LibraryMarketplaceInfoCard.unavailable(
+            message:
+                'Preco ainda nao sincronizado para esta carta ou variante.',
+          );
+        }
+
+        return _LibraryMarketplaceInfoCard.data(
+          snapshot: data,
+          formattedPrice: _formatCurrency(price),
+        );
+      },
+    );
+  }
+
+  String _formatCurrency(double value) {
+    final parts = value.toStringAsFixed(2).split('.');
+    final digits = parts.first;
+    final buffer = StringBuffer();
+    for (var index = 0; index < digits.length; index++) {
+      if (index > 0 && (digits.length - index) % 3 == 0) {
+        buffer.write('.');
+      }
+      buffer.write(digits[index]);
+    }
+    return 'R\$ $buffer,${parts.last}';
   }
 }
 
@@ -679,20 +760,32 @@ class _LibraryMarketplaceInfoCard extends StatelessWidget {
     required LigaOnePieceCardSnapshot snapshot,
     required String formattedPrice,
   }) {
-    final store = snapshot.lowestStore?.name ?? 'Loja publica';
-    final note = snapshot.usedVerifiedFallback
-        ? snapshot.note
-        : 'Base publica da pagina da carta.';
+    final store = snapshot.lowestStore?.name ?? 'Base publica da Liga';
+    final updatedAt = snapshot.resolvedAt;
+    final updatedLabel = updatedAt == null
+        ? 'Horario da coleta indisponivel.'
+        : 'Atualizado em ${_formatDateTime(updatedAt.toLocal())}.';
+    final note = [
+      if (snapshot.isStale) 'Atencao: este preco pode estar desatualizado.',
+      updatedLabel,
+      if ((snapshot.note ?? '').trim().isNotEmpty) snapshot.note!.trim(),
+    ].join(' ');
 
     return _LibraryMarketplaceInfoCard._(
       title: 'Menor valor publico na LigaOnePiece',
-      message: 'Menor oferta encontrada em uma loja publica.',
+      message: 'Menor preco publicado para esta carta e variante.',
       loading: false,
       price: formattedPrice,
       storeName: store,
       note: note,
       linkUrlFuture: Future<String>.value(snapshot.sourceUrl),
     );
+  }
+
+  static String _formatDateTime(DateTime value) {
+    String twoDigits(int number) => number.toString().padLeft(2, '0');
+    return '${twoDigits(value.day)}/${twoDigits(value.month)}/${value.year} '
+        '${twoDigits(value.hour)}:${twoDigits(value.minute)}';
   }
 
   @override

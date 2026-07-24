@@ -4,7 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/providers/theme_mode_provider.dart';
+import '../../core/services/app_error_reporter.dart';
 import '../../core/utils/auth_action_guard.dart';
+import '../../core/widgets/accessible_action_surface.dart';
+import '../../core/widgets/async_load_error_view.dart';
 import '../../core/widgets/catalog_dropdown_field.dart';
 import '../../core/widgets/catalog_search_field.dart';
 import '../../core/widgets/catalog_grid_card.dart';
@@ -74,8 +77,26 @@ class _GlobalMarketplaceScreenState
     super.dispose();
   }
 
-  Future<List<MarketplaceListing>> _loadPublicListings() {
-    return ref.read(marketplaceRepositoryProvider).getGlobalPublicListings();
+  Future<List<MarketplaceListing>> _loadPublicListings() async {
+    try {
+      return await ref
+          .read(marketplaceRepositoryProvider)
+          .getGlobalPublicListings();
+    } catch (error, stackTrace) {
+      final referenceId = AppErrorReporter.report(
+        error,
+        stackTrace,
+        context: 'marketplace.load-public-listings',
+      );
+      throw _MarketplaceLoadException(referenceId);
+    }
+  }
+
+  void _retryPublicListings() {
+    setState(() {
+      _visibleCount = _pageSize;
+      _publicListingsFuture = _loadPublicListings();
+    });
   }
 
   String _ligaPriceLabelFor(MarketplaceListing item) {
@@ -956,14 +977,16 @@ class _GlobalMarketplaceScreenState
           }
 
           if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  'Erro ao carregar o marketplace global\n${snapshot.error}',
-                  textAlign: TextAlign.center,
-                ),
-              ),
+            final error = snapshot.error;
+            return AsyncLoadErrorView(
+              title: 'Não foi possível carregar o Marketplace',
+              message:
+                  'Verifique sua conexão e tente novamente. Se o problema '
+                  'continuar, informe o código abaixo ao suporte.',
+              referenceId: error is _MarketplaceLoadException
+                  ? error.referenceId
+                  : null,
+              onRetry: _retryPublicListings,
             );
           }
 
@@ -1006,6 +1029,12 @@ class _GlobalMarketplaceScreenState
           : null,
     );
   }
+}
+
+class _MarketplaceLoadException implements Exception {
+  final String referenceId;
+
+  const _MarketplaceLoadException(this.referenceId);
 }
 
 class _GlobalMarketplaceLigaPriceBadge extends StatelessWidget {
@@ -1760,18 +1789,24 @@ class _GlobalMarketplaceZoomableCardImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final directUrl = imageUrl.trim();
+    void openImage() {
+      showDialog<void>(
+        context: context,
+        builder: (_) => _GlobalMarketplaceCardImageFullscreenDialog(
+          imageUrl: directUrl,
+          title: title,
+        ),
+      );
+    }
 
-    return GestureDetector(
-      onTap: () {
-        if (directUrl.isEmpty) return;
-        showDialog<void>(
-          context: context,
-          builder: (_) => _GlobalMarketplaceCardImageFullscreenDialog(
-            imageUrl: directUrl,
-            title: title,
-          ),
-        );
-      },
+    return AccessibleActionSurface(
+      label: directUrl.isEmpty
+          ? 'Imagem indisponivel para $title'
+          : 'Ampliar imagem de $title',
+      hint: directUrl.isEmpty
+          ? null
+          : 'Abre a imagem da carta em tela cheia com controle de zoom',
+      onTap: directUrl.isEmpty ? null : openImage,
       child: Container(
         color: Theme.of(
           context,
@@ -1781,6 +1816,7 @@ class _GlobalMarketplaceZoomableCardImage extends StatelessWidget {
             ? const Center(child: Icon(Icons.image_not_supported_outlined))
             : Image.network(
                 directUrl,
+                semanticLabel: 'Carta $title',
                 fit: BoxFit.contain,
                 webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
                 errorBuilder: (_, _, _) {
@@ -1822,6 +1858,7 @@ class _GlobalMarketplaceCardImageFullscreenDialog extends StatelessWidget {
               maxScale: 5,
               child: Image.network(
                 imageUrl,
+                semanticLabel: 'Imagem ampliada da carta $title',
                 fit: BoxFit.contain,
                 webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
                 errorBuilder: (_, _, _) {
@@ -1843,6 +1880,7 @@ class _GlobalMarketplaceCardImageFullscreenDialog extends StatelessWidget {
             child: Row(
               children: [
                 IconButton(
+                  tooltip: 'Fechar imagem ampliada',
                   onPressed: () => Navigator.of(context).pop(),
                   icon: const Icon(Icons.close, color: Colors.white),
                 ),
