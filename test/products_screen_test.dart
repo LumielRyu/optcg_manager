@@ -22,7 +22,7 @@ void main() {
     expect(find.text('Detalhes das fichas'), findsOneWidget);
   });
 
-  testWidgets('product preview switches to the separated-parts view', (
+  testWidgets('product preview uses the original separated model views', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1440, 1400));
@@ -31,9 +31,19 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: ProductsScreen()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Peças'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Vista das peças'), findsOneWidget);
+    expect(find.text('Peças originais do arquivo 3MF'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('model-part-plate_1.png')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('model-part-plate-3-body')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('model-part-plate-3-detail')),
+      findsOneWidget,
+    );
+    expect(find.text('Montada'), findsNothing);
   });
 }

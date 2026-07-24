@@ -52,8 +52,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
   late final Map<_DeckPart, _FilamentColor> _colors = {
     for (final part in _DeckPart.values) part: _palette.first,
   };
-  bool _exploded = false;
-  double _rotation = -0.18;
 
   String get _configurationText {
     final selections = _DeckPart.values
@@ -142,15 +140,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
             LayoutBuilder(
               builder: (context, constraints) {
                 final compact = constraints.maxWidth < 900;
-                final preview = _PreviewPanel(
-                  colors: _colors,
-                  exploded: _exploded,
-                  rotation: _rotation,
-                  onExplodedChanged: (value) =>
-                      setState(() => _exploded = value),
-                  onRotationChanged: (value) =>
-                      setState(() => _rotation = value),
-                );
+                final preview = _PreviewPanel(colors: _colors);
                 final controls = _ColorControls(
                   colors: _colors,
                   onChanged: (part, color) =>
@@ -280,18 +270,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
 class _PreviewPanel extends StatelessWidget {
   final Map<_DeckPart, _FilamentColor> colors;
-  final bool exploded;
-  final double rotation;
-  final ValueChanged<bool> onExplodedChanged;
-  final ValueChanged<double> onRotationChanged;
 
-  const _PreviewPanel({
-    required this.colors,
-    required this.exploded,
-    required this.rotation,
-    required this.onExplodedChanged,
-    required this.onRotationChanged,
-  });
+  const _PreviewPanel({required this.colors});
 
   @override
   Widget build(BuildContext context) {
@@ -301,87 +281,87 @@ class _PreviewPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      exploded ? 'Vista das peças' : 'Produto montado',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    Text(
-                      'Arraste a prévia ou use o controle para mudar o ângulo.',
-                      style: theme.textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-              SegmentedButton<bool>(
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment(
-                    value: false,
-                    icon: Icon(Icons.inventory_2_outlined),
-                    label: Text('Montada'),
-                  ),
-                  ButtonSegment(
-                    value: true,
-                    icon: Icon(Icons.account_tree_outlined),
-                    label: Text('Peças'),
-                  ),
-                ],
-                selected: {exploded},
-                onSelectionChanged: (values) => onExplodedChanged(values.first),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          AspectRatio(
-            aspectRatio: 1.12,
-            child: GestureDetector(
-              onHorizontalDragUpdate: (details) {
-                final next = (rotation + details.delta.dx / 260).clamp(
-                  -0.55,
-                  0.55,
-                );
-                onRotationChanged(next);
-              },
-              child: Semantics(
-                label: exploded
-                    ? 'Prévia colorida das peças separadas da deck box'
-                    : 'Prévia colorida da deck box montada',
-                image: true,
-                child: CustomPaint(
-                  painter: _DeckBoxPainter(
-                    colors: Map<_DeckPart, _FilamentColor>.of(colors),
-                    exploded: exploded,
-                    rotation: rotation,
-                    background: theme.colorScheme.surface,
-                    foreground: theme.colorScheme.onSurface,
-                  ),
-                ),
-              ),
+          Text(
+            'Peças originais do arquivo 3MF',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w900,
             ),
           ),
-          Row(
-            children: [
-              const Icon(Icons.rotate_left_outlined, size: 18),
-              Expanded(
-                child: Slider(
-                  value: rotation,
-                  min: -0.55,
-                  max: 0.55,
-                  label: 'Ângulo da prévia',
-                  onChanged: onRotationChanged,
-                ),
-              ),
-              const Icon(Icons.rotate_right_outlined, size: 18),
-            ],
+          const SizedBox(height: 3),
+          Text(
+            'Cada imagem abaixo vem diretamente das placas salvas no projeto da Bambu Lab.',
+            style: theme.textTheme.bodySmall,
           ),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final tileWidth = constraints.maxWidth >= 480
+                  ? (constraints.maxWidth - 10) / 2
+                  : constraints.maxWidth;
+              return Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  SizedBox(
+                    width: tileWidth,
+                    child: _ModelPartTile(
+                      label: 'Base inferior',
+                      asset: 'plate_1.png',
+                      color: colors[_DeckPart.bottom]!.color,
+                    ),
+                  ),
+                  SizedBox(
+                    width: tileWidth,
+                    child: _ModelPartTile(
+                      label: 'Berço interno',
+                      asset: 'plate_2.png',
+                      color: colors[_DeckPart.innerCradle]!.color,
+                    ),
+                  ),
+                  SizedBox(
+                    width: tileWidth,
+                    child: _ModelPartTile.tokens(
+                      bodyColor: colors[_DeckPart.tokenBody]!.color,
+                      detailColor: colors[_DeckPart.tokenDetail]!.color,
+                    ),
+                  ),
+                  SizedBox(
+                    width: tileWidth,
+                    child: _ModelPartTile(
+                      label: 'Corpo externo',
+                      asset: 'plate_4.png',
+                      color: colors[_DeckPart.outerBody]!.color,
+                    ),
+                  ),
+                  SizedBox(
+                    width: tileWidth,
+                    child: _ModelPartTile(
+                      label: 'Tampa e bandeja',
+                      asset: 'plate_5.png',
+                      color: colors[_DeckPart.lid]!.color,
+                    ),
+                  ),
+                  SizedBox(
+                    width: tileWidth,
+                    child: _ModelPartTile(
+                      label: 'Bases altas',
+                      asset: 'plate_6.png',
+                      color: colors[_DeckPart.tallBases]!.color,
+                    ),
+                  ),
+                  SizedBox(
+                    width: tileWidth,
+                    child: _ModelPartTile(
+                      label: 'Bases baixas',
+                      asset: 'plate_7.png',
+                      color: colors[_DeckPart.shortBases]!.color,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -398,13 +378,139 @@ class _PreviewPanel extends StatelessWidget {
                 SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Prévia ilustrativa: iluminação, lote do filamento e tela podem alterar a percepção da cor.',
+                    'As geometrias são as originais do arquivo. As cores continuam sendo aproximações visuais dos filamentos.',
                   ),
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ModelPartTile extends StatelessWidget {
+  static const _assetRoot = 'assets/products/deck_box/model_parts';
+
+  final String label;
+  final String? asset;
+  final Color? color;
+  final Color? tokenBodyColor;
+  final Color? tokenDetailColor;
+
+  const _ModelPartTile({
+    required this.label,
+    required this.asset,
+    required this.color,
+  }) : tokenBodyColor = null,
+       tokenDetailColor = null;
+
+  const _ModelPartTile.tokens({
+    required Color bodyColor,
+    required Color detailColor,
+  }) : label = 'Fichas com ímã',
+       asset = null,
+       color = null,
+       tokenBodyColor = bodyColor,
+       tokenDetailColor = detailColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final preview = asset != null
+        ? _TintedModelAsset(
+            key: ValueKey('model-part-$asset'),
+            asset: '$_assetRoot/$asset',
+            color: color!,
+          )
+        : Stack(
+            fit: StackFit.expand,
+            children: [
+              _TintedModelAsset(
+                key: const ValueKey('model-part-plate-3-body'),
+                asset: '$_assetRoot/plate_3_body.png',
+                color: tokenBodyColor!,
+              ),
+              _TintedModelAsset(
+                key: const ValueKey('model-part-plate-3-detail'),
+                asset: '$_assetRoot/plate_3_detail.png',
+                color: tokenDetailColor!,
+              ),
+            ],
+          );
+
+    return Semantics(
+      image: true,
+      label: '$label, modelo original do arquivo 3MF',
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              theme.colorScheme.surface.withValues(alpha: 0.72),
+              theme.colorScheme.primary.withValues(alpha: 0.06),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: theme.colorScheme.primary.withValues(alpha: 0.15),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AspectRatio(
+              aspectRatio: 1,
+              child: Padding(padding: const EdgeInsets.all(7), child: preview),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface.withValues(alpha: 0.62),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(8),
+                ),
+              ),
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TintedModelAsset extends StatelessWidget {
+  final String asset;
+  final Color color;
+
+  const _TintedModelAsset({
+    super.key,
+    required this.asset,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ColorFiltered(
+      colorFilter: ColorFilter.mode(color, BlendMode.color),
+      child: Image.asset(
+        asset,
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.high,
+        errorBuilder: (context, error, stackTrace) {
+          return const Center(
+            child: Icon(Icons.broken_image_outlined, size: 38),
+          );
+        },
       ),
     );
   }
@@ -550,6 +656,7 @@ class _ColorSelector extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _DeckBoxPainter extends CustomPainter {
   final Map<_DeckPart, _FilamentColor> colors;
   final bool exploded;

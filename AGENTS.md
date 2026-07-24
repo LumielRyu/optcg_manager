@@ -699,3 +699,24 @@ git diff --stat
 - A verificacao E2E posterior ao deploy confirmou HTTP 200, titulo correto,
   primeiro frame renderizado e ausencia de erros de console/pagina em
   `https://optcgbh.vercel.app/#/products`.
+
+### 24/07/2026 - Vista das pecas baseada no 3MF original
+
+- A previa desenhada da deck box montada foi removida do configurador a pedido
+  do usuario; a interface nao possui mais alternancia `Montada`/`Pecas` nem
+  controle de angulo.
+- As imagens `Metadata/plate_1.png` ate `Metadata/plate_7.png` foram extraidas
+  diretamente do `Deck Box One Piece.3mf` atualizado e adicionadas em
+  `assets/products/deck_box/model_parts/`.
+- A vista agora exibe os renders originais das sete placas: base inferior,
+  berco interno, fichas, corpo externo, tampa/bandeja, bases altas e bases
+  baixas.
+- O render original das fichas foi separado em duas camadas transparentes,
+  preservando forma, sombra, linha e escrita para permitir a escolha
+  independente da cor do corpo e da cor dos detalhes.
+- Foi adicionado `tool/build_deck_box_preview_assets.dart` para reproduzir a
+  copia das placas e a separacao das duas camadas das fichas a partir do
+  diretorio `Metadata` extraido do projeto.
+- A recoloracao usa a luminosidade dos renders originais. Assim, encaixes,
+  recortes e relevos permanecem visiveis em todas as cores; os tons continuam
+  identificados como aproximacoes visuais dos filamentos.
