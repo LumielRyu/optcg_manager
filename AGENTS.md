@@ -273,4 +273,11 @@ git diff --stat
   - build web oficial com variaveis publicas aprovado;
   - 6 fluxos publicos gerais e a rota da Biblioteca aprovados no Chrome;
   - captura visual confirmou precos reais na grade, incluindo `Liga: R$ 0,20`.
-- Esta alteracao ainda nao havia sido publicada no momento deste registro.
+- Commit local: `5307f00` (`Show Liga prices across card collections`), ainda
+  nao enviado ao remoto Git no momento deste registro.
+- Deploy Vercel de producao:
+  `dpl_FqYVcQEafVB3bqysuccLtuVPxux6`, estado READY, alias
+  `https://optcgbh.vercel.app`.
+- Pos-deploy aprovado: health HTTP 200, protecao de origem HTTP 403, sete
+  fluxos publicos E2E (incluindo Biblioteca) e nenhum erro de runtime encontrado
+  nos logs da implantacao.
