@@ -20,6 +20,7 @@ void main(List<String> arguments) {
     return;
   }
 
+  image.Image? tokenPreview;
   for (var plate = 1; plate <= 7; plate++) {
     final source = File('${sourceDirectory.path}/plate_$plate.png');
     if (!source.existsSync()) {
@@ -27,16 +28,20 @@ void main(List<String> arguments) {
       exitCode = 66;
       return;
     }
-    source.copySync('${outputDirectory.path}/plate_$plate.png');
+    final decoded = image.decodePng(source.readAsBytesSync());
+    if (decoded == null) {
+      stderr.writeln('Nao foi possivel decodificar ${source.path}.');
+      exitCode = 65;
+      return;
+    }
+    final transparent = _removeBlackBackground(decoded);
+    File(
+      '${outputDirectory.path}/plate_$plate.png',
+    ).writeAsBytesSync(image.encodePng(_grayscaleForTint(transparent)));
+    if (plate == 3) tokenPreview = transparent;
   }
 
-  final tokenSource = File('${sourceDirectory.path}/plate_3.png');
-  final decoded = image.decodePng(tokenSource.readAsBytesSync());
-  if (decoded == null) {
-    stderr.writeln('Nao foi possivel decodificar ${tokenSource.path}.');
-    exitCode = 65;
-    return;
-  }
+  final decoded = tokenPreview!;
 
   final body = image.Image(
     width: decoded.width,
@@ -75,13 +80,108 @@ void main(List<String> arguments) {
 
   File(
     '${outputDirectory.path}/plate_3_body.png',
-  ).writeAsBytesSync(image.encodePng(body));
+  ).writeAsBytesSync(image.encodePng(_grayscaleForTint(body)));
   File(
     '${outputDirectory.path}/plate_3_detail.png',
-  ).writeAsBytesSync(image.encodePng(detail));
+  ).writeAsBytesSync(image.encodePng(_grayscaleForTint(detail)));
 
   stdout.writeln(
     'Previews originais e camadas das fichas gerados em '
     '${outputDirectory.path}.',
   );
+}
+
+image.Image _removeBlackBackground(image.Image source) {
+  final width = source.width;
+  final height = source.height;
+  final background = List<bool>.filled(width * height, false);
+  final queue = <int>[];
+
+  void enqueue(int x, int y) {
+    final index = y * width + x;
+    if (background[index]) return;
+    final pixel = source.getPixel(x, y);
+    final maximum = [
+      pixel.r.toDouble(),
+      pixel.g.toDouble(),
+      pixel.b.toDouble(),
+    ].reduce((a, b) => a > b ? a : b);
+    if (maximum > 72) return;
+    background[index] = true;
+    queue.add(index);
+  }
+
+  for (var x = 0; x < width; x++) {
+    enqueue(x, 0);
+    enqueue(x, height - 1);
+  }
+  for (var y = 0; y < height; y++) {
+    enqueue(0, y);
+    enqueue(width - 1, y);
+  }
+
+  var cursor = 0;
+  while (cursor < queue.length) {
+    final index = queue[cursor++];
+    final x = index % width;
+    final y = index ~/ width;
+    if (x > 0) enqueue(x - 1, y);
+    if (x + 1 < width) enqueue(x + 1, y);
+    if (y > 0) enqueue(x, y - 1);
+    if (y + 1 < height) enqueue(x, y + 1);
+  }
+
+  final output = image.Image(width: width, height: height, numChannels: 4);
+  for (final pixel in source) {
+    final red = pixel.r.toDouble();
+    final green = pixel.g.toDouble();
+    final blue = pixel.b.toDouble();
+    final alpha = pixel.a.toDouble();
+    final index = pixel.y * width + pixel.x;
+    output.setPixelRgba(
+      pixel.x,
+      pixel.y,
+      red,
+      green,
+      blue,
+      background[index] ? 0 : alpha,
+    );
+  }
+  return output;
+}
+
+image.Image _grayscaleForTint(image.Image source) {
+  var maximumLuminance = 1.0;
+  for (final pixel in source) {
+    if (pixel.a == 0) continue;
+    final luminance =
+        pixel.r.toDouble() * 0.2126 +
+        pixel.g.toDouble() * 0.7152 +
+        pixel.b.toDouble() * 0.0722;
+    if (luminance > maximumLuminance) maximumLuminance = luminance;
+  }
+
+  final output = image.Image(
+    width: source.width,
+    height: source.height,
+    numChannels: 4,
+  );
+  for (final pixel in source) {
+    final alpha = pixel.a.toDouble();
+    if (alpha == 0) continue;
+    final luminance =
+        pixel.r.toDouble() * 0.2126 +
+        pixel.g.toDouble() * 0.7152 +
+        pixel.b.toDouble() * 0.0722;
+    final normalized = (luminance / maximumLuminance * 255).clamp(0, 255);
+    output.setPixelRgba(
+      pixel.x,
+      pixel.y,
+      normalized,
+      normalized,
+      normalized,
+      alpha,
+    );
+  }
+  return output;
 }

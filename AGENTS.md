@@ -726,3 +726,18 @@ git diff --stat
 - Deploy Vercel de producao
   `dpl_DicH6VP7w6gTzTJE68meY81NY7Z6`, status READY no alias
   `https://optcgbh.vercel.app`.
+
+### 24/07/2026 - Correcao da recoloracao das pecas 3MF
+
+- Foi identificado que os previews do Bambu Studio possuíam um fundo escuro
+  opaco e que o modo de mistura anterior recoloria toda a imagem.
+- O gerador de assets agora remove apenas o fundo conectado ao contorno,
+  mantendo escrita escura, sombras, furos e recortes internos das geometrias.
+- Cada peça e cada camada das fichas e convertida para uma mascara de
+  luminosidade com transparencia real.
+- A interface passou a usar `BlendMode.modulate`, aplicando a cor somente nos
+  pixels da peça e preservando o painel de fundo da pagina.
+- Foi adicionado teste de regressao que decodifica os nove PNGs, confirma
+  transparencia no fundo e valida a troca do corpo externo para vermelho.
+- Validacoes aprovadas: 62 testes Flutter, `flutter analyze`, build web e E2E
+  visual local sem erros.

@@ -501,7 +501,7 @@ class _TintedModelAsset extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColorFiltered(
-      colorFilter: ColorFilter.mode(color, BlendMode.color),
+      colorFilter: ColorFilter.mode(color, BlendMode.modulate),
       child: Image.asset(
         asset,
         fit: BoxFit.contain,
