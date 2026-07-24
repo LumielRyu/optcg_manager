@@ -13,7 +13,7 @@ import update_liga_price_cache as liga
 EDITIONS_URL = "https://www.ligaonepiece.com.br/?view=cards/edicoes"
 ROOT = Path(__file__).resolve().parents[1]
 EDITIONS_FALLBACK_PATH = ROOT / "assets" / "liga_one_piece_editions.json"
-DEFAULT_CRAWL_DELAY_SECONDS = 360.0
+DEFAULT_CRAWL_DELAY_SECONDS = 30.0
 DEFAULT_PRIORITY_EDITIONS = 3
 DEFAULT_BATCH_SIZE = 250
 KNOWN_VARIANT_SUFFIXES = {

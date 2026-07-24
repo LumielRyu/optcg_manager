@@ -15,15 +15,6 @@ on:
         description: "Sigla de uma edicao para atualizar em lote, por exemplo OP-16"
         required: false
         type: string
-      shard_index:
-        description: "Grupo das edicoes antigas (0, 1 ou 2)"
-        required: false
-        default: "0"
-        type: choice
-        options:
-          - "0"
-          - "1"
-          - "2"
   schedule:
     - cron: "17 3 * * *"
     - cron: "17 11 * * *"
@@ -39,7 +30,7 @@ permissions:
 jobs:
   update-cache:
     runs-on: [self-hosted, Windows, X64, liga-price-cache]
-    timeout-minutes: 210
+    timeout-minutes: 120
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -56,8 +47,6 @@ jobs:
           CARD_CODE: ${{ inputs.card_code }}
           CARD_NAME: ${{ inputs.card_name }}
           EDITION: ${{ inputs.edition }}
-          MANUAL_SHARD_INDEX: ${{ inputs.shard_index }}
-          SCHEDULE_EXPRESSION: ${{ github.event.schedule }}
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
@@ -79,23 +68,11 @@ jobs:
             python scripts/update_liga_edition_price_cache.py `
               --edition "$env:EDITION"
           } else {
-            $shardIndex = switch ($env:SCHEDULE_EXPRESSION) {
-              "17 3 * * *" { "0"; break }
-              "17 11 * * *" { "1"; break }
-              "17 19 * * *" { "2"; break }
-              default {
-                if ([string]::IsNullOrWhiteSpace($env:MANUAL_SHARD_INDEX)) {
-                  "0"
-                } else {
-                  $env:MANUAL_SHARD_INDEX
-                }
-              }
-            }
             python scripts/update_liga_edition_price_cache.py `
-              --shard-count 3 `
-              --shard-index "$shardIndex" `
-              --priority-editions 3 `
-              --delay 360
+              --shard-count 1 `
+              --shard-index 0 `
+              --priority-editions 0 `
+              --delay 30
           }
 
           if ($LASTEXITCODE -ne 0) {

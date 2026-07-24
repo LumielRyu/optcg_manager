@@ -443,3 +443,22 @@ git diff --stat
 - Estado do Supabase na auditoria: 640 linhas em 28 siglas historicas; somente
   OP-16 possuia uma importacao completa e recente, com 159 linhas resolvidas
   em `2026-07-24T02:10:29Z`.
+
+### 23/07/2026 - Catalogo completo a cada 30 segundos
+
+- Por solicitacao do usuario, o intervalo entre edicoes foi reduzido de 360
+  para 30 segundos.
+- Os grupos foram removidos do workflow. Cada uma das tres execucoes diarias
+  agora percorre as 78 edicoes em sequencia, na ordem do catalogo.
+- O comando automatico usa `--shard-count 1 --shard-index 0`,
+  `--priority-editions 0` e `--delay 30`.
+- O tempo minimo de espera do catalogo completo passa a ser aproximadamente
+  39 minutos, mais o tempo das requisicoes e gravacoes.
+- O limite do job foi reduzido de 210 para 120 minutos.
+- O intervalo padrao do script tambem passou a ser 30 segundos, mantendo
+  execucoes manuais e automaticas consistentes.
+- O `--dry-run` confirmou exatamente 78 edicoes selecionadas e os 6 testes
+  Python foram aprovados.
+- Observacao: a Liga declara `Crawl-delay: 360` no `robots.txt`; usar 30
+  segundos foi uma decisao explicita do usuario e pode aumentar o risco de
+  bloqueio temporario da origem.
