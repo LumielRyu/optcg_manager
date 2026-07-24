@@ -14,9 +14,11 @@ import '../../core/widgets/liga_price_display.dart';
 import '../../core/widgets/dashboard_header_panel.dart';
 import '../../core/widgets/summary_stat_card.dart';
 import '../../data/models/card_record.dart';
+import '../../data/repositories/collection_repository.dart';
 import '../../data/services/translation_service.dart';
 import '../../core/widgets/primary_bottom_navigation.dart';
 import 'collection_controller.dart';
+import 'collection_sale_import.dart';
 import 'deck_details_dialog.dart';
 import 'manual_add_dialog.dart';
 import '../../core/widgets/home_navigation_button.dart';
@@ -941,7 +943,152 @@ class _AddMethodTile extends StatelessWidget {
   }
 }
 
-class _StandardLibraryView extends StatelessWidget {
+Future<int?> _showSaleQuantityDialog(
+  BuildContext context, {
+  required CardRecord card,
+  required int maximum,
+}) async {
+  final quantityController = TextEditingController(text: '1');
+  String? errorText;
+
+  final quantity = await showDialog<int>(
+    context: context,
+    builder: (dialogContext) {
+      return StatefulBuilder(
+        builder: (context, setDialogState) {
+          void submit() {
+            final value = int.tryParse(quantityController.text.trim());
+            if (value == null || value <= 0 || value > maximum) {
+              setDialogState(
+                () => errorText = 'Informe um valor entre 1 e $maximum.',
+              );
+              return;
+            }
+            Navigator.of(dialogContext).pop(value);
+          }
+
+          return AlertDialog(
+            title: const Text('Adicionar às vendas'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${card.name} • ${card.cardCode}',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: quantityController,
+                  autofocus: true,
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => submit(),
+                  decoration: InputDecoration(
+                    labelText: 'Quantidade',
+                    helperText: 'Disponível para venda: $maximum',
+                    errorText: errorText,
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(onPressed: submit, child: const Text('Adicionar')),
+            ],
+          );
+        },
+      );
+    },
+  );
+
+  quantityController.dispose();
+  return quantity;
+}
+
+Future<bool> _importCardToSales(
+  BuildContext context,
+  WidgetRef ref,
+  CardRecord card,
+) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final repository = ref.read(collectionRepositoryProvider);
+  final existingSale = repository.findByCodeAndCollection(
+    cardCode: card.cardCode,
+    collectionType: CollectionTypes.forSale,
+    imageUrl: card.imageUrl,
+  );
+  final available = availableQuantityForSale(
+    source: card,
+    existingSale: existingSale,
+  );
+
+  if (available <= 0) {
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Todas as cópias desta carta já estão em Cartas à venda.',
+        ),
+      ),
+    );
+    return false;
+  }
+
+  final quantity = await _showSaleQuantityDialog(
+    context,
+    card: card,
+    maximum: available,
+  );
+  if (quantity == null || !context.mounted) return false;
+
+  try {
+    final saleRecord = buildSaleImportRecord(
+      source: card,
+      existingSale: existingSale,
+      quantity: quantity,
+      now: DateTime.now().toUtc(),
+      generatedId: 'sale-import-${DateTime.now().microsecondsSinceEpoch}',
+    );
+    final controller = ref.read(collectionControllerProvider.notifier);
+    if (existingSale == null) {
+      await controller.add(saleRecord);
+    } else {
+      await controller.update(saleRecord);
+    }
+
+    if (!context.mounted) return true;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          quantity == 1
+              ? 'Carta adicionada a Cartas à venda.'
+              : '$quantity cartas adicionadas a Cartas à venda.',
+        ),
+        action: SnackBarAction(
+          label: 'ABRIR VENDAS',
+          onPressed: () => context.go('/sales'),
+        ),
+      ),
+    );
+    return true;
+  } catch (_) {
+    if (!context.mounted) return false;
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Não foi possível adicionar a carta às vendas. Tente novamente.',
+        ),
+      ),
+    );
+    return false;
+  }
+}
+
+class _StandardLibraryView extends ConsumerWidget {
   final List<CardRecord> items;
   final CollectionViewMode viewMode;
 
@@ -952,7 +1099,7 @@ class _StandardLibraryView extends StatelessWidget {
   static const double _gridAspectRatio = 0.53;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
       return const _EmptyState(
         title: 'Nenhuma carta encontrada.',
@@ -984,10 +1131,18 @@ class _StandardLibraryView extends StatelessWidget {
               'Quantidade: ${item.quantity}x',
             ],
             trailing: SizedBox(
-              width: 145,
-              child: LigaPriceLabel(
-                cardName: item.name,
-                cardCode: item.cardCode,
+              width: 155,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  LigaPriceLabel(cardName: item.name, cardCode: item.cardCode),
+                  IconButton(
+                    tooltip: 'Adicionar às vendas',
+                    onPressed: () => _importCardToSales(context, ref, item),
+                    icon: const Icon(Icons.add_shopping_cart_outlined),
+                  ),
+                ],
               ),
             ),
             image: _CollectionCardImage(
@@ -1031,6 +1186,14 @@ class _StandardLibraryView extends StatelessWidget {
             code: item.cardCode,
             title: item.name,
             metadata: ['Quantidade: ${item.quantity}x'],
+            trailingActions: [
+              IconButton(
+                tooltip: 'Adicionar às vendas',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => _importCardToSales(context, ref, item),
+                icon: const Icon(Icons.add_shopping_cart_outlined, size: 20),
+              ),
+            ],
             footer: LigaPriceLabel(
               cardName: item.name,
               cardCode: item.cardCode,
@@ -1209,6 +1372,7 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
   bool _isTranslating = false;
   String? _translatedText;
   bool _showTranslated = false;
+  bool _isAddingToSales = false;
 
   Future<void> _translateText() async {
     if (widget.card.text.trim().isEmpty) return;
@@ -1361,6 +1525,15 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
     if (mounted) Navigator.of(context).pop();
   }
 
+  Future<void> _addToSales() async {
+    setState(() => _isAddingToSales = true);
+    try {
+      await _importCardToSales(context, ref, widget.card);
+    } finally {
+      if (mounted) setState(() => _isAddingToSales = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final card = widget.card;
@@ -1457,6 +1630,18 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
                       cardCode: card.cardCode,
                     ),
                     const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: _isAddingToSales ? null : _addToSales,
+                      icon: _isAddingToSales
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.add_shopping_cart_outlined),
+                      label: const Text('Adicionar às vendas'),
+                    ),
+                    const SizedBox(height: 8),
                     Row(
                       children: [
                         Expanded(

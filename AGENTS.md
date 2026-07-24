@@ -525,3 +525,23 @@ git diff --stat
   `https://optcgbh.vercel.app`.
 - A home foi validada novamente em producao e a consulta de logs do novo
   deploy nao encontrou erros.
+
+### 24/07/2026 - Envio de cartas da colecao para vendas
+
+- As cartas da aba `Colecao` passaram a oferecer a acao
+  `Adicionar as vendas` na grade, na lista e no dialogo de detalhes.
+- A acao copia a quantidade escolhida para `Cartas a venda` sem remover a
+  carta da colecao.
+- O dialogo informa quantas copias ainda podem ser anunciadas e impede que a
+  soma em vendas ultrapasse a quantidade possuida.
+- Quando a mesma carta e variante ja existe em vendas, a quantidade e
+  incrementada no registro existente, preservando preco, condicao, status e
+  demais configuracoes do anuncio.
+- A confirmacao oferece o atalho `Abrir vendas` para configurar e ativar o
+  anuncio.
+- A regra de montagem do registro foi isolada em
+  `lib/features/collection/collection_sale_import.dart`.
+- Foram adicionados tres testes cobrindo nova entrada, incremento sem
+  duplicacao e bloqueio de quantidade excedente.
+- Validacoes aprovadas: `flutter analyze`, 55 testes Flutter e build web
+  release.
