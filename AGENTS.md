@@ -790,3 +790,8 @@ git diff --stat
   escolhidos apos as interacoes.
 - Validacoes desta etapa: testes dedicados aprovados, `flutter analyze`, build
   web e E2E local sem erros ou assets ausentes.
+- Suite final com 64 testes Flutter aprovada.
+- Commit funcional `5a6cbbe`, enviado para `origin/main`.
+- Deploy Vercel de producao
+  `dpl_BUvR39QHgCFEYorpGWbStNSrbqsg`, status READY no alias
+  `https://optcgbh.vercel.app`; o E2E posterior ao deploy passou sem erros.
