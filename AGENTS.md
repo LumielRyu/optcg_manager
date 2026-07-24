@@ -761,3 +761,8 @@ git diff --stat
   aplicada especificamente em `model-part-plate-3-detail`.
 - Validacoes aprovadas: testes dedicados da pagina, `flutter analyze`, build
   web e E2E local da rota de produtos.
+- Suite final com 63 testes Flutter aprovada.
+- Commit funcional `2708f99`, enviado para `origin/main`.
+- Deploy Vercel de producao
+  `dpl_A283SH7dRFTwjBrzhwov6R3wPvEq`, status READY no alias
+  `https://optcgbh.vercel.app`; o E2E posterior ao deploy passou sem erros.
