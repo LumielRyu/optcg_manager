@@ -462,3 +462,12 @@ git diff --stat
 - Observacao: a Liga declara `Crawl-delay: 360` no `robots.txt`; usar 30
   segundos foi uma decisao explicita do usuario e pode aumentar o risco de
   bloqueio temporario da origem.
+
+### 23/07/2026 - Horarios redondos para a atualizacao de precos
+
+- A agenda do GitHub Actions foi ajustada para executar todos os dias as
+  00:00, 08:00 e 16:00 no horario de Brasilia.
+- Os crons correspondentes em UTC sao `0 3 * * *`, `0 11 * * *` e
+  `0 19 * * *`.
+- Cada horario continua percorrendo as 78 edicoes em sequencia, com intervalo
+  de 30 segundos entre paginas.
