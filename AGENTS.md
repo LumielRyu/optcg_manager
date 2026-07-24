@@ -838,3 +838,9 @@ git diff --stat
   o RGB configurado.
 - A troca de `Tampa e bandeja` para `Branco` foi validada no navegador e a
   captura confirmou a geometria branca, sem amarelo residual.
+- Validacoes aprovadas: 67 testes Flutter, `flutter analyze`, build web, E2E
+  local/producao e verificacao visual em producao selecionando `Branco`.
+- Commit funcional `977c0fc`, enviado para `origin/main`.
+- Deploy Vercel de producao
+  `dpl_13hoBAQesiNYrWY7TkTJUJX6E35C`, status READY no alias
+  `https://optcgbh.vercel.app`.
