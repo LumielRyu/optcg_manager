@@ -349,3 +349,34 @@ git diff --stat
 - Proxima solucao recomendada: runner auto-hospedado Windows instalado como
   servico na maquina/rede do usuario, ou agendador local. Isso e uma mudanca
   persistente no sistema e requer autorizacao explicita antes da instalacao.
+
+### 23/07/2026 - Runner local e automacao de precos operacional
+
+- O usuario autorizou a configuracao completa de um runner auto-hospedado.
+- GitHub Actions Runner `v2.336.0` instalado em `C:\actions-runner`.
+- Runner registrado no repositorio como `optcg-liga-lumiel`, Windows x64, com
+  rotulo exclusivo `liga-price-cache`.
+- A sessao nao estava elevada; por isso o runner nao foi instalado como servico
+  do Windows. Em vez disso:
+  - `C:\actions-runner\start-hidden.ps1` inicia o runner sem janela e evita
+    processos duplicados;
+  - a entrada HKCU `OPTCGLigaPriceRunner` inicia o script automaticamente no
+    login deste usuario;
+  - o computador precisa estar ligado e este usuario precisa ter feito login.
+- O workflow foi convertido para PowerShell e direcionado somente a
+  `[self-hosted, Windows, X64, liga-price-cache]`.
+- Permissoes do workflow foram limitadas a `contents: read`; os gatilhos
+  continuam somente manual e agenda.
+- Agenda mantida em 00:17, 08:17 e 16:17 (Brasilia), com tres grupos e 360
+  segundos entre paginas. Isso atualiza as edicoes antigas uma vez ao dia e as
+  tres mais recentes em todas as rodadas.
+- Commit do workflow: `59c3820`, enviado para `origin/main`.
+- Validacao real:
+  - runner apareceu online e executou o job `update-cache`;
+  - run GitHub `30060885093` terminou com sucesso;
+  - OP-16 retornou 159 cartas/variantes;
+  - Supabase foi atualizado com 159 linhas em
+    `2026-07-24T02:10:29Z`;
+  - leitura publica confirmou os novos horarios e valores.
+- Qualidade completa aprovada antes da publicacao: 6 testes Python, 9 testes
+  Node, 48 testes Flutter e `flutter analyze` sem problemas.
