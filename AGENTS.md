@@ -691,3 +691,11 @@ git diff --stat
 - Validacoes locais aprovadas nesta etapa: `flutter analyze`, suite Flutter,
   build web com variaveis publicas e E2E da rota sem erros de console ou de
   pagina.
+- A implementacao foi registrada no commit `c0472d5` e enviada para
+  `origin/main`.
+- Deploy Vercel de producao
+  `dpl_GrFCHNPVvLEXPgAX5rwex7UAtCzE`, status READY e publicado no alias
+  `https://optcgbh.vercel.app`.
+- A verificacao E2E posterior ao deploy confirmou HTTP 200, titulo correto,
+  primeiro frame renderizado e ausencia de erros de console/pagina em
+  `https://optcgbh.vercel.app/#/products`.
