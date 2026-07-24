@@ -551,3 +551,23 @@ git diff --stat
   `https://optcgbh.vercel.app`.
 - O dominio de producao respondeu HTTP 200, carregou o bootstrap do Flutter e
   a consulta de logs do novo deploy nao encontrou erros.
+
+### 24/07/2026 - Diagnostico das edicoes Release Event
+
+- A investigacao confirmou que `OP-15-RE` foi descoberta e consultada
+  normalmente na carga completa: a pagina foi a quinta de 78 e retornou 90
+  cartas e variantes.
+- Essas linhas nao aparecem como `OP-15-RE` no cache porque a tabela usa
+  `lookup_code` como chave unica e o coletor consolida codigos repetidos antes
+  do upsert, preservando a primeira ocorrencia.
+- Como `OP-15` e processada antes de `OP-15-RE` e as cartas Release Event
+  reutilizam os codigos das cartas normais, as linhas auxiliares sao
+  absorvidas pela edicao principal.
+- Consulta direta ao Supabase em 24/07/2026: `OP-15` com 204 registros,
+  `OP-15-RE` com zero, `OP-14-RE` com zero e `OP-12-RE` com zero.
+- O problema afeta estruturalmente edicoes auxiliares que reutilizam codigos,
+  e nao a agenda ou a requisicao da pagina da Liga.
+- Uma correcao segura exigira identificar precos por carta e variante/edicao,
+  migrar a chave unica do cache e ajustar a correspondencia da aplicacao; nao
+  basta mudar a ordem de coleta, pois isso apenas substituiria o preco normal
+  pelo Release Event.
