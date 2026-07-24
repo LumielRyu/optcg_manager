@@ -323,18 +323,7 @@ class LigaOnePieceService {
     Iterable<({String cardName, String cardCode, String imageUrl})> cards,
   ) async {
     final references = cards.toList(growable: false);
-    final cardCodes = references
-        .expand((card) {
-          final normalizedCode = _normalizeLookupCode(card.cardCode);
-          final lookupCode = lookupCodeForCard(
-            cardName: card.cardName,
-            cardCode: card.cardCode,
-          );
-          return <String>{normalizedCode, lookupCode};
-        })
-        .where((code) => code.isNotEmpty)
-        .toSet();
-    if (cardCodes.isEmpty) {
+    if (references.isEmpty) {
       return const <String, LigaOnePieceCardSnapshot>{};
     }
 
@@ -383,17 +372,24 @@ class LigaOnePieceService {
       final end = (offset + chunkSize).clamp(0, queryCodes.length);
       final chunk = queryCodes.sublist(offset, end);
       try {
-        final rows = await _supabase
-            .from(_remoteCacheTable)
-            .select()
-            .inFilter('card_code', chunk);
-        for (final rawRow in rows) {
-          final row = Map<String, dynamic>.from(rawRow);
-          final cardCode = _normalizeLookupCode(
-            row['card_code']?.toString() ?? '',
-          );
-          if (cardCode.isEmpty) continue;
-          rowsByCardCode.putIfAbsent(cardCode, () => []).add(row);
+        const pageSize = 1000;
+        var pageStart = 0;
+        while (true) {
+          final rows = await _supabase
+              .from(_remoteCacheTable)
+              .select()
+              .inFilter('card_code', chunk)
+              .range(pageStart, pageStart + pageSize - 1);
+          for (final rawRow in rows) {
+            final row = Map<String, dynamic>.from(rawRow);
+            final cardCode = _normalizeLookupCode(
+              row['card_code']?.toString() ?? '',
+            );
+            if (cardCode.isEmpty) continue;
+            rowsByCardCode.putIfAbsent(cardCode, () => []).add(row);
+          }
+          if (rows.length < pageSize) break;
+          pageStart += pageSize;
         }
       } catch (_) {
         // A lista continua utilizavel mesmo se o cache remoto estiver offline.

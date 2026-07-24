@@ -584,6 +584,9 @@ git diff --stat
 - A aplicacao passou a consultar candidatos pelo `card_code` real e escolher
   a variante por imagem exata, nome indicando Pre-Release/Release Event ou,
   sem indicacao de variante, manter a edicao principal.
+- As consultas em lote por `card_code` paginam respostas acima de 1.000
+  linhas, evitando perder variantes quando muitos codigos sao carregados
+  simultaneamente.
 - A imagem da carta agora acompanha as referencias de preco na biblioteca,
   colecao, valor total e dialogo de detalhes.
 - A atualizacao direcionada de `OP-15-RE` foi executada localmente e gravou 90
