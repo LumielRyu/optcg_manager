@@ -281,3 +281,28 @@ git diff --stat
 - Pos-deploy aprovado: health HTTP 200, protecao de origem HTTP 403, sete
   fluxos publicos E2E (incluindo Biblioteca) e nenhum erro de runtime encontrado
   nos logs da implantacao.
+
+### 23/07/2026 - Estado visual da verificacao e auditoria da automacao
+
+- Biblioteca, Colecao e Vendas passaram a distinguir quatro estados:
+  - verificando o cache;
+  - verificada e atual, em verde;
+  - verificada mas desatualizada, em amarelo;
+  - ainda nao verificada, em cinza.
+- Uma carta encontrada na pagina da edicao sem oferta passa a ser salva com
+  precos nulos. Isso permite mostrar `verificada, sem oferta` sem confundir com
+  uma carta nunca consultada.
+- O detalhe da Biblioteca tambem distingue `nao verificada` de `verificada sem
+  oferta` e mostra quando a verificacao ficou antiga.
+- O workflow agora termina com erro quando as credenciais obrigatorias nao
+  estiverem configuradas, em vez de registrar falso sucesso.
+- Auditoria do GitHub Actions:
+  - o workflow esta agendado e teve 29 execucoes;
+  - a execucao #29, de 23/07/2026, terminou em apenas 9 segundos;
+  - a anotacao confirmou que `SUPABASE_URL` e
+    `SUPABASE_SERVICE_ROLE_KEY` nao estao configurados;
+  - portanto, a atualizacao automatica ainda nao esta gravando precos e exige
+    essa configuracao unica nos secrets do repositorio.
+- Validacoes: `flutter analyze`, 48 testes Flutter, 5 testes Python, build web e
+  E2E visual da Biblioteca aprovados. A captura confirmou os estados
+  `desatualizado` e `nao verificada`.

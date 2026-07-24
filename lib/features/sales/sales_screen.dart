@@ -445,7 +445,7 @@ class _PricingPanel extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _LigaPriceSummary(
-            basePrice: basePrice,
+            snapshot: ligaSnapshot,
             isLoading: isLoadingLigaPrice,
           ),
           const SizedBox(height: 12),
@@ -498,33 +498,56 @@ class _PricingPanel extends StatelessWidget {
 }
 
 class _LigaPriceSummary extends StatelessWidget {
-  final double? basePrice;
+  final LigaOnePieceCardSnapshot? snapshot;
   final bool isLoading;
 
-  const _LigaPriceSummary({required this.basePrice, required this.isLoading});
+  const _LigaPriceSummary({required this.snapshot, required this.isLoading});
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final basePrice = snapshot?.minimumPrice ?? snapshot?.lowestListing?.price;
+    final verified = snapshot != null;
+    final stale = snapshot?.isStale ?? false;
     final label = isLoading
-        ? 'Liga: consultando...'
+        ? 'Liga: verificando...'
+        : !verified
+        ? 'Liga: ainda não verificada'
+        : stale
+        ? basePrice == null
+              ? 'Liga: verificada sem oferta • desatualizada'
+              : 'Liga: ${_formatCurrencyFromDouble(basePrice)} • desatualizado'
         : basePrice == null
-        ? 'Liga: sem preço disponível'
-        : 'Menor Liga: ${_formatCurrencyFromDouble(basePrice!)}';
+        ? 'Liga: verificada, sem oferta disponível'
+        : 'Liga: ${_formatCurrencyFromDouble(basePrice)} • verificado';
+    final color = !verified
+        ? theme.colorScheme.onSurfaceVariant
+        : stale
+        ? theme.colorScheme.tertiary
+        : theme.colorScheme.primary;
+    final icon = isLoading
+        ? Icons.sync
+        : !verified
+        ? Icons.help_outline
+        : stale
+        ? Icons.history
+        : Icons.verified_outlined;
 
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
-        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.8),
+        color: theme.colorScheme.surface.withValues(alpha: 0.8),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.query_stats_outlined),
+          Icon(icon, color: color),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(fontWeight: FontWeight.w700),
+              style: TextStyle(color: color, fontWeight: FontWeight.w800),
             ),
           ),
           if (isLoading)

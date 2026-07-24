@@ -148,6 +148,42 @@ class LigaEditionPriceCacheTest(unittest.TestCase):
             edition_cache.base_card_code("OP16-001"),
         )
 
+    def test_keeps_verified_card_without_public_offer(self):
+        edition = edition_cache.LigaEdition(
+            81,
+            "OP-16",
+            "The Time of Battle",
+            "2026-06-12 00:00:00",
+            "main",
+        )
+        source = (
+            "<script>const cardsjson = "
+            + json.dumps(
+                [
+                    {
+                        "sN": "OP16-099",
+                        "nEN": "Verified without offer (OP16-099)",
+                        "sP": "//example.test/no-offer.jpg",
+                    }
+                ]
+            )
+            + ";</script>"
+        )
+
+        rows = edition_cache.parse_edition_cards_page(
+            source,
+            edition,
+            resolved_at="2026-07-23T12:00:00Z",
+        )
+
+        self.assertEqual(1, len(rows))
+        self.assertEqual("OP16-099", rows[0]["lookup_code"])
+        self.assertIsNone(rows[0]["minimum_price"])
+        self.assertEqual(
+            "2026-07-23T12:00:00Z",
+            rows[0]["resolved_at"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -223,8 +223,6 @@ def parse_edition_cards_page(
         minimum = _safe_price(item.get("precoMenor") or item.get("p1a"))
         average = _safe_price(item.get("p1b"))
         maximum = _safe_price(item.get("precoMaior") or item.get("p1c"))
-        if minimum is None and average is None and maximum is None:
-            continue
 
         seen.add(exact_code)
         rows.append(

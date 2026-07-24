@@ -645,10 +645,14 @@ class _LibraryCardPriceSectionState
 
         final data = snapshot.data;
         final price = data?.minimumPrice ?? data?.lowestListing?.price;
-        if (snapshot.hasError || data == null || price == null) {
+        if (snapshot.hasError || data == null) {
           return _LibraryMarketplaceInfoCard.unavailable(
-            message:
-                'Preco ainda nao sincronizado para esta carta ou variante.',
+            message: 'Esta carta ou variante ainda nao foi verificada na Liga.',
+          );
+        }
+        if (price == null) {
+          return _LibraryMarketplaceInfoCard.verifiedWithoutOffer(
+            snapshot: data,
           );
         }
 
@@ -753,6 +757,25 @@ class _LibraryMarketplaceInfoCard extends StatelessWidget {
       loading: false,
       linkUrlFuture: linkUrlFuture,
       onManualRegister: onManualRegister,
+    );
+  }
+
+  factory _LibraryMarketplaceInfoCard.verifiedWithoutOffer({
+    required LigaOnePieceCardSnapshot snapshot,
+  }) {
+    final updatedAt = snapshot.resolvedAt;
+    final updatedLabel = updatedAt == null
+        ? 'Horário da verificação indisponível.'
+        : 'Verificada em ${_formatDateTime(updatedAt.toLocal())}.';
+    return _LibraryMarketplaceInfoCard._(
+      title: 'Carta verificada na LigaOnePiece',
+      message:
+          'A carta foi encontrada e verificada, mas não havia oferta com preço disponível.',
+      loading: false,
+      note: snapshot.isStale
+          ? '$updatedLabel Esta verificação está desatualizada.'
+          : updatedLabel,
+      linkUrlFuture: Future<String>.value(snapshot.sourceUrl),
     );
   }
 

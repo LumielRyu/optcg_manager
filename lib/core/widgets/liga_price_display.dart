@@ -114,33 +114,45 @@ class LigaPriceLabel extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: 6),
-          const Text('Liga: consultando...'),
+          const Text('Liga: verificando...'),
         ],
       );
     }
 
+    final verified = snapshot != null;
+    final stale = snapshot?.isStale ?? false;
+    final color = !verified
+        ? theme.colorScheme.onSurfaceVariant
+        : stale
+        ? theme.colorScheme.tertiary
+        : theme.colorScheme.primary;
+    final icon = !verified
+        ? Icons.help_outline
+        : stale
+        ? Icons.history
+        : Icons.verified_outlined;
+    final label = !verified
+        ? 'Liga: não verificada'
+        : stale
+        ? price == null
+              ? 'Liga: verificada, sem oferta • desatualizada'
+              : 'Liga: ${formatLigaPrice(price)} • desatualizado'
+        : price == null
+        ? 'Liga: verificada, sem oferta'
+        : 'Liga: ${formatLigaPrice(price)} • verificado';
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          Icons.sell_outlined,
-          size: 15,
-          color: price == null
-              ? theme.colorScheme.onSurfaceVariant
-              : theme.colorScheme.primary,
-        ),
+        Icon(icon, size: 15, color: color),
         const SizedBox(width: 5),
         Flexible(
           child: Text(
-            price == null
-                ? 'Liga: indisponível'
-                : 'Liga: ${formatLigaPrice(price)}',
+            label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: price == null
-                  ? theme.colorScheme.onSurfaceVariant
-                  : theme.colorScheme.primary,
+              color: color,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -201,19 +213,31 @@ class _LigaPriceDetailsPanelState extends ConsumerState<LigaPriceDetailsPanel> {
         final snapshot = result.data;
         final price = snapshot?.minimumPrice ?? snapshot?.lowestListing?.price;
         final loading = result.connectionState == ConnectionState.waiting;
+        final verified = snapshot != null;
+        final stale = snapshot?.isStale ?? false;
+        final statusColor = !verified
+            ? theme.colorScheme.onSurfaceVariant
+            : stale
+            ? theme.colorScheme.tertiary
+            : theme.colorScheme.primary;
+        final statusIcon = loading
+            ? Icons.sync
+            : !verified
+            ? Icons.help_outline
+            : stale
+            ? Icons.history
+            : Icons.verified_outlined;
 
         return Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: theme.colorScheme.primaryContainer.withValues(alpha: 0.32),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: theme.colorScheme.primary.withValues(alpha: 0.2),
-            ),
+            border: Border.all(color: statusColor.withValues(alpha: 0.35)),
           ),
           child: Row(
             children: [
-              Icon(Icons.sell_outlined, color: theme.colorScheme.primary),
+              Icon(statusIcon, color: statusColor),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -227,10 +251,14 @@ class _LigaPriceDetailsPanelState extends ConsumerState<LigaPriceDetailsPanel> {
                     ),
                     const SizedBox(height: 3),
                     if (loading)
-                      const Text('Consultando preço sincronizado...')
+                      const Text('Verificando o cache de preços...')
+                    else if (!verified)
+                      const Text(
+                        'Esta carta ou variante ainda não foi verificada na Liga.',
+                      )
                     else if (price == null)
                       const Text(
-                        'Preço ainda não sincronizado para esta carta ou variante.',
+                        'Carta verificada na Liga, mas sem oferta disponível.',
                       )
                     else ...[
                       Text(
@@ -240,11 +268,11 @@ class _LigaPriceDetailsPanelState extends ConsumerState<LigaPriceDetailsPanel> {
                           fontWeight: FontWeight.w900,
                         ),
                       ),
-                      if (snapshot?.resolvedAt != null)
+                      if (snapshot.resolvedAt != null)
                         Text(
-                          snapshot!.isStale
+                          stale
                               ? 'Preço desatualizado; nova sincronização pendente.'
-                              : 'Preço sincronizado automaticamente.',
+                              : 'Preço verificado e sincronizado automaticamente.',
                           style: theme.textTheme.bodySmall,
                         ),
                     ],
