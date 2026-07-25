@@ -869,3 +869,9 @@ git diff --stat
 - Validacoes locais aprovadas: 70 testes Flutter, `flutter analyze`, build web,
   E2E da biblioteca e conferencia visual com dados reais do Supabase. A grade
   voltou a exibir os valores da Liga.
+- Commit funcional `8405789`, enviado para `origin/main`.
+- Deploy Vercel de producao
+  `dpl_FmL5z7eGrkp2jSR8pBVcm56tfVYs`, status READY no alias
+  `https://optcgbh.vercel.app`.
+- O E2E posterior ao deploy passou e a conferencia visual em producao confirmou
+  os precos e o estado `verificada` diretamente nos cartoes da biblioteca.
