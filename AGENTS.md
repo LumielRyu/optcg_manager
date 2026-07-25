@@ -900,3 +900,10 @@ git diff --stat
   visiveis.
 - Validacoes aprovadas: 70 testes Flutter, `flutter analyze`, build web e
   conferencia visual da biblioteca com dados reais.
+- Commit funcional `71f02c5`, enviado para `origin/main`.
+- Deploy Vercel de producao
+  `dpl_ETXqxr3fDayrrx7hKrMTjkuy7fuA`, status READY no alias
+  `https://optcgbh.vercel.app`.
+- Em producao, `main.dart.js`, `flutter_bootstrap.js` e o worker responderam
+  com `no-store`; o E2E passou. Uma sessao preparada com o cache v4 foi
+  migrada para v5 no reload e a captura final confirmou os precos visiveis.
