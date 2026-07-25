@@ -4,6 +4,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/services/liga_one_piece_service.dart';
 import 'summary_stat_card.dart';
 
+@visibleForTesting
+LigaOnePieceCardSnapshot? selectLigaPriceSnapshot({
+  required Map<String, LigaOnePieceCardSnapshot> snapshots,
+  required String referenceKey,
+  required String lookupCode,
+  required String cardCode,
+}) {
+  final normalizedCode = cardCode.trim().toUpperCase();
+  return snapshots[referenceKey] ??
+      snapshots[lookupCode] ??
+      snapshots[normalizedCode];
+}
+
 class LigaPriceCardReference {
   final String cardName;
   final String cardCode;
@@ -224,7 +237,16 @@ class LigaPriceLabel extends ConsumerWidget {
       cardCode: cardCode,
       imageUrl: imageUrl,
     );
-    final snapshot = data?.snapshots[lookupCode];
+    final variantCode = service.lookupCodeForCard(
+      cardName: cardName,
+      cardCode: cardCode,
+    );
+    final snapshot = selectLigaPriceSnapshot(
+      snapshots: data?.snapshots ?? const {},
+      referenceKey: lookupCode,
+      lookupCode: variantCode,
+      cardCode: cardCode,
+    );
     final price = snapshot?.minimumPrice ?? snapshot?.lowestListing?.price;
     final theme = Theme.of(context);
 

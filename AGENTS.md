@@ -844,3 +844,28 @@ git diff --stat
 - Deploy Vercel de producao
   `dpl_13hoBAQesiNYrWY7TkTJUJX6E35C`, status READY no alias
   `https://optcgbh.vercel.app`.
+
+### 25/07/2026 - Precos nas grades da biblioteca e colecao
+
+- O preco da Liga aparecia corretamente no detalhe da carta, mas as grades da
+  biblioteca e da colecao mostravam `Liga: nao verificada`.
+- A consulta em lote ao Supabase foi confirmada com respostas `200` e dados
+  validos. A falha estava na selecao local: havia candidatos para todas as
+  referencias, mas o primeiro candidato podia ser descartado na compilacao web
+  por depender somente do valor sentinela usado na pontuacao.
+- O seletor agora aceita explicitamente o primeiro candidato quando ainda nao
+  existe melhor resultado e depois compara pontuacao e data normalmente.
+- O carregamento em lote passou a indexar tanto `card_code` quanto
+  `lookup_code`, deduplicar candidatos e registrar aliases pela referencia
+  exata da imagem, codigo de variante e codigo base da carta.
+- O componente visual prioriza a referencia exata da imagem e usa os aliases
+  somente como fallback. Isso mantem a biblioteca e a colecao alinhadas com o
+  preco resolvido no detalhe da carta.
+- Falhas isoladas de consulta ou conversao agora sao enviadas ao
+  `AppErrorReporter`; os fallbacks locais de memoria, Hive e assets continuam
+  disponiveis sem criar uma requisicao remota por carta.
+- Foram adicionados testes de regressao para a referencia exata, para a troca
+  de URL da imagem e para o fallback pelo codigo base.
+- Validacoes locais aprovadas: 70 testes Flutter, `flutter analyze`, build web,
+  E2E da biblioteca e conferencia visual com dados reais do Supabase. A grade
+  voltou a exibir os valores da Liga.

@@ -8,6 +8,7 @@ import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/services/app_error_reporter.dart';
 import '../local/hive_boxes.dart';
 import 'supabase_client_provider.dart';
 
@@ -356,7 +357,15 @@ class LigaOnePieceService {
       }
     }
 
-    final rowsByCardCode = <String, List<Map<String, dynamic>>>{};
+    final rowsByCode = <String, List<Map<String, dynamic>>>{};
+
+    void indexRow(Map<String, dynamic> row, Object? rawCode) {
+      final code = _normalizeLookupCode(rawCode?.toString() ?? '');
+      if (code.isEmpty) return;
+      final indexed = rowsByCode.putIfAbsent(code, () => []);
+      if (!indexed.contains(row)) indexed.add(row);
+    }
+
     const chunkSize = 80;
     final queryCodes = missingReferences
         .expand(
@@ -382,43 +391,98 @@ class LigaOnePieceService {
               .range(pageStart, pageStart + pageSize - 1);
           for (final rawRow in rows) {
             final row = Map<String, dynamic>.from(rawRow);
-            final cardCode = _normalizeLookupCode(
-              row['card_code']?.toString() ?? '',
-            );
-            if (cardCode.isEmpty) continue;
-            rowsByCardCode.putIfAbsent(cardCode, () => []).add(row);
+            indexRow(row, row['card_code']);
+            indexRow(row, row['lookup_code']);
           }
           if (rows.length < pageSize) break;
           pageStart += pageSize;
         }
-      } catch (_) {
+      } catch (error, stackTrace) {
+        AppErrorReporter.report(
+          error,
+          stackTrace,
+          context: 'liga-price-batch-query',
+        );
         // A lista continua utilizavel mesmo se o cache remoto estiver offline.
       }
     }
 
     for (final card in missingReferences) {
-      final normalizedCode = _normalizeLookupCode(card.cardCode);
-      final lookupCode = lookupCodeForCard(
-        cardName: card.cardName,
-        cardCode: card.cardCode,
-      );
-      final candidates = <Map<String, dynamic>>[
-        ...?rowsByCardCode[normalizedCode],
-        if (lookupCode != normalizedCode) ...?rowsByCardCode[lookupCode],
-      ];
-      final row = selectBestRemoteRow(
-        candidates,
-        cardName: card.cardName,
-        lookupCode: lookupCode,
-        imageUrl: card.imageUrl,
-      );
-      if (row == null) continue;
-      final snapshot = _snapshotFromRemoteRow(row);
-      _saveSnapshotForCardCode(card.referenceKey, snapshot);
-      snapshots[card.referenceKey] = snapshot;
+      try {
+        final normalizedCode = _normalizeLookupCode(card.cardCode);
+        final lookupCode = lookupCodeForCard(
+          cardName: card.cardName,
+          cardCode: card.cardCode,
+        );
+        final candidates = <Map<String, dynamic>>{
+          ...?rowsByCode[normalizedCode],
+          ...?rowsByCode[lookupCode],
+        };
+        final row = selectBestRemoteRow(
+          candidates,
+          cardName: card.cardName,
+          lookupCode: lookupCode,
+          imageUrl: card.imageUrl,
+        );
+        final snapshot = row == null
+            ? await _cachedFallbackForBatchCard(
+                referenceKey: card.referenceKey,
+                lookupCode: lookupCode,
+                normalizedCode: normalizedCode,
+              )
+            : _snapshotFromRemoteRow(row);
+        if (snapshot == null) continue;
+        _registerBatchSnapshot(
+          snapshots,
+          referenceKey: card.referenceKey,
+          lookupCode: lookupCode,
+          normalizedCode: normalizedCode,
+          snapshot: snapshot,
+        );
+      } catch (error, stackTrace) {
+        AppErrorReporter.report(
+          error,
+          stackTrace,
+          context: 'liga-price-batch-map',
+        );
+      }
     }
 
     return snapshots;
+  }
+
+  Future<LigaOnePieceCardSnapshot?> _cachedFallbackForBatchCard({
+    required String referenceKey,
+    required String lookupCode,
+    required String normalizedCode,
+  }) async {
+    final memoryCached =
+        _memorySnapshotForCardCode(referenceKey) ??
+        _memorySnapshotForCardCode(lookupCode) ??
+        _memorySnapshotForCardCode(normalizedCode);
+    if (memoryCached != null) return memoryCached;
+
+    final persistedCached =
+        _persistedSnapshotForCardCode(lookupCode) ??
+        _persistedSnapshotForCardCode(normalizedCode);
+    if (persistedCached != null) return persistedCached;
+
+    return await _assetSnapshotForCardCode(lookupCode) ??
+        await _assetSnapshotForCardCode(normalizedCode);
+  }
+
+  void _registerBatchSnapshot(
+    Map<String, LigaOnePieceCardSnapshot> snapshots, {
+    required String referenceKey,
+    required String lookupCode,
+    required String normalizedCode,
+    required LigaOnePieceCardSnapshot snapshot,
+  }) {
+    snapshots[referenceKey] = snapshot;
+    snapshots.putIfAbsent(lookupCode, () => snapshot);
+    snapshots.putIfAbsent(normalizedCode, () => snapshot);
+    _saveSnapshotForCardCode(referenceKey, snapshot);
+    _saveSnapshotForCardCode(lookupCode, snapshot);
   }
 
   Future<LigaOnePieceCardSnapshot?> requestLigaCacheRefreshForCard({
@@ -699,7 +763,8 @@ class LigaOnePieceService {
       final resolvedAt = DateTime.tryParse(
         row['resolved_at']?.toString() ?? '',
       );
-      if (score > bestScore ||
+      if (best == null ||
+          score > bestScore ||
           (score == bestScore &&
               resolvedAt != null &&
               (bestResolvedAt == null || resolvedAt.isAfter(bestResolvedAt)))) {

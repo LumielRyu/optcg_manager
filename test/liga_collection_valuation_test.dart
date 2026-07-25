@@ -1,7 +1,78 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:optcg_manager/core/widgets/liga_price_display.dart';
+import 'package:optcg_manager/data/services/liga_one_piece_service.dart';
 
 void main() {
+  const normalSnapshot = LigaOnePieceCardSnapshot(
+    sourceUrl: 'https://liga.example/card',
+    cardName: 'Kouzuki Oden',
+    cardCode: 'EB01-001',
+    editionCode: 'EB01',
+    imageUrl: 'https://liga.example/oden.jpg',
+    minimumPrice: 28,
+    averagePrice: null,
+    maximumPrice: null,
+    listingCount: 1,
+    lowestListing: null,
+    lowestStore: null,
+    historyEndpointRequiresLogin: true,
+    usedVerifiedFallback: false,
+    note: null,
+  );
+  const alternateSnapshot = LigaOnePieceCardSnapshot(
+    sourceUrl: 'https://liga.example/card-alt',
+    cardName: 'Kouzuki Oden (Alternate Art)',
+    cardCode: 'EB01-001-AA',
+    editionCode: 'EB01',
+    imageUrl: 'https://liga.example/oden-alt.jpg',
+    minimumPrice: 229.99,
+    averagePrice: null,
+    maximumPrice: null,
+    listingCount: 1,
+    lowestListing: null,
+    lowestStore: null,
+    historyEndpointRequiresLogin: true,
+    usedVerifiedFallback: false,
+    note: null,
+  );
+
+  test('price label prefers the exact image-specific snapshot', () {
+    final selected = selectLigaPriceSnapshot(
+      snapshots: const {
+        'EB01-001': normalSnapshot,
+        'EB01-001-AA': alternateSnapshot,
+        'EB01-001-AA::IMG::alternatejpg': alternateSnapshot,
+      },
+      referenceKey: 'EB01-001-AA::IMG::alternatejpg',
+      lookupCode: 'EB01-001-AA',
+      cardCode: 'EB01-001',
+    );
+
+    expect(selected?.minimumPrice, 229.99);
+  });
+
+  test('price label falls back to lookup code when image URL changes', () {
+    final selected = selectLigaPriceSnapshot(
+      snapshots: const {'EB01-001-AA': alternateSnapshot},
+      referenceKey: 'EB01-001-AA::IMG::newcdnimagejpg',
+      lookupCode: 'EB01-001-AA',
+      cardCode: 'EB01-001',
+    );
+
+    expect(selected?.minimumPrice, 229.99);
+  });
+
+  test('price label falls back to normalized card code', () {
+    final selected = selectLigaPriceSnapshot(
+      snapshots: const {'EB01-001': normalSnapshot},
+      referenceKey: 'EB01-001::IMG::newcdnimagejpg',
+      lookupCode: 'EB01-001',
+      cardCode: 'eb01-001',
+    );
+
+    expect(selected?.minimumPrice, 28);
+  });
+
   test('collection value multiplies Liga price by owned quantity', () {
     final valuation = calculateLigaCollectionValuation(
       items: const [
