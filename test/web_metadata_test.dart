@@ -23,7 +23,11 @@ void main() {
     expect(html, contains("window.addEventListener('flutter-first-frame'"));
     expect(
       html,
-      contains("navigator.serviceWorker.register('pwa_service_worker.js')"),
+      contains(".register('pwa_service_worker.js', { updateViaCache: 'none' })"),
+    );
+    expect(
+      html,
+      contains("const cacheResetVersion = '2026-07-25-liga-price-grid-v1'"),
     );
     expect(File('assets/editorial/marketplace_hero.png').existsSync(), isTrue);
 
@@ -41,7 +45,9 @@ void main() {
     final worker = File('web/pwa_service_worker.js').readAsStringSync();
     final bootstrap = File('web/flutter_bootstrap.js').readAsStringSync();
 
-    expect(worker, contains("const CACHE_NAME = 'optcg-shell-v4'"));
+    expect(worker, contains("const CACHE_NAME = 'optcg-shell-v5'"));
+    expect(worker, contains('const NETWORK_FIRST_ASSETS = new Set(['));
+    expect(worker, contains("fetch(request, { cache: 'no-store' })"));
     expect(worker, contains("url.pathname.startsWith('/api/')"));
     expect(worker, contains("caches.match('/index.html')"));
     expect(worker, contains("'/main.dart.js'"));

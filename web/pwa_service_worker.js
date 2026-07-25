@@ -1,6 +1,17 @@
 'use strict';
 
-const CACHE_NAME = 'optcg-shell-v4';
+const CACHE_NAME = 'optcg-shell-v5';
+const NETWORK_FIRST_ASSETS = new Set([
+  '/',
+  '/index.html',
+  '/flutter.js',
+  '/flutter_bootstrap.js',
+  '/main.dart.js',
+  '/version.json',
+  '/assets/AssetManifest.bin',
+  '/assets/AssetManifest.bin.json',
+  '/assets/FontManifest.json',
+]);
 const CORE_ASSETS = [
   '/',
   '/index.html',
@@ -65,9 +76,32 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(async () => {
-        return (await caches.match('/index.html')) || caches.match('/');
-      }),
+      fetch(request, { cache: 'no-store' })
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', copy));
+          }
+          return response;
+        })
+        .catch(async () => {
+          return (await caches.match('/index.html')) || caches.match('/');
+        }),
+    );
+    return;
+  }
+
+  if (NETWORK_FIRST_ASSETS.has(url.pathname)) {
+    event.respondWith(
+      fetch(request, { cache: 'no-store' })
+        .then((response) => {
+          if (response.ok && response.type === 'basic') {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request)),
     );
     return;
   }

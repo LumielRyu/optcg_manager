@@ -875,3 +875,28 @@ git diff --stat
   `https://optcgbh.vercel.app`.
 - O E2E posterior ao deploy passou e a conferencia visual em producao confirmou
   os precos e o estado `verificada` diretamente nos cartoes da biblioteca.
+
+### 25/07/2026 - Atualizacao automatica do PWA apos correcoes
+
+- Uma captura do usuario ainda mostrava todos os cartoes como
+  `Liga: nao verificada`, apesar de o build novo funcionar em uma sessao sem
+  cache.
+- O deploy estava READY e os arquivos do Vercel tinham o `ETag` e a data do
+  build correto. A causa foi o worker `optcg-shell-v4`: para arquivos comuns,
+  inclusive `main.dart.js`, ele devolvia o cache antigo primeiro e atualizava
+  apenas em segundo plano.
+- O worker `optcg-shell-v5` passou a usar rede primeiro para navegacoes,
+  bootstrap, JavaScript principal, manifesto de assets e versao do Flutter,
+  mantendo o cache somente como fallback offline.
+- O registro do worker usa `updateViaCache: none` e solicita uma verificacao de
+  atualizacao depois do primeiro frame.
+- A chave de limpeza foi alterada para
+  `2026-07-25-liga-price-grid-v1`, removendo uma unica vez os workers e caches
+  antigos antes de carregar o Flutter para visitantes que ja usavam o site.
+- Vercel recebeu `no-store` explicito para HTML e arquivos executaveis sem hash.
+- A regressao foi reproduzida localmente criando `optcg-shell-v4` e a chave de
+  reset anterior. Depois do reload, restou somente `optcg-shell-v5`, a chave
+  nova foi gravada, o worker controlou a pagina e os precos continuaram
+  visiveis.
+- Validacoes aprovadas: 70 testes Flutter, `flutter analyze`, build web e
+  conferencia visual da biblioteca com dados reais.

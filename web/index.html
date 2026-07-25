@@ -197,9 +197,14 @@
       if (loader) loader.classList.add('hidden');
 
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('pwa_service_worker.js').catch(function (error) {
-          console.warn('Unable to register the app service worker.', error);
-        });
+        navigator.serviceWorker
+          .register('pwa_service_worker.js', { updateViaCache: 'none' })
+          .then(function (registration) {
+            return registration.update();
+          })
+          .catch(function (error) {
+            console.warn('Unable to register the app service worker.', error);
+          });
       }
     });
 
@@ -249,7 +254,7 @@
 
   <script>
     (function () {
-      const cacheResetVersion = '2026-07-17-pokemon-tv-v4';
+      const cacheResetVersion = '2026-07-25-liga-price-grid-v1';
       const tesseractUrl = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
       let tesseractLoadPromise = null;
 
