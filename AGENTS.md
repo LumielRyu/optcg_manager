@@ -929,3 +929,11 @@ git diff --stat
   a politica de imagens.
 - Validacoes locais aprovadas: 72 testes Flutter, `flutter analyze`, build web
   e abertura da colecao em viewport movel sem erros de console.
+- Commit funcional `9066f2f`, enviado para `origin/main`.
+- Deploy Vercel de producao
+  `dpl_8LabgzYFhFzs6626ghsSipSvsSL2`, status READY no alias
+  `https://optcgbh.vercel.app`.
+- O `main.dart.js` novo foi confirmado pelo ETag de producao e a rota da
+  colecao abriu em viewport de celular sem erros de console. A sessao de teste
+  nao possui as cartas privadas do usuario; a confirmacao final no WebKit com
+  as 15 cartas depende de novo teste no iPhone autenticado.
