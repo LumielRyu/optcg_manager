@@ -907,3 +907,25 @@ git diff --stat
 - Em producao, `main.dart.js`, `flutter_bootstrap.js` e o worker responderam
   com `no-store`; o E2E passou. Uma sessao preparada com o cache v4 foi
   migrada para v5 no reload e a captura final confirmou os precos visiveis.
+
+### 25/07/2026 - Estabilidade da colecao no Safari do iPhone
+
+- O video `WhatsApp Video 2026-07-25 at 21.27.43.mp4` mostrou o processo WebKit
+  encerrando durante o scroll: na primeira queda o Safari recarregava a pagina
+  e, na segunda, exibia `Um problema ocorreu repetidamente`.
+- Nao havia erro Flutter ou Vercel no horario. A colecao combinava
+  `SingleChildScrollView`, grids/listas com `shrinkWrap`, imagens como elementos
+  HTML sobre CanvasKit e um `RepaintBoundary` por carta. Assim, todas as cartas
+  permaneciam renderizadas durante o scroll.
+- A tela passou a usar um unico `CustomScrollView`, com cabecalho em
+  `SliverToBoxAdapter` e conteudo em `SliverGrid` ou `SliverList`. Cartas fora
+  da area proxima ao viewport agora podem ser descartadas pelo Flutter.
+- As camadas extras por carta foram removidas do delegate do grid.
+- As imagens da colecao limitam a largura decodificada conforme tela e
+  densidade, com teto de 720 pixels. A estrategia web mudou de elemento HTML
+  obrigatorio para fallback, usando-o apenas quando o host bloqueia a
+  renderizacao direta.
+- Foram adicionados testes de regressao para a arquitetura virtualizada e para
+  a politica de imagens.
+- Validacoes locais aprovadas: 72 testes Flutter, `flutter analyze`, build web
+  e abertura da colecao em viewport movel sem erros de console.

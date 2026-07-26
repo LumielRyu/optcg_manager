@@ -160,10 +160,25 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
       onImportCode: () => _openCodeImport(destination),
       onManualAdd: _openManualAddDialog,
     );
-    final collectionContent = Column(
-      children: [
-        header,
-        _StandardLibraryView(items: filteredItems, viewMode: viewMode),
+    final collectionContent = CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(child: header),
+        if (_selectedLibrary == CollectionTypes.deck)
+          _VirtualizedDeckLibraryView(
+            items: filteredItems,
+            onOpenDeck: (deckName, deckItems) {
+              showDialog(
+                context: context,
+                builder: (_) =>
+                    DeckDetailsDialog(deckName: deckName, items: deckItems),
+              );
+            },
+          )
+        else
+          _VirtualizedStandardLibraryView(
+            items: filteredItems,
+            viewMode: viewMode,
+          ),
       ],
     );
 
@@ -210,38 +225,20 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: _selectedLibrary == CollectionTypes.deck
-            ? Column(
-                children: [
-                  header,
-                  _DeckLibraryView(
-                    items: filteredItems,
-                    onOpenDeck: (deckName, deckItems) {
-                      showDialog(
-                        context: context,
-                        builder: (_) => DeckDetailsDialog(
-                          deckName: deckName,
-                          items: deckItems,
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              )
-            : LigaPriceScope(
-                cards: libraryItems
-                    .map(
-                      (card) => LigaPriceCardReference(
-                        cardName: card.name,
-                        cardCode: card.cardCode,
-                        imageUrl: card.imageUrl,
-                      ),
-                    )
-                    .toList(growable: false),
-                child: collectionContent,
-              ),
-      ),
+      body: _selectedLibrary == CollectionTypes.deck
+          ? collectionContent
+          : LigaPriceScope(
+              cards: libraryItems
+                  .map(
+                    (card) => LigaPriceCardReference(
+                      cardName: card.name,
+                      cardCode: card.cardCode,
+                      imageUrl: card.imageUrl,
+                    ),
+                  )
+                  .toList(growable: false),
+              child: collectionContent,
+            ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openAddCardsSheet(destination),
         icon: const Icon(Icons.add_photo_alternate_outlined),
@@ -1090,11 +1087,14 @@ Future<bool> _importCardToSales(
   }
 }
 
-class _StandardLibraryView extends ConsumerWidget {
+class _VirtualizedStandardLibraryView extends ConsumerWidget {
   final List<CardRecord> items;
   final CollectionViewMode viewMode;
 
-  const _StandardLibraryView({required this.items, required this.viewMode});
+  const _VirtualizedStandardLibraryView({
+    required this.items,
+    required this.viewMode,
+  });
 
   static const double _cardMaxWidth = 220;
   static const double _cardSpacing = 12;
@@ -1103,181 +1103,176 @@ class _StandardLibraryView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
-      return const _EmptyState(
-        title: 'Nenhuma carta encontrada.',
-        subtitle: 'Adicione cartas ou ajuste sua busca.',
+      return const SliverFillRemaining(
+        hasScrollBody: false,
+        child: _EmptyState(
+          title: 'Nenhuma carta encontrada.',
+          subtitle: 'Adicione cartas ou ajuste sua busca.',
+        ),
       );
     }
-
-    final itemsSignature = items
-        .map((item) => '${item.id}-${item.cardCode}-${item.imageUrl}')
-        .join('|');
 
     if (viewMode == CollectionViewMode.list) {
-      return ListView.separated(
-        key: ValueKey('collection-list-$itemsSignature'),
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
+      return SliverPadding(
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
-        itemCount: items.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 10),
-        itemBuilder: (context, index) {
-          final item = items[index];
-
-          return CatalogListCard(
-            key: ValueKey('list-card-${item.id}-${item.cardCode}'),
-            title: item.name,
-            code: item.cardCode,
-            metadata: [
-              'Set: ${item.setName.isEmpty ? '-' : item.setName}',
-              'Quantidade: ${item.quantity}x',
-            ],
-            trailing: SizedBox(
-              width: 155,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  LigaPriceLabel(
-                    cardName: item.name,
-                    cardCode: item.cardCode,
-                    imageUrl: item.imageUrl,
-                  ),
-                  IconButton(
-                    tooltip: 'Adicionar às vendas',
-                    onPressed: () => _importCardToSales(context, ref, item),
-                    icon: const Icon(Icons.add_shopping_cart_outlined),
-                  ),
-                ],
-              ),
-            ),
-            image: _CollectionCardImage(
-              key: ValueKey(
-                'list-image-${item.id}-${item.cardCode}-${item.imageUrl}',
-              ),
-              imageUrl: item.imageUrl,
-              cardCode: item.cardCode,
-              fit: BoxFit.contain,
-            ),
-            onTap: () {
-              showDialog(
-                context: context,
-                builder: (_) =>
-                    _CardDetailsDialog(card: item, sourceRecords: [item]),
-              );
-            },
-          );
-        },
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate((context, index) {
+            if (index.isOdd) return const SizedBox(height: 10);
+            return _buildListCard(context, ref, items[index ~/ 2]);
+          }, childCount: (items.length * 2) - 1),
+        ),
       );
     }
 
-    return GridView.builder(
-      key: ValueKey('collection-grid-$itemsSignature'),
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+    return SliverPadding(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: _cardMaxWidth,
-        crossAxisSpacing: _cardSpacing,
-        mainAxisSpacing: _cardSpacing,
-        childAspectRatio: _gridAspectRatio,
+      sliver: SliverGrid(
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: _cardMaxWidth,
+          crossAxisSpacing: _cardSpacing,
+          mainAxisSpacing: _cardSpacing,
+          childAspectRatio: _gridAspectRatio,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (context, index) => _buildGridCard(context, ref, items[index]),
+          childCount: items.length,
+          addRepaintBoundaries: false,
+        ),
       ),
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final item = items[index];
+    );
+  }
 
-        return RepaintBoundary(
-          child: CatalogGridCard(
-            key: ValueKey('grid-card-${item.id}-${item.cardCode}'),
-            code: item.cardCode,
-            title: item.name,
-            metadata: ['Quantidade: ${item.quantity}x'],
-            trailingActions: [
-              IconButton(
-                tooltip: 'Adicionar às vendas',
-                visualDensity: VisualDensity.compact,
-                onPressed: () => _importCardToSales(context, ref, item),
-                icon: const Icon(Icons.add_shopping_cart_outlined, size: 20),
-              ),
-            ],
-            footer: LigaPriceLabel(
+  Widget _buildListCard(BuildContext context, WidgetRef ref, CardRecord item) {
+    return CatalogListCard(
+      key: ValueKey('list-card-${item.id}-${item.cardCode}'),
+      title: item.name,
+      code: item.cardCode,
+      metadata: [
+        'Set: ${item.setName.isEmpty ? '-' : item.setName}',
+        'Quantidade: ${item.quantity}x',
+      ],
+      trailing: SizedBox(
+        width: 155,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            LigaPriceLabel(
               cardName: item.name,
               cardCode: item.cardCode,
               imageUrl: item.imageUrl,
             ),
-            image: _CollectionCardImage(
-              key: ValueKey(
-                'grid-image-${item.id}-${item.cardCode}-${item.imageUrl}',
-              ),
-              imageUrl: item.imageUrl,
-              cardCode: item.cardCode,
-              fit: BoxFit.contain,
+            IconButton(
+              tooltip: 'Adicionar \u00e0s vendas',
+              onPressed: () => _importCardToSales(context, ref, item),
+              icon: const Icon(Icons.add_shopping_cart_outlined),
             ),
-            onTap: () {
-              showDialog(
-                context: context,
-                builder: (_) =>
-                    _CardDetailsDialog(card: item, sourceRecords: [item]),
-              );
-            },
-          ),
-        );
-      },
+          ],
+        ),
+      ),
+      image: _CollectionCardImage(
+        key: ValueKey(
+          'list-image-${item.id}-${item.cardCode}-${item.imageUrl}',
+        ),
+        imageUrl: item.imageUrl,
+        cardCode: item.cardCode,
+      ),
+      onTap: () => _openCardDetails(context, item),
+    );
+  }
+
+  Widget _buildGridCard(BuildContext context, WidgetRef ref, CardRecord item) {
+    return CatalogGridCard(
+      key: ValueKey('grid-card-${item.id}-${item.cardCode}'),
+      code: item.cardCode,
+      title: item.name,
+      metadata: ['Quantidade: ${item.quantity}x'],
+      trailingActions: [
+        IconButton(
+          tooltip: 'Adicionar \u00e0s vendas',
+          visualDensity: VisualDensity.compact,
+          onPressed: () => _importCardToSales(context, ref, item),
+          icon: const Icon(Icons.add_shopping_cart_outlined, size: 20),
+        ),
+      ],
+      footer: LigaPriceLabel(
+        cardName: item.name,
+        cardCode: item.cardCode,
+        imageUrl: item.imageUrl,
+      ),
+      image: _CollectionCardImage(
+        key: ValueKey(
+          'grid-image-${item.id}-${item.cardCode}-${item.imageUrl}',
+        ),
+        imageUrl: item.imageUrl,
+        cardCode: item.cardCode,
+      ),
+      onTap: () => _openCardDetails(context, item),
+    );
+  }
+
+  void _openCardDetails(BuildContext context, CardRecord item) {
+    showDialog(
+      context: context,
+      builder: (_) => _CardDetailsDialog(card: item, sourceRecords: [item]),
     );
   }
 }
 
-class _DeckLibraryView extends StatelessWidget {
+class _VirtualizedDeckLibraryView extends StatelessWidget {
   final List<CardRecord> items;
   final void Function(String deckName, List<CardRecord> deckItems) onOpenDeck;
 
-  const _DeckLibraryView({required this.items, required this.onOpenDeck});
+  const _VirtualizedDeckLibraryView({
+    required this.items,
+    required this.onOpenDeck,
+  });
 
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) {
-      return const _EmptyState(
-        title: 'Nenhum deck encontrado.',
-        subtitle: 'Adicione cartas em um deck para visualizar aqui.',
+      return const SliverFillRemaining(
+        hasScrollBody: false,
+        child: _EmptyState(
+          title: 'Nenhum deck encontrado.',
+          subtitle: 'Adicione cartas em um deck para visualizar aqui.',
+        ),
       );
     }
 
     final grouped = <String, List<CardRecord>>{};
-
     for (final item in items) {
       final name = (item.deckName ?? 'Sem nome').trim();
       grouped.putIfAbsent(name, () => []).add(item);
     }
-
     final decks = grouped.entries.toList()
       ..sort((a, b) => a.key.toLowerCase().compareTo(b.key.toLowerCase()));
 
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+    return SliverPadding(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
-      itemCount: decks.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        final deck = decks[index];
-        final totalCards = deck.value.fold<int>(
-          0,
-          (sum, item) => sum + item.quantity,
-        );
-
-        return Card(
-          child: ListTile(
-            leading: const CircleAvatar(
-              child: Icon(Icons.dashboard_customize_outlined),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate((context, index) {
+          if (index.isOdd) return const SizedBox(height: 10);
+          final deck = decks[index ~/ 2];
+          final totalCards = deck.value.fold<int>(
+            0,
+            (sum, item) => sum + item.quantity,
+          );
+          return Card(
+            child: ListTile(
+              leading: const CircleAvatar(
+                child: Icon(Icons.dashboard_customize_outlined),
+              ),
+              title: Text(deck.key),
+              subtitle: Text(
+                '${deck.value.length} cartas \u00fanicas \u2022 '
+                '$totalCards cartas no total',
+              ),
+              onTap: () => onOpenDeck(deck.key, deck.value),
             ),
-            title: Text(deck.key),
-            subtitle: Text(
-              '${deck.value.length} cartas únicas • $totalCards cartas no total',
-            ),
-            onTap: () => onOpenDeck(deck.key, deck.value),
-          ),
-        );
-      },
+          );
+        }, childCount: (decks.length * 2) - 1),
+      ),
     );
   }
 }
@@ -1302,12 +1297,20 @@ class _CollectionCardImage extends StatelessWidget {
       return const _ImagePlaceholder();
     }
 
+    final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+    final logicalWidth = MediaQuery.sizeOf(context).width < 600 ? 180.0 : 240.0;
+    final decodeWidth = (logicalWidth * devicePixelRatio).round().clamp(
+      180,
+      720,
+    );
+
     return Image.network(
       directUrl,
       key: ValueKey('collection-image-$cardCode-$directUrl'),
       fit: fit,
       gaplessPlayback: false,
-      webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+      cacheWidth: decodeWidth,
+      webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
       filterQuality: FilterQuality.low,
       errorBuilder: (_, _, _) {
         return const _ImagePlaceholder();

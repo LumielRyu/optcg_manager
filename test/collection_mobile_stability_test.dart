@@ -1,0 +1,33 @@
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  test('collection uses a virtualized sliver layout on mobile web', () {
+    final source = File(
+      'lib/features/collection/collection_screen.dart',
+    ).readAsStringSync();
+
+    expect(source, contains('final collectionContent = CustomScrollView('));
+    expect(source, contains('_VirtualizedStandardLibraryView('));
+    expect(source, contains('_VirtualizedDeckLibraryView('));
+    expect(source, contains('sliver: SliverGrid('));
+    expect(source, contains('addRepaintBoundaries: false'));
+    expect(source, isNot(contains('body: SingleChildScrollView(')));
+  });
+
+  test(
+    'collection grid limits decoded images and avoids forced HTML views',
+    () {
+      final source = File(
+        'lib/features/collection/collection_screen.dart',
+      ).readAsStringSync();
+
+      expect(source, contains('cacheWidth: decodeWidth'));
+      expect(
+        source,
+        contains('webHtmlElementStrategy: WebHtmlElementStrategy.fallback'),
+      );
+    },
+  );
+}
