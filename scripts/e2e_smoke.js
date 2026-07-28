@@ -61,7 +61,7 @@ const ROUTES = [
     name: 'pokemon-hub',
     hash: '#/pokemon',
     title: 'Pokemon | TCG BH',
-    content: ['Pokemon', 'Biblioteca', 'Colecao', 'Decks', 'Vendas', 'Marketplace', 'Procuradas'],
+    content: ['Pokemon', 'Biblioteca', 'Colecao', 'Decks', 'Vendas', 'Marketplace', 'Procuradas', 'Importar e escanear'],
     backTarget: '#/home',
     backButtonLabel: 'Voltar ao Home',
   },
@@ -111,10 +111,20 @@ const ROUTES = [
     screenshot: 'pokemon-wanted.png',
   },
   {
+    name: 'pokemon-import',
+    hash: '#/pokemon/import',
+    title: 'Scanner Pokemon | TCG BH',
+    content: ['Importar e escanear', 'Pesquisar', 'Usar camera'],
+    backTarget: '#/pokemon',
+    screenshot: 'pokemon-import.png',
+    searchQuery: 'Pikachu',
+    ignoredConsoleErrorIncludes: ['api.pokemontcg.io'],
+  },
+  {
     name: 'digimon-hub',
     hash: '#/digimon',
     title: 'Digimon | TCG BH',
-    content: ['Digimon', 'Biblioteca', 'Colecao', 'Decks', 'Vendas', 'Marketplace', 'Procuradas'],
+    content: ['Digimon', 'Biblioteca', 'Colecao', 'Decks', 'Vendas', 'Marketplace', 'Procuradas', 'Importar e escanear'],
     backTarget: '#/home',
     backButtonLabel: 'Voltar ao Home',
   },
@@ -162,10 +172,18 @@ const ROUTES = [
     backTarget: '#/digimon',
   },
   {
+    name: 'digimon-import',
+    hash: '#/digimon/import',
+    title: 'Scanner Digimon | TCG BH',
+    content: ['Importar e escanear', 'Pesquisar', 'Usar camera'],
+    backTarget: '#/digimon',
+    searchQuery: 'Agumon',
+  },
+  {
     name: 'magic-hub',
     hash: '#/magic',
     title: 'Magic | TCG BH',
-    content: ['Magic', 'Biblioteca', 'Colecao', 'Decks', 'Vendas', 'Marketplace', 'Procuradas'],
+    content: ['Magic', 'Biblioteca', 'Colecao', 'Decks', 'Vendas', 'Marketplace', 'Procuradas', 'Importar e escanear'],
     backTarget: '#/home',
     backButtonLabel: 'Voltar ao Home',
   },
@@ -213,10 +231,18 @@ const ROUTES = [
     backTarget: '#/magic',
   },
   {
+    name: 'magic-import',
+    hash: '#/magic/import',
+    title: 'Scanner Magic | TCG BH',
+    content: ['Importar e escanear', 'Pesquisar', 'Usar camera'],
+    backTarget: '#/magic',
+    searchQuery: 'Lightning Bolt',
+  },
+  {
     name: 'riftbound-hub',
     hash: '#/riftbound',
     title: 'Riftbound | TCG BH',
-    content: ['Riftbound', 'Biblioteca', 'Colecao', 'Decks', 'Vendas', 'Marketplace', 'Procuradas'],
+    content: ['Riftbound', 'Biblioteca', 'Colecao', 'Decks', 'Vendas', 'Marketplace', 'Procuradas', 'Importar e escanear'],
     backTarget: '#/home',
     backButtonLabel: 'Voltar ao Home',
   },
@@ -264,10 +290,18 @@ const ROUTES = [
     backTarget: '#/riftbound',
   },
   {
+    name: 'riftbound-import',
+    hash: '#/riftbound/import',
+    title: 'Scanner Riftbound | TCG BH',
+    content: ['Importar e escanear', 'Pesquisar', 'Usar camera'],
+    backTarget: '#/riftbound',
+    searchQuery: 'Ahri',
+  },
+  {
     name: 'yugioh-hub',
     hash: '#/yugioh',
     title: 'Yu-Gi-Oh | TCG BH',
-    content: ['Yu-Gi-Oh', 'Biblioteca', 'Colecao', 'Decks', 'Vendas', 'Marketplace', 'Procuradas'],
+    content: ['Yu-Gi-Oh', 'Biblioteca', 'Colecao', 'Decks', 'Vendas', 'Marketplace', 'Procuradas', 'Importar e escanear'],
     backTarget: '#/home',
     backButtonLabel: 'Voltar ao Home',
   },
@@ -316,6 +350,14 @@ const ROUTES = [
     title: 'Procuradas Yu-Gi-Oh | TCG BH',
     content: ['Procuradas', 'copias procuradas'],
     backTarget: '#/yugioh',
+  },
+  {
+    name: 'yugioh-import',
+    hash: '#/yugioh/import',
+    title: 'Scanner Yu-Gi-Oh | TCG BH',
+    content: ['Importar e escanear', 'Pesquisar', 'Usar camera'],
+    backTarget: '#/yugioh',
+    searchQuery: 'Dark Magician',
   },
   {
     name: 'products',
@@ -449,6 +491,55 @@ async function clickFlutterButton(page, label) {
   await page.mouse.click(rect.x, rect.y);
 }
 
+async function searchFlutterCatalog(page, query) {
+  const rect = await page.evaluate(() => {
+    const element = Array.from(
+      document.querySelectorAll('flt-semantics[role="textbox"]'),
+    ).find((item) => {
+      const bounds = item.getBoundingClientRect();
+      return bounds.width > 0 && bounds.height > 0;
+    });
+    const fallback = Array.from(
+      document.querySelectorAll('flt-semantics'),
+    ).find((item) => {
+      const bounds = item.getBoundingClientRect();
+      const centerY = bounds.top + bounds.height / 2;
+      return (
+        bounds.width > window.innerWidth * 0.7 &&
+        bounds.height >= 40 &&
+        bounds.height <= 90 &&
+        centerY >= 180 &&
+        centerY <= 330
+      );
+    });
+    const target = element || fallback;
+    if (!target) return null;
+    const bounds = target.getBoundingClientRect();
+    return {
+      x: bounds.left + bounds.width / 2,
+      y: bounds.top + bounds.height / 2,
+    };
+  });
+  if (!rect) throw new Error('Campo de pesquisa Flutter nao encontrado.');
+  await page.mouse.click(rect.x, rect.y);
+  await new Promise((resolve) => setTimeout(resolve, 350));
+  await page.keyboard.down('Control');
+  await page.keyboard.press('A');
+  await page.keyboard.up('Control');
+  await page.keyboard.type(query, { delay: 45 });
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(
+    () =>
+      Array.from(document.querySelectorAll('flt-semantics')).some((item) =>
+        (item.getAttribute('aria-label') || item.textContent || '').includes(
+          'resultado(s) para confirmar',
+        ),
+      ),
+    { timeout: 60_000 },
+  );
+  await new Promise((resolve) => setTimeout(resolve, 1200));
+}
+
 async function saveFailureArtifacts(page, name, details) {
   fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
   if (page && !page.isClosed()) {
@@ -529,6 +620,9 @@ async function checkRoute(browser, baseUrl, route) {
       { timeout: 30_000 },
     );
     await enableFlutterSemantics(page);
+    if (route.searchQuery) {
+      await searchFlutterCatalog(page, route.searchQuery);
+    }
     if (route.waitForContent) {
       await page.waitForFunction(
         (expected) =>

@@ -27,6 +27,7 @@ import '../features/imports/camera_import/camera_import_screen.dart';
 import '../features/imports/card_scan_test/card_scan_test_screen.dart';
 import '../features/imports/code_import/code_import_screen.dart';
 import '../features/imports/image_import/image_import_screen.dart';
+import '../features/imports/tcg_import/tcg_import_screen.dart';
 import '../features/library/library_card_details_screen.dart';
 import '../features/library/library_compare_screen.dart';
 import '../features/library/one_piece_library_screen.dart';
@@ -206,6 +207,7 @@ final GoRouter appRouter = GoRouter(
         salesRoute: '/digimon/sales',
         marketplaceRoute: '/digimon/marketplace',
         wantedRoute: '/digimon/wanted',
+        importRoute: '/digimon/import',
         highlights: ['Busca em API', 'Preços Liga', 'Coleção'],
       ),
     ),
@@ -236,6 +238,10 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const TcgWantedScreen(game: TcgGame.digimon),
     ),
     GoRoute(
+      path: '/digimon/import',
+      builder: (context, state) => const TcgImportScreen(game: TcgGame.digimon),
+    ),
+    GoRoute(
       path: '/magic',
       builder: (context, state) => const TcgHubScreen(
         title: 'Magic',
@@ -250,6 +256,7 @@ final GoRouter appRouter = GoRouter(
         salesRoute: '/magic/sales',
         marketplaceRoute: '/magic/marketplace',
         wantedRoute: '/magic/wanted',
+        importRoute: '/magic/import',
         highlights: ['Busca em API', 'Preços Liga', 'Coleção'],
       ),
     ),
@@ -280,6 +287,10 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const TcgWantedScreen(game: TcgGame.magic),
     ),
     GoRoute(
+      path: '/magic/import',
+      builder: (context, state) => const TcgImportScreen(game: TcgGame.magic),
+    ),
+    GoRoute(
       path: '/pokemon',
       builder: (context, state) => const TcgHubScreen(
         title: 'Pokemon',
@@ -294,6 +305,7 @@ final GoRouter appRouter = GoRouter(
         salesRoute: '/pokemon/sales',
         marketplaceRoute: '/pokemon/marketplace',
         wantedRoute: '/pokemon/wanted',
+        importRoute: '/pokemon/import',
         highlights: ['Busca em API', 'Preços Liga', 'Coleção'],
       ),
     ),
@@ -324,6 +336,10 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const TcgWantedScreen(game: TcgGame.pokemon),
     ),
     GoRoute(
+      path: '/pokemon/import',
+      builder: (context, state) => const TcgImportScreen(game: TcgGame.pokemon),
+    ),
+    GoRoute(
       path: '/riftbound',
       builder: (context, state) => const TcgHubScreen(
         title: 'Riftbound',
@@ -338,6 +354,7 @@ final GoRouter appRouter = GoRouter(
         salesRoute: '/riftbound/sales',
         marketplaceRoute: '/riftbound/marketplace',
         wantedRoute: '/riftbound/wanted',
+        importRoute: '/riftbound/import',
         highlights: ['Busca em API', 'Preços Liga', 'Coleção'],
       ),
     ),
@@ -371,6 +388,11 @@ final GoRouter appRouter = GoRouter(
           const TcgWantedScreen(game: TcgGame.riftbound),
     ),
     GoRoute(
+      path: '/riftbound/import',
+      builder: (context, state) =>
+          const TcgImportScreen(game: TcgGame.riftbound),
+    ),
+    GoRoute(
       path: '/yugioh',
       builder: (context, state) => const TcgHubScreen(
         title: 'Yu-Gi-Oh',
@@ -385,6 +407,7 @@ final GoRouter appRouter = GoRouter(
         salesRoute: '/yugioh/sales',
         marketplaceRoute: '/yugioh/marketplace',
         wantedRoute: '/yugioh/wanted',
+        importRoute: '/yugioh/import',
         highlights: ['Busca em API', 'Preços por edição', 'Coleção'],
       ),
     ),
@@ -413,6 +436,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/yugioh/wanted',
       builder: (context, state) => const TcgWantedScreen(game: TcgGame.yugioh),
+    ),
+    GoRoute(
+      path: '/yugioh/import',
+      builder: (context, state) => const TcgImportScreen(game: TcgGame.yugioh),
     ),
     GoRoute(
       path: '/integrations/liga-one-piece-test',

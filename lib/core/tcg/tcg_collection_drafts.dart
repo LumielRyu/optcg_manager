@@ -1,8 +1,26 @@
 import '../../data/models/digimon_card.dart';
 import '../../data/models/magic_card.dart';
+import '../../data/models/pokemon_card.dart';
 import '../../data/models/riftbound_card.dart';
 import '../../data/models/tcg_collection_item.dart';
 import '../../data/models/yugioh_card.dart';
+
+extension PokemonCollectionDraft on PokemonCard {
+  TcgCollectionDraft get collectionDraft => TcgCollectionDraft(
+    gameSlug: 'pokemon',
+    catalogCardId: id,
+    variantId: id,
+    cardCode: ligaLookupCode,
+    name: name,
+    imageUrl: largeImageUrl,
+    setName: setName,
+    rarity: rarity,
+    color: types.join(', '),
+    type: supertype,
+    text: description,
+    attribute: subtypes.join(', '),
+  );
+}
 
 extension DigimonCollectionDraft on DigimonCard {
   TcgCollectionDraft get collectionDraft => TcgCollectionDraft(

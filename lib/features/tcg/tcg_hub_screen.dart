@@ -16,6 +16,7 @@ class TcgHubScreen extends StatelessWidget {
   final String? salesRoute;
   final String? marketplaceRoute;
   final String? wantedRoute;
+  final String? importRoute;
   final List<String> highlights;
 
   const TcgHubScreen({
@@ -31,6 +32,7 @@ class TcgHubScreen extends StatelessWidget {
     this.salesRoute,
     this.marketplaceRoute,
     this.wantedRoute,
+    this.importRoute,
     required this.highlights,
   });
 
@@ -194,6 +196,25 @@ class TcgHubScreen extends StatelessWidget {
                         onTap: wantedRoute == null
                             ? null
                             : () => context.go(wantedRoute!),
+                      ),
+                    ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: _HubFeatureCard(
+                        title: 'Importar e escanear',
+                        description: importRoute == null
+                            ? 'A importação assistida será disponibilizada em uma próxima etapa.'
+                            : 'Fotografe uma carta ou pesquise por nome/código e confirme a impressão no catálogo.',
+                        icon: Icons.document_scanner_outlined,
+                        accent: importRoute == null
+                            ? const Color(0xFF7A7A7A)
+                            : accent,
+                        buttonLabel: importRoute == null
+                            ? 'Em breve'
+                            : 'Abrir scanner',
+                        onTap: importRoute == null
+                            ? null
+                            : () => context.go(importRoute!),
                       ),
                     ),
                   ],
