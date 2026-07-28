@@ -1248,3 +1248,36 @@ git diff --stat
   295/781 edicoes no ultimo acompanhamento.
 - Proxima camada recomendada: importacao e scanner multi-TCG, seguida por
   compartilhamento de colecoes e vitrines filtradas por jogo.
+
+### 28/07/2026 - Importacao e scanner assistido multi-TCG
+
+- Pokemon, Digimon, Magic, Riftbound e Yu-Gi-Oh ganharam a rota
+  `/[jogo]/import`, acessivel pelo novo card `Importar e escanear` nos cinco
+  hubs.
+- O fluxo aceita camera ou imagem, executa OCR no aparelho/navegador, extrai
+  um nome ou codigo provavel conforme o TCG e consulta o catalogo correto.
+- O usuario sempre confirma a carta e sua impressao antes de adicionar. O
+  reconhecimento visual automatico por imagem continua exclusivo do One Piece,
+  pois o modelo de referencias atual nao cobre os demais jogos.
+- Tambem e possivel pesquisar diretamente por nome ou codigo, sem fornecer
+  uma imagem.
+- Cada resultado pode ser adicionado diretamente a colecao ou as procuradas,
+  preservando `game_slug`, `catalog_card_id`, `variant_id`, edicao, raridade e
+  imagem. Yu-Gi-Oh permite selecionar a impressao antes da inclusao.
+- Nenhum SQL adicional foi necessario; o scanner reutiliza a fundacao
+  multi-TCG e as tabelas ja migradas.
+- As cinco APIs foram validadas por buscas reais no navegador: Pikachu,
+  Agumon, Lightning Bolt, Ahri e Dark Magician. A API Pokemon apresentou uma
+  resposta 500 temporaria, mas o retry existente recuperou a busca e devolveu
+  30 resultados.
+- Validacoes aprovadas: `flutter analyze`, 103 testes Flutter, build web,
+  verificacao visual e 10 fluxos E2E locais e em producao. Health check,
+  protecao de origem e varredura de runtime tambem passaram.
+- Commit funcional `8eebd48`, enviado para `origin/main`.
+- Deploy Vercel `dpl_6v3LvV48bLtTz33rpo2hyRVZz8b3`, status READY e publicado
+  em `https://tcgbh.vercel.app`.
+- A carga inicial Pokemon permaneceu ativa no processo `65012` e alcancou
+  571/781 edicoes no ultimo acompanhamento; a edicao `LA` teve timeout pontual
+  e o processo continuou normalmente para a proxima edicao.
+- Proxima camada recomendada: compartilhamento de colecoes e vitrines
+  filtradas por TCG, seguida por importacao em lote por planilha.
