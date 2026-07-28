@@ -1142,3 +1142,37 @@ git diff --stat
   alcancado 191/781 edicoes no ultimo acompanhamento.
 - Proximas camadas: decks com validadores por formato, vendas/marketplace por
   jogo, procurados e importacao/scanner multi-TCG.
+
+### 28/07/2026 - Construtor de decks multi-TCG
+
+- Pokemon, Digimon, Magic, Riftbound e Yu-Gi-Oh ganharam a rota
+  `/[jogo]/decks` nos respectivos hubs. Os decks One Piece permanecem no fluxo
+  antigo para preservar compatibilidade.
+- O novo repositorio usa `game_slug`, `format_slug`, `catalog_card_id`,
+  `variant_id` e `deck_zone` da migracao ja aplicada. Nenhum SQL adicional foi
+  necessario.
+- O usuario pode criar/excluir decks, escolher formato, adicionar cartas da
+  propria colecao, ajustar quantidades e mover cartas entre zonas.
+- Formatos ativados: Pokemon Padrao; Digimon Construido; Magic Standard e
+  Commander; Riftbound Construido; Yu-Gi-Oh Advanced.
+- O editor separa Main Deck, Digi-Eggs, Commander, recursos/runas, campeao,
+  lenda, campos de batalha, Extra Deck e Side Deck conforme cada formato.
+- A validacao mostra contagem por zona, limites basicos de copias, excecoes
+  para recursos basicos, singleton de Commander, identidade de cor/dominio e
+  nomes unicos de campos Riftbound.
+- O editor deixa explicito que listas banidas/restritas com vigencia ainda nao
+  foram sincronizadas. Assim, um deck nao e apresentado como plenamente legal
+  usando uma lista possivelmente desatualizada.
+- Magic passou a armazenar `color_identity` do Scryfall, em vez de apenas as
+  cores impressas, para validar Commander corretamente.
+- Validacoes aprovadas: `flutter analyze`, 94 testes Flutter, build web e 10
+  fluxos E2E locais e em producao cobrindo os cinco hubs e as cinco rotas de
+  decks para visitante.
+- Commit funcional `7d23cc3`, enviado para `origin/main`.
+- Deploy Vercel `dpl_5XPEopgCDoQGs7zvBZWpn9GriSMC`, status READY e publicado
+  em `https://tcgbh.vercel.app`. Health check, protecao de origem e varredura
+  de runtime passaram sem erros.
+- A carga inicial Pokemon permaneceu ativa no processo `65012` e havia
+  alcancado 236/781 edicoes no ultimo acompanhamento.
+- Proxima camada recomendada: vendas e marketplace isolados por TCG, seguida
+  por procurados e importacao/scanner.
