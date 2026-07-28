@@ -85,7 +85,7 @@ class HomeScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 AppHeroPanel(
-                  eyebrow: 'OPTCG BH',
+                  eyebrow: 'TCG BH',
                   title: 'Hub One Piece',
                   subtitle:
                       'Controle colecao, vendas, cartas procuradas e biblioteca em uma interface mais rapida para a comunidade de BH.',
@@ -125,17 +125,6 @@ class HomeScreen extends ConsumerWidget {
                   spacing: 16,
                   runSpacing: 16,
                   children: [
-                    SizedBox(
-                      width: cardWidth,
-                      child: const _HomeFeatureCard(
-                        icon: Icons.view_in_ar_outlined,
-                        title: 'Produtos personalizados',
-                        subtitle:
-                            'Monte sua deck box, escolha a cor de cada peça e veja a combinação antes de pedir.',
-                        buttonLabel: 'Personalizar produto',
-                        route: '/products',
-                      ),
-                    ),
                     SizedBox(
                       width: cardWidth,
                       child: const _HomeFeatureCard(

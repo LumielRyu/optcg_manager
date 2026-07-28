@@ -1,4 +1,4 @@
-# Memoria de continuidade do OPTCG Manager
+# Memoria de continuidade do TCG BH
 
 Este arquivo e a memoria persistente das sessoes de trabalho deste repositorio.
 Ele existe para que uma nova janela do Codex consiga retomar o contexto sem
@@ -20,7 +20,7 @@ depender do historico da conversa.
 
 ## Visao geral do produto
 
-- Aplicativo Flutter chamado publicamente de **OPTCG BH**.
+- Aplicativo Flutter chamado publicamente de **TCG BH** desde 28/07/2026.
 - Gerencia catalogo e colecao de cartas, decks, vendas, procuras, marketplace e
   torneios semanais.
 - Usa Riverpod e GoRouter no app, Supabase para autenticacao/dados e funcoes
@@ -937,3 +937,31 @@ git diff --stat
   colecao abriu em viewport de celular sem erros de console. A sessao de teste
   nao possui as cartas privadas do usuario; a confirmacao final no WebKit com
   as 15 cartas depende de novo teste no iPhone autenticado.
+
+### 28/07/2026 - TCG BH, produtos globais e auditoria dos catalogos
+
+- A marca publica foi alterada de `OPTCG BH` para `TCG BH` no aplicativo,
+  metadados web, manifesto PWA, compartilhamentos e testes. Identificadores
+  internos e o dominio `optcgbh.vercel.app` foram preservados para evitar
+  quebra de cache, links e infraestrutura.
+- Produtos Personalizados deixou o hub One Piece e passou a ter um destaque
+  proprio na pagina principal de selecao dos TCGs. O botao Voltar da pagina de
+  produtos agora retorna para `/home`.
+- A auditoria em navegador real confirmou respostas HTTP 200 e listas
+  renderizadas para os seis catalogos:
+  - One Piece: OPTCG API, 5.105 registros brutos;
+  - Pokemon: Pokemon TCG API v2, 20.479;
+  - Digimon: Heroicc, 5.608;
+  - Magic: Scryfall, primeira pagina carregada e paginacao ativa;
+  - Riftbound: Riftcodex, 1.451;
+  - Yu-Gi-Oh: YGOPRODeck v7, 14.476.
+- A Pokemon TCG API bloqueou clientes de terminal com Cloudflare em parte dos
+  testes, mas respondeu normalmente ao navegador da aplicacao. Deve ser
+  monitorada e migrada para proxy com cache apenas se o problema passar a
+  atingir usuarios.
+- Os portais de edicoes da Liga para One Piece, Pokemon, Magic, Yu-Gi-Oh,
+  Digimon e Riftbound responderam HTTP 200 com navegacao de edicoes.
+- `docs/multi-tcg-liga-pricing-plan.md` registra a proposta de cache unificado,
+  aliases de catalogo, adaptadores de variantes, agendamento, monitoramento,
+  ordem de implantacao e criterios de qualidade para levar precos da Liga aos
+  demais TCGs.

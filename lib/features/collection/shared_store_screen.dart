@@ -127,10 +127,7 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
     final link = _buildPublicStoreLink();
 
     try {
-      final action = await shareOrCopyText(
-        link,
-        subject: 'Vitrine do OPTCG BH',
-      );
+      final action = await shareOrCopyText(link, subject: 'Vitrine do TCG BH');
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

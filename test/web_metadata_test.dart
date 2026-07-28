@@ -23,11 +23,13 @@ void main() {
     expect(html, contains("window.addEventListener('flutter-first-frame'"));
     expect(
       html,
-      contains(".register('pwa_service_worker.js', { updateViaCache: 'none' })"),
+      contains(
+        ".register('pwa_service_worker.js', { updateViaCache: 'none' })",
+      ),
     );
     expect(
       html,
-      contains("const cacheResetVersion = '2026-07-25-liga-price-grid-v1'"),
+      contains("const cacheResetVersion = '2026-07-28-tcgbh-brand-v1'"),
     );
     expect(File('assets/editorial/marketplace_hero.png').existsSync(), isTrue);
 
@@ -70,10 +72,15 @@ void main() {
       expect(manifest.containsKey('orientation'), isFalse);
 
       final shortcuts = manifest['shortcuts'] as List<dynamic>;
-      expect(shortcuts, hasLength(3));
+      expect(shortcuts, hasLength(4));
       expect(
         shortcuts.map((item) => (item as Map<String, dynamic>)['url']),
-        containsAll(<String>['/#/weeklies', '/#/marketplace', '/#/library']),
+        containsAll(<String>[
+          '/#/weeklies',
+          '/#/marketplace',
+          '/#/library',
+          '/#/products',
+        ]),
       );
 
       final icons = manifest['icons'] as List<dynamic>;

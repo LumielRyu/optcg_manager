@@ -10,25 +10,25 @@ const ROUTES = [
   {
     name: 'home',
     hash: '#/home',
-    title: 'OPTCG BH | Card games, marketplace e semanais',
+    title: 'TCG BH | Card games, marketplace e produtos',
     content: ['SEMANAIS STOP TCG', 'One Piece', 'Pokemon'],
   },
   {
     name: 'weeklies',
     hash: '#/weeklies',
-    title: 'Semanais STOP TCG | OPTCG BH',
+    title: 'Semanais STOP TCG | TCG BH',
     content: ['Semanais STOP TCG', 'One Piece Card Game', 'Pokemon TCG'],
   },
   {
     name: 'pokemon-weekly',
     hash: '#/weeklies/pokemon',
-    title: 'Semanal Pokemon | OPTCG BH',
+    title: 'Semanal Pokemon | TCG BH',
     content: ['Semanal Pokemon', 'LIGA DE QUINTA-FEIRA', 'LIGA DE SABADO'],
   },
   {
     name: 'one-piece-weekly',
     hash: '#/weeklies/one-piece',
-    title: 'Semanal One Piece | OPTCG BH',
+    title: 'Semanal One Piece | TCG BH',
     content: [
       'Semanal One Piece',
       'Ranking mensal dos piratas',
@@ -37,25 +37,25 @@ const ROUTES = [
   {
     name: 'login',
     hash: '#/login',
-    title: 'Entrar | OPTCG BH',
+    title: 'Entrar | TCG BH',
     content: ['Entrar', 'Criar conta'],
   },
   {
     name: 'register',
     hash: '#/register',
-    title: 'Criar conta | OPTCG BH',
+    title: 'Criar conta | TCG BH',
     content: ['Criar conta'],
   },
   {
     name: 'library',
     hash: '#/library',
-    title: 'Biblioteca One Piece | OPTCG BH',
+    title: 'Biblioteca One Piece | TCG BH',
     content: ['Biblioteca One Piece', 'Liga:'],
   },
   {
     name: 'products',
     hash: '#/products',
-    title: 'Produtos personalizados | OPTCG BH',
+    title: 'Produtos personalizados | TCG BH',
     // Flutter CanvasKit does not expose text until browser accessibility is
     // enabled. This route is still checked for first frame, title, errors and
     // desktop/mobile screenshots; widget tests cover its interactive content.
@@ -64,7 +64,7 @@ const ROUTES = [
   {
     name: 'admin-price-guard',
     hash: '#/admin/liga-prices',
-    title: 'Monitor de preços da Liga | OPTCG BH',
+    title: 'Monitor de preços da Liga | TCG BH',
     content: ['Entrar', 'Criar conta'],
   },
 ];

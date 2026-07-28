@@ -76,7 +76,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
         'Quantidade: $_quantity\n'
         'Valor unitário: R\$ $deckBoxUnitPrice,00\n'
         'Valor total: $_totalPriceLabel\n\n'
-        'Configuração criada no OPTCG BH.';
+        'Configuração criada no TCG BH.';
   }
 
   Future<void> _copyConfiguration() async {
@@ -114,7 +114,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
         title: const Text('Produtos personalizados'),
         leading: IconButton(
           tooltip: 'Voltar',
-          onPressed: () => context.go('/home/one-piece'),
+          onPressed: () => context.go('/home'),
           icon: const Icon(Icons.arrow_back),
         ),
       ),

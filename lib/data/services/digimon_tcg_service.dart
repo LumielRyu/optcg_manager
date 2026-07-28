@@ -51,7 +51,7 @@ class DigimonTcgService {
       headers: const {
         'Accept': 'application/vnd.api+json',
         'Accept-Language': 'en',
-        'User-Agent': 'TCGManager/1.0',
+        'User-Agent': 'TCG-BH/1.0 (+https://optcgbh.vercel.app)',
       },
     );
 

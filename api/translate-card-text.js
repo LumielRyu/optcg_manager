@@ -60,7 +60,7 @@ async function translateText(text) {
     headers: {
       Accept: 'application/json, text/plain, */*',
       'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
-      'User-Agent': 'OPTCG BH/1.0 (+https://optcgbh.vercel.app)',
+      'User-Agent': 'TCG BH/1.0 (+https://optcgbh.vercel.app)',
     },
   });
 

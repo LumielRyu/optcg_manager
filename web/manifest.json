@@ -1,6 +1,6 @@
 {
-  "name": "OPTCG BH",
-  "short_name": "OPTCG BH",
+  "name": "TCG BH",
+  "short_name": "TCG BH",
   "id": "/",
   "start_url": "/",
   "scope": "/",
@@ -33,6 +33,13 @@
       "short_name": "Biblioteca",
       "description": "Consultar a biblioteca de cartas One Piece",
       "url": "/#/library",
+      "icons": [{ "src": "icons/Icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Produtos personalizados",
+      "short_name": "Produtos",
+      "description": "Personalizar acessórios para card games",
+      "url": "/#/products",
       "icons": [{ "src": "icons/Icon-192.png", "sizes": "192x192" }]
     }
   ],

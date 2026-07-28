@@ -78,7 +78,7 @@ void main() {
           child: const Scaffold(
             body: SingleChildScrollView(
               child: AppHeroPanel(
-                eyebrow: 'OPTCG BH',
+                eyebrow: 'TCG BH',
                 title: 'Escolha seu card game',
                 subtitle: 'Conteudo adaptado para telas menores.',
                 icon: Icons.style_outlined,

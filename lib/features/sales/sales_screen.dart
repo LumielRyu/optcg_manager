@@ -165,10 +165,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       }
 
       final link = _buildPublicStoreLink(user.id);
-      final action = await shareOrCopyText(
-        link,
-        subject: 'Vitrine do OPTCG BH',
-      );
+      final action = await shareOrCopyText(link, subject: 'Vitrine do TCG BH');
 
       if (!mounted) return;
       messenger.showSnackBar(

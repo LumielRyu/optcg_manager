@@ -1117,7 +1117,7 @@ class _MarketplaceEditorialHero extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          'OPTCG BH MARKETPLACE',
+          'TCG BH MARKETPLACE',
           style: theme.textTheme.labelLarge?.copyWith(
             color: theme.colorScheme.primary,
             fontWeight: FontWeight.w900,

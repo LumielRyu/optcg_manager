@@ -57,7 +57,7 @@ class RiftboundTcgService {
       uri,
       headers: const {
         'Accept': 'application/json',
-        'User-Agent': 'TCGManager/1.0',
+        'User-Agent': 'TCG-BH/1.0 (+https://optcgbh.vercel.app)',
       },
     );
 

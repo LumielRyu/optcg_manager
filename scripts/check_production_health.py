@@ -5,7 +5,7 @@ import urllib.request
 
 
 def request(url: str) -> tuple[int, dict[str, str], bytes]:
-    headers = {"User-Agent": "OPTCG-BH-Health-Monitor/1.0"}
+    headers = {"User-Agent": "TCG-BH-Health-Monitor/1.0"}
     req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=15) as response:
@@ -20,7 +20,7 @@ def require(condition: bool, message: str) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Checks the OPTCG BH production app.")
+    parser = argparse.ArgumentParser(description="Checks the TCG BH production app.")
     parser.add_argument("--url", default="https://optcgbh.vercel.app")
     args = parser.parse_args()
     base_url = args.url.rstrip("/")

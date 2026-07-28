@@ -100,7 +100,7 @@ def validate_coverage(minimum: float) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Executa o quality gate reproduzivel do OPTCG BH."
+        description="Executa o quality gate reproduzivel do TCG BH."
     )
     parser.add_argument(
         "--coverage",

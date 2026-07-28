@@ -18,7 +18,7 @@ class TcgSelectorScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('OPTCG BH'),
+        title: const Text('TCG BH'),
         actions: [
           IconButton(
             tooltip: isDark ? 'Modo claro' : 'Modo escuro',
@@ -73,7 +73,7 @@ class TcgSelectorScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const AppHeroPanel(
-                  eyebrow: 'OPTCG BH',
+                  eyebrow: 'TCG BH',
                   title: 'Escolha seu card game',
                   subtitle:
                       'Entre no jogo que deseja explorar. Cada hub concentra sua biblioteca e recursos da comunidade; os torneios da loja ficam reunidos nos Semanais STOP TCG.',
@@ -96,6 +96,8 @@ class TcgSelectorScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 24),
                 _StopWeekliesBanner(onTap: () => context.go('/weeklies')),
+                const SizedBox(height: 24),
+                _CustomProductsBanner(onTap: () => context.go('/products')),
                 const SizedBox(height: 24),
                 const AppSectionHeading(
                   icon: Icons.explore_outlined,
@@ -186,6 +188,100 @@ class TcgSelectorScreen extends ConsumerWidget {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _CustomProductsBanner extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _CustomProductsBanner({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    const accent = Color(0xFF28D7E8);
+
+    return AppHoverLift(
+      accent: accent,
+      child: AccessibleActionSurface(
+        label: 'Abrir Produtos personalizados',
+        hint: 'Personalize acessórios para seus card games',
+        onTap: onTap,
+        focusColor: accent,
+        child: Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                const Color(0xFF102D38).withValues(alpha: 0.98),
+                accent.withValues(alpha: 0.14),
+                const Color(0xFF7C3AED).withValues(alpha: 0.12),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: accent.withValues(alpha: 0.5)),
+          ),
+          child: Wrap(
+            spacing: 18,
+            runSpacing: 14,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: accent),
+                ),
+                child: const Icon(
+                  Icons.view_in_ar_outlined,
+                  color: accent,
+                  size: 31,
+                ),
+              ),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'PRODUTOS PERSONALIZADOS',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: accent,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      'Acessórios produzidos em BH para todos os TCGs',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Personalize sua deck box peça por peça, visualize as cores e envie o pedido diretamente pelo WhatsApp.',
+                    ),
+                  ],
+                ),
+              ),
+              ExcludeFocus(
+                child: IgnorePointer(
+                  child: FilledButton.icon(
+                    onPressed: onTap,
+                    icon: const Icon(Icons.palette_outlined),
+                    label: const Text('Personalizar produto'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -8,11 +8,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta
     name="description"
-    content="OPTCG BH reúne bibliotecas de card games, marketplace local e rankings dos semanais da STOP TCG em Belo Horizonte."
+    content="TCG BH reúne bibliotecas de card games, marketplace local, produtos personalizados e rankings dos semanais da STOP TCG em Belo Horizonte."
   >
   <meta name="robots" content="index, follow, max-image-preview:large">
-  <meta name="author" content="OPTCG BH">
-  <meta name="application-name" content="OPTCG BH">
+  <meta name="author" content="TCG BH">
+  <meta name="application-name" content="TCG BH">
   <meta name="format-detection" content="telephone=no">
   <meta name="theme-color" content="#060A10" media="(prefers-color-scheme: dark)">
   <meta name="theme-color" content="#F4F7FB" media="(prefers-color-scheme: light)">
@@ -21,38 +21,38 @@
 
   <meta property="og:type" content="website">
   <meta property="og:locale" content="pt_BR">
-  <meta property="og:site_name" content="OPTCG BH">
-  <meta property="og:title" content="OPTCG BH | Card games, marketplace e semanais">
-  <meta property="og:description" content="Bibliotecas de card games, marketplace local e rankings dos semanais da STOP TCG em Belo Horizonte.">
+  <meta property="og:site_name" content="TCG BH">
+  <meta property="og:title" content="TCG BH | Card games, marketplace e produtos">
+  <meta property="og:description" content="Bibliotecas de card games, marketplace local, produtos personalizados e rankings dos semanais da STOP TCG em Belo Horizonte.">
   <meta property="og:url" content="https://optcgbh.vercel.app/">
   <meta property="og:image" content="https://optcgbh.vercel.app/assets/assets/editorial/marketplace_hero.png">
   <meta property="og:image:width" content="1672">
   <meta property="og:image:height" content="941">
-  <meta property="og:image:alt" content="Cartas colecionaveis no hub digital do OPTCG BH">
+  <meta property="og:image:alt" content="Cartas colecionáveis no hub digital do TCG BH">
 
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="OPTCG BH | Card games, marketplace e semanais">
-  <meta name="twitter:description" content="Bibliotecas de card games, marketplace local e rankings dos semanais da STOP TCG em Belo Horizonte.">
+  <meta name="twitter:title" content="TCG BH | Card games, marketplace e produtos">
+  <meta name="twitter:description" content="Bibliotecas de card games, marketplace local, produtos personalizados e rankings dos semanais da STOP TCG em Belo Horizonte.">
   <meta name="twitter:image" content="https://optcgbh.vercel.app/assets/assets/editorial/marketplace_hero.png">
-  <meta name="twitter:image:alt" content="Cartas colecionaveis no hub digital do OPTCG BH">
+  <meta name="twitter:image:alt" content="Cartas colecionáveis no hub digital do TCG BH">
 
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="OPTCG BH">
+  <meta name="apple-mobile-web-app-title" content="TCG BH">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>OPTCG BH | Card games, marketplace e semanais</title>
+  <title>TCG BH | Card games, marketplace e produtos</title>
   <link rel="manifest" href="manifest.json">
 
   <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "WebApplication",
-      "name": "OPTCG BH",
+      "name": "TCG BH",
       "url": "https://optcgbh.vercel.app/",
-      "description": "Bibliotecas de card games, marketplace local e rankings dos semanais da STOP TCG em Belo Horizonte.",
+      "description": "Bibliotecas de card games, marketplace local, produtos personalizados e rankings dos semanais da STOP TCG em Belo Horizonte.",
       "applicationCategory": "GameApplication",
       "operatingSystem": "Web",
       "inLanguage": "pt-BR",
@@ -178,9 +178,9 @@
   </style>
 </head>
 <body>
-  <div id="app-loader" role="status" aria-live="polite" aria-label="Carregando OPTCG BH">
+  <div id="app-loader" role="status" aria-live="polite" aria-label="Carregando TCG BH">
     <div class="loader-card">
-      <h1 class="loader-title">OPTCG BH</h1>
+      <h1 class="loader-title">TCG BH</h1>
       <p class="loader-subtitle">
         Carregando bibliotecas de card games, marketplace local e rankings dos semanais da STOP TCG em BH.
       </p>
@@ -215,18 +215,23 @@
 
     (function () {
       const defaultDescription =
-        'OPTCG BH reúne bibliotecas de card games, marketplace local e rankings dos semanais da STOP TCG em Belo Horizonte.';
+        'TCG BH reúne bibliotecas de card games, marketplace local, produtos personalizados e rankings dos semanais da STOP TCG em Belo Horizonte.';
       const routeMetadata = [
-        { prefix: '#/products', title: 'Produtos personalizados | OPTCG BH', description: 'Personalize as cores da Deck Box One Piece e conheça acessórios produzidos em BH.' },
-        { prefix: '#/weeklies/pokemon', title: 'Semanal Pokemon | OPTCG BH', description: 'Ranking, classificação e relatórios dos semanais Pokemon da STOP TCG.' },
-        { prefix: '#/weeklies/one-piece', title: 'Semanal One Piece | OPTCG BH', description: 'Ranking mensal e resultados oficiais dos semanais One Piece da STOP TCG.' },
-        { prefix: '#/weeklies', title: 'Semanais STOP TCG | OPTCG BH', description: 'Resultados e rankings dos card games jogados na STOP TCG.' },
-        { prefix: '#/marketplace', title: 'Marketplace de cartas | OPTCG BH', description: 'Encontre cartas anunciadas por jogadores da comunidade de Belo Horizonte.' },
-        { prefix: '#/admin/liga-prices', title: 'Monitor de preços da Liga | OPTCG BH', description: 'Acompanhe a atualização automática dos preços por edição.' },
-        { prefix: '#/library', title: 'Biblioteca One Piece | OPTCG BH', description: 'Consulte cartas do One Piece Card Game com imagens, códigos e filtros.' },
-        { prefix: '#/home/one-piece', title: 'Hub One Piece | OPTCG BH', description: 'Coleção, biblioteca, vendas e ferramentas para One Piece Card Game.' },
-        { prefix: '#/login', title: 'Entrar | OPTCG BH', description: 'Entre na sua conta do OPTCG BH.' },
-        { prefix: '#/register', title: 'Criar conta | OPTCG BH', description: 'Crie sua conta gratuita no OPTCG BH.' }
+        { prefix: '#/products', title: 'Produtos personalizados | TCG BH', description: 'Personalize as cores da Deck Box e conheça acessórios para card games produzidos em BH.' },
+        { prefix: '#/weeklies/pokemon', title: 'Semanal Pokemon | TCG BH', description: 'Ranking, classificação e relatórios dos semanais Pokemon da STOP TCG.' },
+        { prefix: '#/weeklies/one-piece', title: 'Semanal One Piece | TCG BH', description: 'Ranking mensal e resultados oficiais dos semanais One Piece da STOP TCG.' },
+        { prefix: '#/weeklies', title: 'Semanais STOP TCG | TCG BH', description: 'Resultados e rankings dos card games jogados na STOP TCG.' },
+        { prefix: '#/marketplace', title: 'Marketplace de cartas | TCG BH', description: 'Encontre cartas anunciadas por jogadores da comunidade de Belo Horizonte.' },
+        { prefix: '#/admin/liga-prices', title: 'Monitor de preços da Liga | TCG BH', description: 'Acompanhe a atualização automática dos preços por edição.' },
+        { prefix: '#/pokemon/library', title: 'Biblioteca Pokemon | TCG BH', description: 'Pesquise a lista de cartas Pokemon conectada à Pokemon TCG API.' },
+        { prefix: '#/digimon/library', title: 'Biblioteca Digimon | TCG BH', description: 'Pesquise a lista de cartas Digimon conectada à Heroicc.' },
+        { prefix: '#/magic/library', title: 'Biblioteca Magic | TCG BH', description: 'Pesquise cartas de Magic: The Gathering conectadas ao Scryfall.' },
+        { prefix: '#/riftbound/library', title: 'Biblioteca Riftbound | TCG BH', description: 'Pesquise a lista de cartas Riftbound conectada ao Riftcodex.' },
+        { prefix: '#/yugioh/library', title: 'Biblioteca Yu-Gi-Oh | TCG BH', description: 'Pesquise a lista de cartas Yu-Gi-Oh conectada ao YGOPRODeck.' },
+        { prefix: '#/library', title: 'Biblioteca One Piece | TCG BH', description: 'Consulte cartas do One Piece Card Game com imagens, códigos e filtros.' },
+        { prefix: '#/home/one-piece', title: 'Hub One Piece | TCG BH', description: 'Coleção, biblioteca, vendas e ferramentas para One Piece Card Game.' },
+        { prefix: '#/login', title: 'Entrar | TCG BH', description: 'Entre na sua conta do TCG BH.' },
+        { prefix: '#/register', title: 'Criar conta | TCG BH', description: 'Crie sua conta gratuita no TCG BH.' }
       ];
 
       function updatePageMetadata() {
@@ -236,7 +241,7 @@
         });
         document.title = metadata
           ? metadata.title
-          : 'OPTCG BH | Card games, marketplace e semanais';
+          : 'TCG BH | Card games, marketplace e produtos';
         const description = document.querySelector('meta[name="description"]');
         if (description) {
           description.setAttribute(
@@ -254,7 +259,7 @@
 
   <script>
     (function () {
-      const cacheResetVersion = '2026-07-25-liga-price-grid-v1';
+      const cacheResetVersion = '2026-07-28-tcgbh-brand-v1';
       const tesseractUrl = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
       let tesseractLoadPromise = null;
 

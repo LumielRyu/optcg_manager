@@ -182,7 +182,7 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const TcgHubScreen(
         title: 'Digimon',
         subtitle:
-            'Entrada inicial do ecossistema Digimon dentro do OPTCG BH, com biblioteca conectada a API publica e espaco para futuras expansoes.',
+            'Entrada inicial do ecossistema Digimon dentro do TCG BH, com biblioteca conectada a API publica e espaco para futuras expansoes.',
         sourceLabel: 'Fonte: Heroicc Digimon API',
         accent: Color(0xFF0F766E),
         heroIcon: Icons.memory_outlined,
@@ -199,7 +199,7 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const TcgHubScreen(
         title: 'Magic',
         subtitle:
-            'Entrada inicial do ecossistema Magic: The Gathering dentro do OPTCG BH, com biblioteca conectada ao Scryfall e estrutura pronta para modulos futuros.',
+            'Entrada inicial do ecossistema Magic: The Gathering dentro do TCG BH, com biblioteca conectada ao Scryfall e estrutura pronta para modulos futuros.',
         sourceLabel: 'Fonte: Scryfall',
         accent: Color(0xFFB45309),
         heroIcon: Icons.auto_fix_high_outlined,
@@ -216,7 +216,7 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const TcgHubScreen(
         title: 'Pokemon',
         subtitle:
-            'Entrada inicial do ecossistema Pokemon dentro do OPTCG BH, com biblioteca conectada a API e espaco pronto para futuras expansoes.',
+            'Entrada inicial do ecossistema Pokemon dentro do TCG BH, com biblioteca conectada a API e espaco pronto para futuras expansoes.',
         sourceLabel: 'Fonte: Pokemon TCG API',
         accent: Color(0xFFD62828),
         heroIcon: Icons.catching_pokemon,
@@ -233,7 +233,7 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const TcgHubScreen(
         title: 'Riftbound',
         subtitle:
-            'Entrada inicial do ecossistema Riftbound dentro do OPTCG BH, com biblioteca conectada ao Riftcodex e espaco para consolidar modulos depois.',
+            'Entrada inicial do ecossistema Riftbound dentro do TCG BH, com biblioteca conectada ao Riftcodex e espaco para consolidar modulos depois.',
         sourceLabel: 'Fonte: Riftcodex',
         accent: Color(0xFF2563EB),
         heroIcon: Icons.bolt_outlined,
@@ -250,7 +250,7 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const TcgHubScreen(
         title: 'Yu-Gi-Oh',
         subtitle:
-            'Entrada inicial do ecossistema Yu-Gi-Oh dentro do OPTCG BH, com biblioteca conectada ao YGOPRODeck e espaco para modulos futuros.',
+            'Entrada inicial do ecossistema Yu-Gi-Oh dentro do TCG BH, com biblioteca conectada ao YGOPRODeck e espaco para modulos futuros.',
         sourceLabel: 'Fonte: YGOPRODeck',
         accent: Color(0xFF4A4E9B),
         heroIcon: Icons.auto_awesome_outlined,
