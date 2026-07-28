@@ -2,11 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../core/utils/auth_action_guard.dart';
 import '../../core/widgets/catalog_grid_card.dart';
 import '../../core/widgets/home_navigation_button.dart';
 import '../../core/widgets/tcg_liga_price.dart';
 import '../../data/models/pokemon_card.dart';
+import '../../data/models/tcg_collection_item.dart';
+import '../../data/repositories/tcg_collection_repository.dart';
 import '../../data/services/pokemon_tcg_service.dart';
 
 class PokemonLibraryScreen extends ConsumerStatefulWidget {
@@ -89,6 +93,46 @@ class _PokemonLibraryScreenState extends ConsumerState<PokemonLibraryScreen> {
         _loading = false;
         _loadingMore = false;
       });
+    }
+  }
+
+  Future<void> _addToCollection(PokemonCard card) async {
+    if (!requireSignedIn(context)) return;
+
+    try {
+      await ref
+          .read(tcgCollectionRepositoryProvider)
+          .addOrIncrement(
+            TcgCollectionDraft(
+              gameSlug: 'pokemon',
+              catalogCardId: card.id,
+              variantId: card.id,
+              cardCode: card.ligaLookupCode,
+              name: card.name,
+              imageUrl: card.largeImageUrl,
+              setName: card.setName,
+              rarity: card.rarity,
+              color: card.types.join(', '),
+              type: card.supertype,
+              text: card.description,
+              attribute: card.subtypes.join(', '),
+            ),
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${card.name} adicionada à coleção Pokémon.'),
+          action: SnackBarAction(
+            label: 'Ver coleção',
+            onPressed: () => context.go('/pokemon/collection'),
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Não foi possível adicionar a carta: $error')),
+      );
     }
   }
 
@@ -226,6 +270,14 @@ class _PokemonLibraryScreenState extends ConsumerState<PokemonLibraryScreen> {
                       footer: TcgLigaPriceLabel(
                         lookupCode: card.ligaLookupCode,
                       ),
+                      trailingActions: [
+                        IconButton(
+                          tooltip: 'Adicionar à coleção',
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () => _addToCollection(card),
+                          icon: const Icon(Icons.add_circle_outline),
+                        ),
+                      ],
                       onTap: () => _openCardSheet(context, card),
                     );
                   }, childCount: _cards.length),
@@ -265,7 +317,10 @@ class _PokemonLibraryScreenState extends ConsumerState<PokemonLibraryScreen> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (context) => _PokemonCardDetailsSheet(card: card),
+      builder: (context) => _PokemonCardDetailsSheet(
+        card: card,
+        onAddToCollection: () => _addToCollection(card),
+      ),
     );
   }
 }
@@ -306,8 +361,12 @@ class _PokemonStatChip extends StatelessWidget {
 
 class _PokemonCardDetailsSheet extends StatelessWidget {
   final PokemonCard card;
+  final Future<void> Function() onAddToCollection;
 
-  const _PokemonCardDetailsSheet({required this.card});
+  const _PokemonCardDetailsSheet({
+    required this.card,
+    required this.onAddToCollection,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -365,6 +424,12 @@ class _PokemonCardDetailsSheet extends StatelessWidget {
             TcgLigaPriceDetailsPanel(
               lookupCode: card.ligaLookupCode,
               gameLabel: 'Pokemon',
+            ),
+            const SizedBox(height: 14),
+            FilledButton.icon(
+              onPressed: onAddToCollection,
+              icon: const Icon(Icons.add_circle_outline),
+              label: const Text('Adicionar à minha coleção'),
             ),
             if (card.description.isNotEmpty) ...[
               const SizedBox(height: 20),

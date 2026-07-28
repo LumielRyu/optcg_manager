@@ -11,6 +11,7 @@ class TcgHubScreen extends StatelessWidget {
   final Color accent;
   final IconData heroIcon;
   final String libraryRoute;
+  final String? collectionRoute;
   final List<String> highlights;
 
   const TcgHubScreen({
@@ -21,6 +22,7 @@ class TcgHubScreen extends StatelessWidget {
     required this.accent,
     required this.heroIcon,
     required this.libraryRoute,
+    this.collectionRoute,
     required this.highlights,
   });
 
@@ -93,13 +95,21 @@ class TcgHubScreen extends StatelessWidget {
                     ),
                     SizedBox(
                       width: cardWidth,
-                      child: const _HubFeatureCard(
+                      child: _HubFeatureCard(
                         title: 'Colecao',
-                        description:
-                            'Fluxos de colecao e gerenciamento ficam na proxima fase dessa expansao.',
+                        description: collectionRoute == null
+                            ? 'Fluxos de colecao e gerenciamento ficam na proxima fase dessa expansao.'
+                            : 'Cadastre suas cartas, controle quantidades e acompanhe o valor estimado pela Liga.',
                         icon: Icons.collections_bookmark_outlined,
-                        accent: Color(0xFF7A7A7A),
-                        buttonLabel: 'Em breve',
+                        accent: collectionRoute == null
+                            ? const Color(0xFF7A7A7A)
+                            : accent,
+                        buttonLabel: collectionRoute == null
+                            ? 'Em breve'
+                            : 'Abrir coleção',
+                        onTap: collectionRoute == null
+                            ? null
+                            : () => context.go(collectionRoute!),
                       ),
                     ),
                     SizedBox(

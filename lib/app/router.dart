@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/constants/collection_types.dart';
+import '../core/tcg/tcg_game.dart';
 import '../core/utils/admin_access.dart';
 import '../data/models/op_card.dart';
 import '../features/auth/auth_gate.dart';
@@ -15,6 +16,7 @@ import '../features/admin/liga_price_admin_screen.dart';
 import '../features/collection/collection_screen.dart';
 import '../features/collection/shared_sale_card_screen.dart';
 import '../features/collection/shared_store_screen.dart';
+import '../features/collection/tcg_collection_screen.dart';
 import '../features/decks/shared_deck_screen.dart';
 import '../features/digimon/digimon_library_screen.dart';
 import '../features/help/help_screen.dart';
@@ -221,12 +223,18 @@ final GoRouter appRouter = GoRouter(
         accent: Color(0xFFD62828),
         heroIcon: Icons.catching_pokemon,
         libraryRoute: '/pokemon/library',
-        highlights: ['Busca em API', 'Biblioteca inicial'],
+        collectionRoute: '/pokemon/collection',
+        highlights: ['Busca em API', 'Preços Liga', 'Coleção'],
       ),
     ),
     GoRoute(
       path: '/pokemon/library',
       builder: (context, state) => const PokemonLibraryScreen(),
+    ),
+    GoRoute(
+      path: '/pokemon/collection',
+      builder: (context, state) =>
+          const TcgCollectionScreen(game: TcgGame.pokemon),
     ),
     GoRoute(
       path: '/riftbound',

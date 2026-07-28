@@ -58,12 +58,27 @@ const ROUTES = [
     backTarget: '#/home/one-piece',
   },
   {
+    name: 'pokemon-hub',
+    hash: '#/pokemon',
+    title: 'Pokemon | TCG BH',
+    content: ['Pokemon', 'Biblioteca', 'Colecao'],
+    backTarget: '#/home',
+    backButtonLabel: 'Voltar ao Home',
+  },
+  {
     name: 'pokemon-library',
     hash: '#/pokemon/library',
     title: 'Biblioteca Pokemon | TCG BH',
     content: ['Biblioteca Pokemon'],
     backTarget: '#/pokemon',
     ignoredConsoleErrorIncludes: ['api.pokemontcg.io'],
+  },
+  {
+    name: 'pokemon-collection-guest',
+    hash: '#/pokemon/collection',
+    title: 'Coleção Pokemon | TCG BH',
+    content: ['Minha colecao Pokemon', 'necessario entrar'],
+    backTarget: '#/pokemon',
   },
   {
     name: 'digimon-library',

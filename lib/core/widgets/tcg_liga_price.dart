@@ -209,6 +209,105 @@ class TcgLigaPriceDetailsPanel extends ConsumerWidget {
   }
 }
 
+class TcgLigaCollectionItemReference {
+  final String lookupCode;
+  final int quantity;
+
+  const TcgLigaCollectionItemReference({
+    required this.lookupCode,
+    required this.quantity,
+  });
+}
+
+class TcgLigaCollectionValueCard extends StatelessWidget {
+  final Iterable<TcgLigaCollectionItemReference> items;
+  final String gameLabel;
+
+  const TcgLigaCollectionValueCard({
+    super.key,
+    required this.items,
+    required this.gameLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final data = _TcgLigaPriceData.maybeOf(context);
+    final theme = Theme.of(context);
+    var total = 0.0;
+    var pricedCards = 0;
+    var totalCards = 0;
+
+    for (final item in items) {
+      if (item.quantity <= 0) continue;
+      totalCards += item.quantity;
+      final snapshot = data
+          ?.snapshots[LigaTcgPriceService.normalizeLookupCode(item.lookupCode)];
+      final price = snapshot?.minimumPrice;
+      if (price == null) continue;
+      total += price * item.quantity;
+      pricedCards += item.quantity;
+    }
+
+    final loading = data == null || data.loading;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              alignment: Alignment.center,
+              child: loading
+                  ? const SizedBox.square(
+                      dimension: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2.5),
+                    )
+                  : Icon(
+                      Icons.account_balance_wallet_outlined,
+                      color: theme.colorScheme.primary,
+                    ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Valor estimado da coleção',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    loading ? 'Consultando a Liga...' : formatLigaPrice(total),
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    loading
+                        ? 'Os preços serão somados assim que a consulta terminar.'
+                        : '$pricedCards de $totalCards cartas com preço verificado na Liga $gameLabel.',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _TcgLigaPriceData extends InheritedWidget {
   final Map<String, LigaTcgPriceSnapshot> snapshots;
   final bool loading;
