@@ -1074,3 +1074,35 @@ git diff --stat
 - Validacoes aprovadas: `flutter analyze` e 87 testes Flutter.
 - Durante esta etapa, a carga Pokemon permaneceu ativa e alcancou 40/781
   edicoes sem interrupcao do processo `65012`.
+
+### 28/07/2026 - Primeira colecao multi-TCG: Pokemon
+
+- O usuario executou `sql/multi_tcg_foundation.sql`. A leitura posterior pelo
+  Supabase confirmou as novas colunas de jogo, catalogo, variante, formato e
+  zona em Colecao, Decks e Procurados.
+- Foi criado um modelo e repositorio de colecao genericos por TCG. Os registros
+  Pokemon usam `game_slug = pokemon`, `catalog_card_id` e `variant_id`, sem
+  alterar nem misturar a colecao One Piece existente.
+- A biblioteca Pokemon ganhou um botao de inclusao na grade e no detalhe da
+  carta. Novas inclusoes incrementam a quantidade da mesma impressao em vez de
+  criar duplicatas.
+- O hub Pokemon agora oferece a rota `/pokemon/collection`. A tela mostra
+  cartas diferentes, quantidade total, menor preco individual da Liga e valor
+  total estimado, multiplicando preco pela quantidade.
+- A quantidade pode ser aumentada, reduzida ou removida pelo detalhe da carta.
+  Visitantes recebem a orientacao para entrar; usuarios autenticados leem e
+  gravam somente a propria colecao pelas politicas do Supabase.
+- Metadados web e E2E passaram a cobrir o hub, a biblioteca e a colecao
+  Pokemon. Validacoes aprovadas: `flutter analyze`, 89 testes Flutter no total,
+  build web com variaveis publicas e verificacao no navegador local e em
+  producao.
+- Commit funcional `d82f676`, enviado para `origin/main`.
+- Deploy Vercel `dpl_44BwrLBPmndXbLzbXWzS45Aqg5J2`, status READY e publicado
+  em `https://tcgbh.vercel.app`. Health check, protecao de origem e tres fluxos
+  Pokemon passaram em producao; a varredura da ultima hora nao encontrou erros
+  de runtime.
+- A carga integral Pokemon continuou ativa no processo `65012` durante toda a
+  entrega e havia alcancado 81/781 edicoes sem erros no ultimo acompanhamento.
+- Proxima expansao recomendada: reutilizar essa mesma colecao generica em
+  Digimon, Yu-Gi-Oh, Riftbound e Magic, adicionando antes o adaptador de
+  identidade/preco de cada catalogo.
