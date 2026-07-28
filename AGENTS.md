@@ -1106,3 +1106,39 @@ git diff --stat
 - Proxima expansao recomendada: reutilizar essa mesma colecao generica em
   Digimon, Yu-Gi-Oh, Riftbound e Magic, adicionando antes o adaptador de
   identidade/preco de cada catalogo.
+
+### 28/07/2026 - Colecoes habilitadas em todos os TCGs
+
+- A colecao generica foi expandida para Digimon, Magic, Riftbound e Yu-Gi-Oh.
+  Cada hub ganhou uma rota `/[jogo]/collection`, isolada por `game_slug`, e
+  cada biblioteca permite adicionar cartas pela grade ou pelo detalhe.
+- Digimon usa o numero impresso completo, por exemplo
+  `DIGIMON:BT14-001`. Magic e Riftbound usam sigla da edicao mais numero do
+  colecionador. Esses formatos sao os mesmos produzidos pelo coletor da Liga.
+- Yu-Gi-Oh recebeu tratamento especifico: como uma carta pode possuir muitas
+  impressoes, o usuario escolhe a edicao antes de adicionar. A colecao grava o
+  `set_code` como variante e consulta o preco daquela impressao, sem misturar
+  raridades ou relancamentos.
+- As bibliotecas Digimon, Magic e Riftbound exibem o estado/preco da Liga na
+  grade e no detalhe. Enquanto uma edicao ainda nao estiver no cache, a
+  interface informa que ela nao foi verificada.
+- O workflow `Update Liga price cache` aceita disparo manual para os seis
+  jogos e, nos horarios de 00:00, 08:00 e 16:00, percorre automaticamente
+  Pokemon, Digimon, Magic, Riftbound e Yu-Gi-Oh depois de One Piece.
+- Os jobs multi-TCG usam `max-parallel: 1` e intervalo de 30 segundos. Pokemon
+  e Digimon usam 12 shards; Magic e Yu-Gi-Oh usam 24; Riftbound usa 6. Assim,
+  os sites nao recebem requisicoes simultaneas e cada job permanece abaixo do
+  limite individual de duas horas.
+- O GitHub reconheceu o workflow como `active` e o quality gate do commit
+  concluiu com sucesso.
+- Validacoes aprovadas: `flutter analyze`, 92 testes Flutter, build web e 12
+  fluxos E2E locais e em producao cobrindo hubs, bibliotecas, botoes de
+  inclusao, colecoes de visitante e navegacao de retorno.
+- Commit funcional `a5a72fc`, enviado para `origin/main`.
+- Deploy Vercel `dpl_13ZhrmTpQ9VxLcoceM2nRedPymAo`, status READY e publicado
+  em `https://tcgbh.vercel.app`. Health check, protecao de origem e varredura
+  de runtime passaram sem erros.
+- A importacao inicial Pokemon permaneceu ativa no processo `65012` e havia
+  alcancado 191/781 edicoes no ultimo acompanhamento.
+- Proximas camadas: decks com validadores por formato, vendas/marketplace por
+  jogo, procurados e importacao/scanner multi-TCG.
