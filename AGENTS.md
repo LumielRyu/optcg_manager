@@ -1030,3 +1030,21 @@ git diff --stat
   `https://tcgbh.vercel.app` e `https://optcgbh.vercel.app`.
 - O health check de producao reportou release `ddcd46f19378`, configuracao e
   banco operacionais. A varredura de logs nao encontrou erros no novo deploy.
+
+### 28/07/2026 - Carga integral dos precos Pokemon em andamento
+
+- A Liga Pokemon publicou 781 edicoes ja lancadas entre os grupos principal e
+  auxiliar. Antes desta carga, o Supabase possuia somente PBL, com 120 linhas.
+- A importacao integral foi iniciada localmente em segundo plano pelo processo
+  `65012`, usando `scripts/update_liga_tcg_price_cache.py`, shard unico e
+  intervalo de 30 segundos entre edicoes.
+- Saida e erros podem ser acompanhados em `pokemon_full_import.out.log` e
+  `pokemon_full_import.err.log`; esses arquivos operacionais sao ignorados pelo
+  Git.
+- As tres primeiras edicoes foram gravadas sem erro: PBL (120), M5 (118) e CRI
+  (122). A leitura posterior do banco confirmou 360 linhas Pokemon.
+- A previsao da carga completa e de aproximadamente 6h30 a 7h, desde que o
+  computador e o processo permaneçam ligados. O coletor continua depois de
+  falhas isoladas e apresenta a lista consolidada no final.
+- O workflow agendado continua cobrindo Pokemon em 12 shards, portanto tambem
+  funciona como recuperacao gradual caso a execucao local seja interrompida.
