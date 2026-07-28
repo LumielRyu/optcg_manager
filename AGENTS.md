@@ -1213,3 +1213,38 @@ git diff --stat
   270/781 edicoes no ultimo acompanhamento.
 - Proxima camada recomendada: procurados multi-TCG, seguida por
   importacao/scanner e compartilhamento de vitrines por jogo.
+
+### 28/07/2026 - Cartas procuradas multi-TCG
+
+- Pokemon, Digimon, Magic, Riftbound e Yu-Gi-Oh ganharam a rota
+  `/[jogo]/wanted`. O modulo antigo de procuradas One Piece foi preservado.
+- Nenhum SQL adicional foi necessario: `wanted_cards` ja possuia
+  `game_slug`, `catalog_card_id` e `variant_id` pela fundacao multi-TCG, alem
+  das politicas de leitura publica e gravacao pelo proprietario.
+- As bibliotecas agora exibem a acao `Adicionar as procuradas`. A mesma acao
+  tambem aparece no detalhe das cartas da colecao.
+- Cada procurada preserva a identidade exata da impressao. Yu-Gi-Oh exige a
+  escolha da edicao antes da inclusao; os demais jogos reutilizam o mesmo
+  codigo normalizado empregado no cache da Liga.
+- Inclusoes repetidas incrementam a quantidade da busca existente, em vez de
+  criarem registros duplicados.
+- A tela possui as visoes Comunidade e Minhas procuradas, busca por carta,
+  edicao ou jogador, quantidade total, edicao de quantidade e observacoes,
+  pausa, privacidade e exclusao.
+- O botao `Eu tenho` monta uma oferta com carta, quantidade e observacao e
+  abre o WhatsApp do jogador. O telefone nao e incluido na consulta publica;
+  ele e obtido pelo RPC protegido somente apos login.
+- Cada usuario pode copiar um link publico isolado por TCG no formato
+  `/shared/wanted/[jogo]/[usuario]`.
+- Os cinco hubs passaram a mostrar Procuradas como recurso ativo e as cinco
+  rotas receberam metadados web dedicados.
+- Validacoes aprovadas: `flutter analyze`, 99 testes Flutter, build web,
+  verificacao visual e 10 fluxos E2E locais e em producao. Health check,
+  protecao de origem e varredura de runtime tambem passaram.
+- Commit funcional `966641f`, enviado para `origin/main`.
+- Deploy Vercel `dpl_9GeNbXwuaSDcrwtB79LD5eYf2rxn`, status READY e publicado
+  em `https://tcgbh.vercel.app`.
+- A carga inicial Pokemon permaneceu ativa no processo `65012` e alcancou
+  295/781 edicoes no ultimo acompanhamento.
+- Proxima camada recomendada: importacao e scanner multi-TCG, seguida por
+  compartilhamento de colecoes e vitrines filtradas por jogo.
