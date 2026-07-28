@@ -12,6 +12,7 @@ class TcgHubScreen extends StatelessWidget {
   final IconData heroIcon;
   final String libraryRoute;
   final String? collectionRoute;
+  final String? deckRoute;
   final List<String> highlights;
 
   const TcgHubScreen({
@@ -23,6 +24,7 @@ class TcgHubScreen extends StatelessWidget {
     required this.heroIcon,
     required this.libraryRoute,
     this.collectionRoute,
+    this.deckRoute,
     required this.highlights,
   });
 
@@ -110,6 +112,25 @@ class TcgHubScreen extends StatelessWidget {
                         onTap: collectionRoute == null
                             ? null
                             : () => context.go(collectionRoute!),
+                      ),
+                    ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: _HubFeatureCard(
+                        title: 'Decks',
+                        description: deckRoute == null
+                            ? 'O construtor de decks será disponibilizado em uma próxima fase.'
+                            : 'Monte decks com sua coleção, organize zonas e valide a estrutura do formato.',
+                        icon: Icons.dashboard_customize_outlined,
+                        accent: deckRoute == null
+                            ? const Color(0xFF7A7A7A)
+                            : accent,
+                        buttonLabel: deckRoute == null
+                            ? 'Em breve'
+                            : 'Abrir decks',
+                        onTap: deckRoute == null
+                            ? null
+                            : () => context.go(deckRoute!),
                       ),
                     ),
                     SizedBox(

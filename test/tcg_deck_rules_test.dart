@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:optcg_manager/core/tcg/tcg_deck_adapter.dart';
 import 'package:optcg_manager/core/tcg/tcg_deck_rules.dart';
 import 'package:optcg_manager/core/tcg/tcg_game.dart';
+import 'package:optcg_manager/data/models/tcg_deck.dart';
 
 TcgDeckEntry entry({
   required String id,
@@ -174,5 +176,67 @@ void main() {
       result.errors.any((error) => error.contains('limite atual de 1')),
       isTrue,
     );
+  });
+
+  test('stored Pokemon Basic Energy becomes a copy-limit exception', () {
+    const item = TcgDeckItem(
+      id: 'item',
+      deckId: 'deck',
+      gameSlug: 'pokemon',
+      catalogCardId: 'energy',
+      variantId: 'energy',
+      cardCode: 'POKEMON:SVE:1',
+      name: 'Basic Lightning Energy',
+      imageUrl: '',
+      setName: '',
+      rarity: '',
+      color: 'Lightning',
+      type: 'Energy',
+      text: '',
+      attribute: 'Basic',
+      quantity: 20,
+      zone: TcgDeckZone.main,
+    );
+
+    final adapted = deckEntryFromItem(item);
+
+    expect(adapted.isBasicResource, isTrue);
+    expect(adapted.cardNumber, '1');
+  });
+
+  test('Commander identity is derived from the commander printing', () {
+    const commander = TcgDeckItem(
+      id: 'commander',
+      deckId: 'deck',
+      gameSlug: 'magic',
+      catalogCardId: 'card',
+      variantId: 'set:1',
+      cardCode: 'MAGIC:SET:1',
+      name: 'Commander',
+      imageUrl: '',
+      setName: '',
+      rarity: '',
+      color: 'W, U',
+      type: 'Legendary Creature',
+      text: '',
+      attribute: '',
+      quantity: 1,
+      zone: TcgDeckZone.commander,
+    );
+    final deck = TcgDeck(
+      id: 'deck',
+      name: 'Azorius',
+      gameSlug: 'magic',
+      formatSlug: 'magic-commander',
+      createdAt: DateTime.utc(2026),
+      items: const [commander],
+    );
+
+    final context = validationContextFromDeck(
+      deck,
+      TcgDeckRulesRegistry.magicCommander,
+    );
+
+    expect(context.allowedIdentities, {'W', 'U'});
   });
 }

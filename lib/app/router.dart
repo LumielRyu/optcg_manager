@@ -18,6 +18,7 @@ import '../features/collection/shared_sale_card_screen.dart';
 import '../features/collection/shared_store_screen.dart';
 import '../features/collection/tcg_collection_screen.dart';
 import '../features/decks/shared_deck_screen.dart';
+import '../features/decks/tcg_decks_screen.dart';
 import '../features/digimon/digimon_library_screen.dart';
 import '../features/help/help_screen.dart';
 import '../features/home/home_screen.dart';
@@ -190,6 +191,7 @@ final GoRouter appRouter = GoRouter(
         heroIcon: Icons.memory_outlined,
         libraryRoute: '/digimon/library',
         collectionRoute: '/digimon/collection',
+        deckRoute: '/digimon/decks',
         highlights: ['Busca em API', 'Preços Liga', 'Coleção'],
       ),
     ),
@@ -203,6 +205,10 @@ final GoRouter appRouter = GoRouter(
           const TcgCollectionScreen(game: TcgGame.digimon),
     ),
     GoRoute(
+      path: '/digimon/decks',
+      builder: (context, state) => const TcgDecksScreen(game: TcgGame.digimon),
+    ),
+    GoRoute(
       path: '/magic',
       builder: (context, state) => const TcgHubScreen(
         title: 'Magic',
@@ -213,6 +219,7 @@ final GoRouter appRouter = GoRouter(
         heroIcon: Icons.auto_fix_high_outlined,
         libraryRoute: '/magic/library',
         collectionRoute: '/magic/collection',
+        deckRoute: '/magic/decks',
         highlights: ['Busca em API', 'Preços Liga', 'Coleção'],
       ),
     ),
@@ -226,6 +233,10 @@ final GoRouter appRouter = GoRouter(
           const TcgCollectionScreen(game: TcgGame.magic),
     ),
     GoRoute(
+      path: '/magic/decks',
+      builder: (context, state) => const TcgDecksScreen(game: TcgGame.magic),
+    ),
+    GoRoute(
       path: '/pokemon',
       builder: (context, state) => const TcgHubScreen(
         title: 'Pokemon',
@@ -236,6 +247,7 @@ final GoRouter appRouter = GoRouter(
         heroIcon: Icons.catching_pokemon,
         libraryRoute: '/pokemon/library',
         collectionRoute: '/pokemon/collection',
+        deckRoute: '/pokemon/decks',
         highlights: ['Busca em API', 'Preços Liga', 'Coleção'],
       ),
     ),
@@ -249,6 +261,10 @@ final GoRouter appRouter = GoRouter(
           const TcgCollectionScreen(game: TcgGame.pokemon),
     ),
     GoRoute(
+      path: '/pokemon/decks',
+      builder: (context, state) => const TcgDecksScreen(game: TcgGame.pokemon),
+    ),
+    GoRoute(
       path: '/riftbound',
       builder: (context, state) => const TcgHubScreen(
         title: 'Riftbound',
@@ -259,6 +275,7 @@ final GoRouter appRouter = GoRouter(
         heroIcon: Icons.bolt_outlined,
         libraryRoute: '/riftbound/library',
         collectionRoute: '/riftbound/collection',
+        deckRoute: '/riftbound/decks',
         highlights: ['Busca em API', 'Preços Liga', 'Coleção'],
       ),
     ),
@@ -272,6 +289,11 @@ final GoRouter appRouter = GoRouter(
           const TcgCollectionScreen(game: TcgGame.riftbound),
     ),
     GoRoute(
+      path: '/riftbound/decks',
+      builder: (context, state) =>
+          const TcgDecksScreen(game: TcgGame.riftbound),
+    ),
+    GoRoute(
       path: '/yugioh',
       builder: (context, state) => const TcgHubScreen(
         title: 'Yu-Gi-Oh',
@@ -282,6 +304,7 @@ final GoRouter appRouter = GoRouter(
         heroIcon: Icons.auto_awesome_outlined,
         libraryRoute: '/yugioh/library',
         collectionRoute: '/yugioh/collection',
+        deckRoute: '/yugioh/decks',
         highlights: ['Busca em API', 'Preços por edição', 'Coleção'],
       ),
     ),
@@ -293,6 +316,10 @@ final GoRouter appRouter = GoRouter(
       path: '/yugioh/collection',
       builder: (context, state) =>
           const TcgCollectionScreen(game: TcgGame.yugioh),
+    ),
+    GoRoute(
+      path: '/yugioh/decks',
+      builder: (context, state) => const TcgDecksScreen(game: TcgGame.yugioh),
     ),
     GoRoute(
       path: '/integrations/liga-one-piece-test',

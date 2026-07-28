@@ -39,7 +39,7 @@ extension MagicCollectionDraft on MagicCard {
     imageUrl: largeImageUrl.isEmpty ? imageUrl : largeImageUrl,
     setName: setName,
     rarity: rarity,
-    color: colors.join(', '),
+    color: colorIdentity.join(', '),
     type: typeLine,
     text: oracleText,
     attribute: manaCost,

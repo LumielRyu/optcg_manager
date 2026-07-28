@@ -13,6 +13,7 @@ class MagicCard {
   final String power;
   final String toughness;
   final List<String> colors;
+  final List<String> colorIdentity;
 
   MagicCard({
     required this.id,
@@ -29,6 +30,7 @@ class MagicCard {
     required this.power,
     required this.toughness,
     required this.colors,
+    required this.colorIdentity,
   });
 
   factory MagicCard.fromJson(Map<String, dynamic> json) {
@@ -53,6 +55,10 @@ class MagicCard {
       power: (json['power'] ?? '').toString().trim(),
       toughness: (json['toughness'] ?? '').toString().trim(),
       colors: (json['colors'] as List<dynamic>? ?? const [])
+          .map((item) => item.toString().trim())
+          .where((item) => item.isNotEmpty)
+          .toList(growable: false),
+      colorIdentity: (json['color_identity'] as List<dynamic>? ?? const [])
           .map((item) => item.toString().trim())
           .where((item) => item.isNotEmpty)
           .toList(growable: false),
