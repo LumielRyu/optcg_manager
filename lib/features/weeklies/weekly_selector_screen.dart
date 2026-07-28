@@ -12,7 +12,10 @@ class WeeklySelectorScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: const HomeNavigationButton(goHome: true),
+        leading: const HomeNavigationButton(
+          destinationRoute: '/home',
+          showHomeIcon: true,
+        ),
         title: const Text('Semanais STOP TCG'),
       ),
       body: AppPageShell(

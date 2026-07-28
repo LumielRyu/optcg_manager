@@ -8,10 +8,7 @@ import '../../core/widgets/home_navigation_button.dart';
 class SharedDeckScreen extends ConsumerStatefulWidget {
   final String shareCode;
 
-  const SharedDeckScreen({
-    super.key,
-    required this.shareCode,
-  });
+  const SharedDeckScreen({super.key, required this.shareCode});
 
   @override
   ConsumerState<SharedDeckScreen> createState() => _SharedDeckScreenState();
@@ -36,16 +33,14 @@ class _SharedDeckScreenState extends ConsumerState<SharedDeckScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        actions: const [HomeNavigationButton()],
+        actions: const [HomeNavigationButton(destinationRoute: '/home')],
         title: const Text('Deck compartilhado'),
       ),
       body: FutureBuilder(
         future: _deckFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
           if (snapshot.hasError) {
@@ -68,8 +63,10 @@ class _SharedDeckScreenState extends ConsumerState<SharedDeckScreen> {
             );
           }
 
-          final totalCards =
-              deck.items.fold<int>(0, (sum, item) => sum + item.quantity);
+          final totalCards = deck.items.fold<int>(
+            0,
+            (sum, item) => sum + item.quantity,
+          );
 
           return Column(
             children: [
@@ -79,10 +76,8 @@ class _SharedDeckScreenState extends ConsumerState<SharedDeckScreen> {
                   children: [
                     Text(
                       deck.deckName,
-                      style:
-                          Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.w800,
-                              ),
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.w800),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),
@@ -97,8 +92,7 @@ class _SharedDeckScreenState extends ConsumerState<SharedDeckScreen> {
               Expanded(
                 child: GridView.builder(
                   padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
-                  gridDelegate:
-                      const SliverGridDelegateWithMaxCrossAxisExtent(
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                     maxCrossAxisExtent: 210,
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
@@ -186,18 +180,12 @@ class _SharedResolvedCardImage extends ConsumerWidget {
         fit: fit,
         webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
         errorBuilder: (_, _, _) {
-          return _SharedResolvedCardImageFromApi(
-            cardCode: cardCode,
-            fit: fit,
-          );
+          return _SharedResolvedCardImageFromApi(cardCode: cardCode, fit: fit);
         },
       );
     }
 
-    return _SharedResolvedCardImageFromApi(
-      cardCode: cardCode,
-      fit: fit,
-    );
+    return _SharedResolvedCardImageFromApi(cardCode: cardCode, fit: fit);
   }
 }
 
@@ -218,9 +206,7 @@ class _SharedResolvedCardImageFromApi extends ConsumerWidget {
       future: api.findCardByCode(cardCode),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(strokeWidth: 2),
-          );
+          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
         }
 
         final resolvedUrl = snapshot.data?.image.trim() ?? '';
@@ -241,9 +227,7 @@ class _SharedResolvedCardImageFromApi extends ConsumerWidget {
           errorBuilder: (_, _, _) {
             return Container(
               color: Colors.grey.shade200,
-              child: const Center(
-                child: Icon(Icons.broken_image_outlined),
-              ),
+              child: const Center(child: Icon(Icons.broken_image_outlined)),
             );
           },
         );

@@ -37,4 +37,36 @@ void main() {
     expect(plan, contains('tcg_card_price_cache'));
     expect(plan, contains('00:00, 08:00 e 16:00'));
   });
+
+  test('every TCG library returns to its own hub', () {
+    const expectedParents = <String, String>{
+      'pokemon/pokemon_library_screen.dart': '/pokemon',
+      'digimon/digimon_library_screen.dart': '/digimon',
+      'magic/magic_library_screen.dart': '/magic',
+      'riftbound/riftbound_library_screen.dart': '/riftbound',
+      'yugioh/yugioh_library_screen.dart': '/yugioh',
+      'library/one_piece_library_screen.dart': '/home/one-piece',
+    };
+
+    for (final entry in expectedParents.entries) {
+      final source = File('lib/features/${entry.key}').readAsStringSync();
+
+      expect(
+        source,
+        contains("destinationRoute: '${entry.value}'"),
+        reason: '${entry.key} deve voltar para ${entry.value}',
+      );
+    }
+  });
+
+  test('shared navigation button has no implicit One Piece fallback', () {
+    final source = File(
+      'lib/core/widgets/home_navigation_button.dart',
+    ).readAsStringSync();
+
+    expect(source, contains('required this.destinationRoute'));
+    expect(source, contains('context.go(destinationRoute)'));
+    expect(source, isNot(contains("'/home/one-piece'")));
+    expect(source, isNot(contains('context.canPop()')));
+  });
 }

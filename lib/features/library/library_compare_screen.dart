@@ -17,7 +17,7 @@ class LibraryCompareScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Comparar Cartas'),
-        actions: const [HomeNavigationButton()],
+        actions: const [HomeNavigationButton(destinationRoute: '/library')],
       ),
       body: FutureBuilder<List<OpCard>>(
         future: api.loadAllCards(),

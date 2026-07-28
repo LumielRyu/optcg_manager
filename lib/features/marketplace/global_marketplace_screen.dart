@@ -946,7 +946,9 @@ class _GlobalMarketplaceScreenState
 
     return Scaffold(
       appBar: AppBar(
-        leading: const HomeNavigationButton(),
+        leading: const HomeNavigationButton(
+          destinationRoute: '/home/one-piece',
+        ),
         title: const Text('Marketplace Global'),
         actions: [
           IconButton(

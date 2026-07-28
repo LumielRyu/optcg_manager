@@ -104,7 +104,9 @@ class _OnePieceLibraryScreenState extends ConsumerState<OnePieceLibraryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: const HomeNavigationButton(),
+        leading: const HomeNavigationButton(
+          destinationRoute: '/home/one-piece',
+        ),
         title: const Text('Biblioteca One Piece'),
         actions: [
           IconButton(

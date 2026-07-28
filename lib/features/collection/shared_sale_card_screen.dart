@@ -11,10 +11,7 @@ import '../../core/widgets/home_navigation_button.dart';
 class SharedSaleCardScreen extends ConsumerStatefulWidget {
   final String shareCode;
 
-  const SharedSaleCardScreen({
-    super.key,
-    required this.shareCode,
-  });
+  const SharedSaleCardScreen({super.key, required this.shareCode});
 
   @override
   ConsumerState<SharedSaleCardScreen> createState() =>
@@ -41,15 +38,13 @@ class _SharedSaleCardScreenState extends ConsumerState<SharedSaleCardScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Carta \u00E0 venda'),
-        actions: const [HomeNavigationButton()],
+        actions: const [HomeNavigationButton(destinationRoute: '/home')],
       ),
       body: FutureBuilder<MarketplaceListing?>(
         future: _listingFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
           if (snapshot.hasError) {
@@ -67,11 +62,12 @@ class _SharedSaleCardScreenState extends ConsumerState<SharedSaleCardScreen> {
             return const Center(
               child: Padding(
                 padding: EdgeInsets.all(24),
-                child: Text('Carta n\u00E3o encontrada ou n\u00E3o est\u00E1 p\u00FAblica.'),
+                child: Text(
+                  'Carta n\u00E3o encontrada ou n\u00E3o est\u00E1 p\u00FAblica.',
+                ),
               ),
             );
           }
-
 
           return Center(
             child: ConstrainedBox(
@@ -87,10 +83,8 @@ class _SharedSaleCardScreenState extends ConsumerState<SharedSaleCardScreen> {
                         Text(
                           item.name,
                           textAlign: TextAlign.center,
-                          style:
-                              Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                  ),
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.w800),
                         ),
                         const SizedBox(height: 8),
                         Text(item.cardCode),
@@ -111,9 +105,8 @@ class _SharedSaleCardScreenState extends ConsumerState<SharedSaleCardScreen> {
                         const SizedBox(height: 8),
                         Text(
                           'Toque na imagem para ampliar',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Colors.black54,
-                              ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: Colors.black54),
                         ),
                         const SizedBox(height: 16),
                         _row('Quantidade', '${item.quantity}x'),
@@ -127,8 +120,7 @@ class _SharedSaleCardScreenState extends ConsumerState<SharedSaleCardScreen> {
                         _row('Condição', item.conditionLabel),
                         if (item.hasContactInfo)
                           _row('Contato', item.contactInfo),
-                        if (item.hasNotes)
-                          _row('Observações', item.notes),
+                        if (item.hasNotes) _row('Observações', item.notes),
                         if (item.hasContactInfo) ...[
                           const SizedBox(height: 12),
                           Row(
@@ -285,15 +277,11 @@ class _ZoomableCardImage extends ConsumerWidget {
         final url = snapshot.data?.image.trim() ?? '';
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(strokeWidth: 2),
-          );
+          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
         }
 
         if (url.isEmpty) {
-          return const Center(
-            child: Icon(Icons.image_not_supported),
-          );
+          return const Center(child: Icon(Icons.image_not_supported));
         }
 
         return _buildTapWrapper(
@@ -301,9 +289,8 @@ class _ZoomableCardImage extends ConsumerWidget {
           _buildNetworkImage(
             url: url,
             fit: fit,
-            onError: () => const Center(
-              child: Icon(Icons.broken_image_outlined),
-            ),
+            onError: () =>
+                const Center(child: Icon(Icons.broken_image_outlined)),
           ),
           url,
         );
@@ -311,7 +298,11 @@ class _ZoomableCardImage extends ConsumerWidget {
     );
   }
 
-  Widget _buildTapWrapper(BuildContext context, Widget child, String resolvedUrl) {
+  Widget _buildTapWrapper(
+    BuildContext context,
+    Widget child,
+    String resolvedUrl,
+  ) {
     return Material(
       color: Colors.transparent,
       child: InkWell(

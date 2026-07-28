@@ -98,7 +98,7 @@ class _RiftboundLibraryScreenState
 
     return Scaffold(
       appBar: AppBar(
-        leading: const HomeNavigationButton(),
+        leading: const HomeNavigationButton(destinationRoute: '/riftbound'),
         title: const Text('Biblioteca Riftbound'),
         actions: [
           IconButton(

@@ -18,6 +18,8 @@ const ROUTES = [
     hash: '#/weeklies',
     title: 'Semanais STOP TCG | TCG BH',
     content: ['Semanais STOP TCG', 'One Piece Card Game', 'Pokemon TCG'],
+    backTarget: '#/home',
+    backButtonLabel: 'Voltar ao Home',
   },
   {
     name: 'pokemon-weekly',
@@ -39,18 +41,57 @@ const ROUTES = [
     hash: '#/login',
     title: 'Entrar | TCG BH',
     content: ['Entrar', 'Criar conta'],
+    backTarget: '#/home',
   },
   {
     name: 'register',
     hash: '#/register',
     title: 'Criar conta | TCG BH',
     content: ['Criar conta'],
+    backTarget: '#/home',
   },
   {
     name: 'library',
     hash: '#/library',
     title: 'Biblioteca One Piece | TCG BH',
     content: ['Biblioteca One Piece', 'Liga:'],
+    backTarget: '#/home/one-piece',
+  },
+  {
+    name: 'pokemon-library',
+    hash: '#/pokemon/library',
+    title: 'Biblioteca Pokemon | TCG BH',
+    content: ['Biblioteca Pokemon'],
+    backTarget: '#/pokemon',
+    ignoredConsoleErrorIncludes: ['api.pokemontcg.io'],
+  },
+  {
+    name: 'digimon-library',
+    hash: '#/digimon/library',
+    title: 'Biblioteca Digimon | TCG BH',
+    content: ['Biblioteca Digimon'],
+    backTarget: '#/digimon',
+  },
+  {
+    name: 'magic-library',
+    hash: '#/magic/library',
+    title: 'Biblioteca Magic | TCG BH',
+    content: ['Biblioteca Magic'],
+    backTarget: '#/magic',
+  },
+  {
+    name: 'riftbound-library',
+    hash: '#/riftbound/library',
+    title: 'Biblioteca Riftbound | TCG BH',
+    content: ['Biblioteca Riftbound'],
+    backTarget: '#/riftbound',
+  },
+  {
+    name: 'yugioh-library',
+    hash: '#/yugioh/library',
+    title: 'Biblioteca Yu-Gi-Oh | TCG BH',
+    content: ['Biblioteca Yu-Gi-Oh'],
+    backTarget: '#/yugioh',
   },
   {
     name: 'products',
@@ -60,6 +101,8 @@ const ROUTES = [
     // enabled. This route is still checked for first frame, title, errors and
     // desktop/mobile screenshots; widget tests cover its interactive content.
     content: [],
+    backTarget: '#/home',
+    backCoordinates: { x: 28, y: 28 },
   },
   {
     name: 'admin-price-guard',
@@ -308,9 +351,13 @@ async function checkRoute(browser, baseUrl, route) {
     const title = await page.title();
     const accessibleText = await readAccessibleText(page);
     const normalizedText = normalizeText(accessibleText);
-    const ignoredLocalApiErrors = baseUrl.startsWith('http://127.0.0.1')
-      ? consoleErrors.filter((error) => error.includes('/api/'))
-      : [];
+    const ignoredConsoleErrorIncludes = [
+      ...(baseUrl.startsWith('http://127.0.0.1') ? ['/api/'] : []),
+      ...(route.ignoredConsoleErrorIncludes || []),
+    ];
+    const ignoredLocalApiErrors = consoleErrors.filter((error) =>
+      ignoredConsoleErrorIncludes.some((fragment) => error.includes(fragment)),
+    );
     const actionableConsoleErrors = consoleErrors.filter(
       (error) => !ignoredLocalApiErrors.includes(error),
     );
@@ -380,6 +427,24 @@ async function checkRoute(browser, baseUrl, route) {
         path: path.join(ARTIFACTS_DIR, 'library-prices.png'),
         fullPage: true,
       });
+    }
+    if (route.backTarget) {
+      if (route.backCoordinates) {
+        await page.mouse.click(
+          route.backCoordinates.x,
+          route.backCoordinates.y,
+        );
+      } else {
+        await clickFlutterButton(
+          page,
+          route.backButtonLabel || 'Voltar',
+        );
+      }
+      await page.waitForFunction(
+        (expectedHash) => window.location.hash === expectedHash,
+        { timeout: 30_000 },
+        route.backTarget,
+      );
     }
     if (actionableConsoleErrors.length > 0 || pageErrors.length > 0) {
       throw Object.assign(new Error('A pagina gerou erros no navegador.'), {

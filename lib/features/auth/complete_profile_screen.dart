@@ -95,7 +95,7 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Complete seu cadastro'),
-        actions: const [HomeNavigationButton()],
+        actions: const [HomeNavigationButton(destinationRoute: '/home')],
       ),
       body: AppPageShell(
         maxWidth: 500,

@@ -14,7 +14,9 @@ class HelpScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Ajuda e documentacao'),
-        actions: const [HomeNavigationButton()],
+        actions: const [
+          HomeNavigationButton(destinationRoute: '/home/one-piece'),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),

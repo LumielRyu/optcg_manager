@@ -94,7 +94,7 @@ class _MagicLibraryScreenState extends ConsumerState<MagicLibraryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: const HomeNavigationButton(),
+        leading: const HomeNavigationButton(destinationRoute: '/magic'),
         title: const Text('Biblioteca Magic'),
         actions: [
           IconButton(

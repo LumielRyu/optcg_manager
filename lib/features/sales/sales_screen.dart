@@ -240,7 +240,9 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: const HomeNavigationButton(),
+        leading: const HomeNavigationButton(
+          destinationRoute: '/home/one-piece',
+        ),
         title: const Text('Cartas \u00E0 venda'),
         actions: [
           IconButton(

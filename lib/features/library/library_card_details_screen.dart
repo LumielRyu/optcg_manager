@@ -33,7 +33,7 @@ class LibraryCardDetailsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Carta da Biblioteca'),
         actions: [
-          const HomeNavigationButton(),
+          const HomeNavigationButton(destinationRoute: '/library'),
           IconButton(
             tooltip: 'Compartilhar carta',
             onPressed: () => _shareCardLink(context),

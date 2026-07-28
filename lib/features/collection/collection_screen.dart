@@ -188,7 +188,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
         titleSpacing: 8,
         title: const Row(
           children: [
-            HomeNavigationButton(),
+            HomeNavigationButton(destinationRoute: '/home/one-piece'),
             SizedBox(width: 8),
             Text('Minha cole\u00E7\u00E3o'),
           ],

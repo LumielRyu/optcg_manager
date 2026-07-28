@@ -28,7 +28,10 @@ class TcgHubScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: const HomeNavigationButton(goHome: true),
+        leading: const HomeNavigationButton(
+          destinationRoute: '/home',
+          showHomeIcon: true,
+        ),
         title: Text(title),
       ),
       body: AppPageShell(

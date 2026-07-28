@@ -221,7 +221,13 @@ class _CameraImportScreenState extends State<CameraImportScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Escanear com câmera'),
-        actions: const [HomeNavigationButton()],
+        actions: [
+          HomeNavigationButton(
+            destinationRoute: widget.initialDestination == 'forSale'
+                ? '/sales'
+                : '/collection',
+          ),
+        ],
       ),
       body: Stack(
         children: [

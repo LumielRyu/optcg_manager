@@ -459,7 +459,9 @@ class _CardScanTestScreenState extends ConsumerState<CardScanTestScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Reconhecimento por imagem'),
-        actions: const [HomeNavigationButton()],
+        actions: const [
+          HomeNavigationButton(destinationRoute: '/home/one-piece'),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),

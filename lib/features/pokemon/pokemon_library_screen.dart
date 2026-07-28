@@ -98,7 +98,7 @@ class _PokemonLibraryScreenState extends ConsumerState<PokemonLibraryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: const HomeNavigationButton(),
+        leading: const HomeNavigationButton(destinationRoute: '/pokemon'),
         title: const Text('Biblioteca Pokemon'),
         actions: [
           IconButton(

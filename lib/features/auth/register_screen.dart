@@ -72,7 +72,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Criar conta'),
-        actions: const [HomeNavigationButton()],
+        actions: const [HomeNavigationButton(destinationRoute: '/home')],
       ),
       body: AppPageShell(
         maxWidth: 460,

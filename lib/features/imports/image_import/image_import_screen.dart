@@ -109,7 +109,14 @@ class _ImageImportScreenState extends ConsumerState<ImageImportScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Importar por imagem'),
-        actions: const [HomeNavigationButton()],
+        actions: [
+          HomeNavigationButton(
+            destinationRoute:
+                widget.initialDestination == CollectionTypes.forSale
+                ? '/sales'
+                : '/collection',
+          ),
+        ],
       ),
       body: Column(
         children: [

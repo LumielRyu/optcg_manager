@@ -97,7 +97,7 @@ class _DigimonLibraryScreenState extends ConsumerState<DigimonLibraryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: const HomeNavigationButton(),
+        leading: const HomeNavigationButton(destinationRoute: '/digimon'),
         title: const Text('Biblioteca Digimon'),
         actions: [
           IconButton(

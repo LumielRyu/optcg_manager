@@ -82,7 +82,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Entrar'),
-        actions: const [HomeNavigationButton()],
+        actions: const [HomeNavigationButton(destinationRoute: '/home')],
       ),
       body: AppPageShell(
         maxWidth: 460,

@@ -68,11 +68,9 @@ class _YugiohLibraryScreenState extends ConsumerState<YugiohLibraryScreen> {
     });
 
     try {
-      final result = await ref.read(yugiohTcgServiceProvider).searchCards(
-            query: _query,
-            page: targetPage,
-            pageSize: _pageSize,
-          );
+      final result = await ref
+          .read(yugiohTcgServiceProvider)
+          .searchCards(query: _query, page: targetPage, pageSize: _pageSize);
 
       if (!mounted) return;
       setState(() {
@@ -99,7 +97,7 @@ class _YugiohLibraryScreenState extends ConsumerState<YugiohLibraryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: const HomeNavigationButton(),
+        leading: const HomeNavigationButton(destinationRoute: '/yugioh'),
         title: const Text('Biblioteca Yu-Gi-Oh'),
         actions: [
           IconButton(
@@ -161,10 +159,7 @@ class _YugiohLibraryScreenState extends ConsumerState<YugiohLibraryScreen> {
                           label: 'Carregadas',
                           value: '${_cards.length}',
                         ),
-                        _YugiohStatChip(
-                          label: 'Pagina',
-                          value: '$_page',
-                        ),
+                        _YugiohStatChip(label: 'Pagina', value: '$_page'),
                       ],
                     ),
                   ],
@@ -207,33 +202,28 @@ class _YugiohLibraryScreenState extends ConsumerState<YugiohLibraryScreen> {
             SliverPadding(
               padding: const EdgeInsets.all(12),
               sliver: SliverGrid(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final card = _cards[index];
-                    return CatalogGridCard(
-                      code: card.id == 0 ? '-' : '${card.id}',
-                      title: card.name,
-                      metadata: [
-                        card.type.isEmpty ? '-' : card.type,
-                        card.attribute.isEmpty ? '-' : card.attribute,
-                        card.archetype.isEmpty ? '-' : card.archetype,
-                      ],
-                      image: Image.network(
-                        card.imageUrl,
-                        fit: BoxFit.contain,
-                        webHtmlElementStrategy:
-                            WebHtmlElementStrategy.prefer,
-                        errorBuilder: (_, _, _) => const Center(
-                          child: Icon(Icons.broken_image_outlined),
-                        ),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final card = _cards[index];
+                  return CatalogGridCard(
+                    code: card.id == 0 ? '-' : '${card.id}',
+                    title: card.name,
+                    metadata: [
+                      card.type.isEmpty ? '-' : card.type,
+                      card.attribute.isEmpty ? '-' : card.attribute,
+                      card.archetype.isEmpty ? '-' : card.archetype,
+                    ],
+                    image: Image.network(
+                      card.imageUrl,
+                      fit: BoxFit.contain,
+                      webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+                      errorBuilder: (_, _, _) => const Center(
+                        child: Icon(Icons.broken_image_outlined),
                       ),
-                      onTap: () => _openCardSheet(context, card),
-                    );
-                  },
-                  childCount: _cards.length,
-                ),
-                gridDelegate:
-                    const SliverGridDelegateWithMaxCrossAxisExtent(
+                    ),
+                    onTap: () => _openCardSheet(context, card),
+                  );
+                }, childCount: _cards.length),
+                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                   maxCrossAxisExtent: 220,
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
@@ -248,12 +238,12 @@ class _YugiohLibraryScreenState extends ConsumerState<YugiohLibraryScreen> {
                   child: _loadingMore
                       ? const CircularProgressIndicator()
                       : _hasMore
-                          ? FilledButton.icon(
-                              onPressed: () => _fetchCards(reset: false),
-                              icon: const Icon(Icons.expand_more),
-                              label: const Text('Carregar mais'),
-                            )
-                          : const Text('Fim dos resultados carregados.'),
+                      ? FilledButton.icon(
+                          onPressed: () => _fetchCards(reset: false),
+                          icon: const Icon(Icons.expand_more),
+                          label: const Text('Carregar mais'),
+                        )
+                      : const Text('Fim dos resultados carregados.'),
                 ),
               ),
             ),
@@ -277,10 +267,7 @@ class _YugiohStatChip extends StatelessWidget {
   final String label;
   final String value;
 
-  const _YugiohStatChip({
-    required this.label,
-    required this.value,
-  });
+  const _YugiohStatChip({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -332,10 +319,8 @@ class _YugiohCardDetailsSheet extends StatelessWidget {
                   card.largeImageUrl,
                   fit: BoxFit.contain,
                   webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-                  errorBuilder: (_, _, _) => const Icon(
-                    Icons.broken_image_outlined,
-                    size: 48,
-                  ),
+                  errorBuilder: (_, _, _) =>
+                      const Icon(Icons.broken_image_outlined, size: 48),
                 ),
               ),
             ),
@@ -396,10 +381,7 @@ class _YgoDetailChip extends StatelessWidget {
   final String label;
   final String value;
 
-  const _YgoDetailChip({
-    required this.label,
-    required this.value,
-  });
+  const _YgoDetailChip({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
