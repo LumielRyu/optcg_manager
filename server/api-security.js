@@ -1,4 +1,5 @@
 const DEFAULT_ALLOWED_ORIGINS = new Set([
+  'https://tcgbh.vercel.app',
   'https://optcgbh.vercel.app',
   'https://optcgmanager.vercel.app',
   'https://optcgmanager-lumielryus-projects.vercel.app',
@@ -19,6 +20,9 @@ function isAllowedOrigin(origin) {
   if (!origin) return true;
   if (allowedOrigins().has(origin)) return true;
   if (/^https:\/\/optcgbh-[a-z0-9-]+-lumielryus-projects\.vercel\.app$/i.test(origin)) {
+    return true;
+  }
+  if (/^https:\/\/tcgbh-[a-z0-9-]+-lumielryus-projects\.vercel\.app$/i.test(origin)) {
     return true;
   }
   return /^https:\/\/optcgmanager-[a-z0-9-]+-lumielryus-projects\.vercel\.app$/i.test(

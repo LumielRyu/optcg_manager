@@ -32,7 +32,12 @@ function responseDouble() {
 }
 
 test('accepts production and preview origins, but rejects foreign origins', () => {
+  assert.equal(isAllowedOrigin('https://tcgbh.vercel.app'), true);
   assert.equal(isAllowedOrigin('https://optcgbh.vercel.app'), true);
+  assert.equal(
+    isAllowedOrigin('https://tcgbh-example-lumielryus-projects.vercel.app'),
+    true,
+  );
   assert.equal(
     isAllowedOrigin('https://optcgbh-example-lumielryus-projects.vercel.app'),
     true,

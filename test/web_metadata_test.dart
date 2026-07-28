@@ -12,7 +12,7 @@ void main() {
     expect(html, contains('name="robots"'));
     expect(
       html,
-      contains('<link rel="canonical" href="https://optcgbh.vercel.app/">'),
+      contains('<link rel="canonical" href="https://tcgbh.vercel.app/">'),
     );
     expect(html, contains('property="og:title"'));
     expect(html, contains('property="og:image"'));
@@ -29,7 +29,9 @@ void main() {
     );
     expect(
       html,
-      contains("const cacheResetVersion = '2026-07-28-tcgbh-brand-v1'"),
+      contains(
+        "const cacheResetVersion = '2026-07-28-pokemon-liga-prices-v1'",
+      ),
     );
     expect(File('assets/editorial/marketplace_hero.png').existsSync(), isTrue);
 
@@ -39,7 +41,7 @@ void main() {
     expect(structuredData, isNotNull);
     final json = jsonDecode(structuredData!.group(1)!) as Map<String, dynamic>;
     expect(json['@type'], 'WebApplication');
-    expect(json['url'], 'https://optcgbh.vercel.app/');
+    expect(json['url'], 'https://tcgbh.vercel.app/');
     expect(json['inLanguage'], 'pt-BR');
   });
 
@@ -95,7 +97,7 @@ void main() {
     final sitemap = File('web/sitemap.xml').readAsStringSync();
 
     expect(robots, contains('Allow: /'));
-    expect(robots, contains('Sitemap: https://optcgbh.vercel.app/sitemap.xml'));
-    expect(sitemap, contains('<loc>https://optcgbh.vercel.app/</loc>'));
+    expect(robots, contains('Sitemap: https://tcgbh.vercel.app/sitemap.xml'));
+    expect(sitemap, contains('<loc>https://tcgbh.vercel.app/</loc>'));
   });
 }

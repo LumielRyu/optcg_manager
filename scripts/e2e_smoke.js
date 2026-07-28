@@ -4,7 +4,7 @@ const puppeteer = require('puppeteer-core');
 
 const ROOT = path.resolve(__dirname, '..');
 const ARTIFACTS_DIR = path.join(ROOT, 'artifacts', 'e2e');
-const DEFAULT_BASE_URL = 'https://optcgbh.vercel.app';
+const DEFAULT_BASE_URL = 'https://tcgbh.vercel.app';
 
 const ROUTES = [
   {

@@ -2,6 +2,22 @@
 
 Atualizado em 28/07/2026.
 
+## Implantação iniciada
+
+- O endereço principal passou a ser `https://tcgbh.vercel.app`.
+- O coletor compartilhado foi criado em
+  `scripts/update_liga_tcg_price_cache.py`, com adaptadores de chave para
+  Pokemon, Digimon, Magic, Riftbound e Yu-Gi-Oh.
+- Pokemon é o primeiro jogo ativado. A edição `PBL` foi importada em
+  28/07/2026 com 120 cartas e preços.
+- As chaves novas usam namespace, por exemplo `POKEMON:PBL:41`, e convivem na
+  tabela atual sem colidir com as chaves do One Piece.
+- A biblioteca Pokemon passa a consultar o cache em lote e exibir preço e
+  estado de verificação na grade e no detalhe.
+- O workflow agenda Pokemon junto das três execuções diárias. As três edições
+  mais recentes são sempre atualizadas e o histórico é dividido em 12 shards
+  alternados automaticamente.
+
 ## Objetivo
 
 Levar para Pokemon, Digimon, Magic, Riftbound e Yu-Gi-Oh o fluxo de preços

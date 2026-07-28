@@ -4,6 +4,8 @@ class PokemonCard {
   final String number;
   final String imageUrl;
   final String largeImageUrl;
+  final String setId;
+  final String setCode;
   final String setName;
   final String rarity;
   final String supertype;
@@ -18,6 +20,8 @@ class PokemonCard {
     required this.number,
     required this.imageUrl,
     required this.largeImageUrl,
+    required this.setId,
+    required this.setCode,
     required this.setName,
     required this.rarity,
     required this.supertype,
@@ -44,6 +48,8 @@ class PokemonCard {
       largeImageUrl: (images['large'] ?? images['small'] ?? '')
           .toString()
           .trim(),
+      setId: (setData['id'] ?? '').toString().trim(),
+      setCode: (setData['ptcgoCode'] ?? '').toString().trim(),
       setName: (setData['name'] ?? '').toString().trim(),
       rarity: (json['rarity'] ?? '').toString().trim(),
       supertype: (json['supertype'] ?? '').toString().trim(),
@@ -61,5 +67,16 @@ class PokemonCard {
         if (flavorText.isNotEmpty) flavorText,
       ].join('\n\n').trim(),
     );
+  }
+
+  String get ligaLookupCode {
+    final edition = setCode.trim().isEmpty ? setId : setCode;
+    var normalizedNumber = number.trim().toUpperCase().replaceFirst('#', '');
+    if (normalizedNumber.contains('/')) {
+      normalizedNumber = normalizedNumber.split('/').first;
+    }
+    normalizedNumber =
+        int.tryParse(normalizedNumber)?.toString() ?? normalizedNumber;
+    return 'POKEMON:${edition.trim().toUpperCase()}:$normalizedNumber';
   }
 }

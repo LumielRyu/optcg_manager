@@ -3,8 +3,16 @@ name: Update Liga price cache
 on:
   workflow_dispatch:
     inputs:
+      game:
+        description: "TCG que sera atualizado manualmente"
+        required: true
+        default: "one_piece"
+        type: choice
+        options:
+          - one_piece
+          - pokemon
       card_code:
-        description: "Codigo da carta para atualizar uma carta especifica"
+        description: "Codigo One Piece para atualizar uma carta especifica"
         required: false
         type: string
       card_name:
@@ -12,7 +20,7 @@ on:
         required: false
         type: string
       edition:
-        description: "Sigla de uma edicao para atualizar em lote, por exemplo OP-16"
+        description: "Sigla de uma edicao, por exemplo OP-16 ou PBL"
         required: false
         type: string
   schedule:
@@ -47,6 +55,8 @@ jobs:
           CARD_CODE: ${{ inputs.card_code }}
           CARD_NAME: ${{ inputs.card_name }}
           EDITION: ${{ inputs.edition }}
+          GAME: ${{ inputs.game }}
+          EVENT_NAME: ${{ github.event_name }}
           PYTHONUNBUFFERED: "1"
         shell: powershell
         run: |
@@ -59,7 +69,29 @@ jobs:
             exit 1
           }
 
-          if (-not [string]::IsNullOrWhiteSpace($env:CARD_CODE)) {
+          $selectedGame = if ([string]::IsNullOrWhiteSpace($env:GAME)) {
+            "one_piece"
+          } else {
+            $env:GAME.Trim().ToLowerInvariant()
+          }
+
+          if ($selectedGame -eq "pokemon") {
+            $pokemonArgs = @(
+              "scripts/update_liga_tcg_price_cache.py",
+              "--game", "pokemon",
+              "--delay", "30"
+            )
+            if (-not [string]::IsNullOrWhiteSpace($env:EDITION)) {
+              $pokemonArgs += @("--edition", $env:EDITION)
+            } else {
+              $pokemonArgs += @(
+                "--shard-count", "12",
+                "--shard-index", "auto",
+                "--priority-editions", "3"
+              )
+            }
+            python @pokemonArgs
+          } elseif (-not [string]::IsNullOrWhiteSpace($env:CARD_CODE)) {
             python scripts/update_marketplace_liga_price_cache.py `
               --code "$env:CARD_CODE" `
               --name "$env:CARD_NAME" `
@@ -73,6 +105,19 @@ jobs:
               --shard-count 1 `
               --shard-index 0 `
               --priority-editions 0 `
+              --delay 30
+          }
+
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+          if ($env:EVENT_NAME -eq "schedule") {
+            python scripts/update_liga_tcg_price_cache.py `
+              --game pokemon `
+              --shard-count 12 `
+              --shard-index auto `
+              --priority-editions 3 `
               --delay 30
           }
 

@@ -21,7 +21,7 @@ def require(condition: bool, message: str) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Checks the TCG BH production app.")
-    parser.add_argument("--url", default="https://optcgbh.vercel.app")
+    parser.add_argument("--url", default="https://tcgbh.vercel.app")
     args = parser.parse_args()
     base_url = args.url.rstrip("/")
 

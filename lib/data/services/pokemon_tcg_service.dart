@@ -71,7 +71,24 @@ class PokemonTcgService {
       headers['X-Api-Key'] = apiKey;
     }
 
-    final response = await _client.get(uri, headers: headers);
+    http.Response? lastResponse;
+    const retryDelays = [
+      Duration.zero,
+      Duration(milliseconds: 650),
+      Duration(milliseconds: 1600),
+    ];
+    for (final delay in retryDelays) {
+      if (delay > Duration.zero) {
+        await Future<void>.delayed(delay);
+      }
+      lastResponse = await _client.get(uri, headers: headers);
+      if (lastResponse.statusCode == 200) break;
+      final retryable =
+          lastResponse.statusCode == 429 || lastResponse.statusCode >= 500;
+      if (!retryable) break;
+    }
+    final response = lastResponse!;
+
     if (response.statusCode != 200) {
       throw Exception('Pokemon TCG API retornou ${response.statusCode}.');
     }
