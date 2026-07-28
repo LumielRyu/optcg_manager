@@ -1048,3 +1048,29 @@ git diff --stat
   falhas isoladas e apresenta a lista consolidada no final.
 - O workflow agendado continua cobrindo Pokemon em 12 shards, portanto tambem
   funciona como recuperacao gradual caso a execucao local seja interrompida.
+
+### 28/07/2026 - Fundacao da expansao funcional multi-TCG
+
+- O inventario confirmou que Colecao, Decks, Vendas, Marketplace, Procurados,
+  Scanner e importacoes ainda dependem de `OpCard`; bibliotecas e parte dos
+  precos ja possuem adaptadores por jogo.
+- `docs/multi-tcg-feature-expansion.md` registra a matriz de capacidades,
+  arquitetura, ordem de implantacao e criterios de conclusao.
+- Foi criado o registro tipado dos seis jogos e de sete formatos iniciais:
+  One Piece Construido, Pokemon Padrao, Digimon Construido, Magic Standard,
+  Magic Commander, Riftbound Construido e Yu-Gi-Oh Advanced.
+- O validador comum entende zonas separadas, quantidades, limites por nome ou
+  numero, excecoes de recursos basicos, identidade de cor/dominio e snapshots
+  dinamicos de cartas restritas.
+- As configuracoes seguem as fontes oficiais atuais. Regras mutaveis como
+  rotacao e banimentos foram deixadas fora do binario e devem ser carregadas
+  como snapshots com vigencia.
+- `sql/multi_tcg_foundation.sql` prepara `game_slug`, identidade de catalogo,
+  variante, formato e zona em Colecao, Decks e Procurados. A migracao e
+  aditiva; registros existentes recebem `one-piece`.
+- A proxima fase funcional e Colecao Pokemon, seguida por Digimon, Yu-Gi-Oh,
+  Riftbound e Magic. A migracao SQL precisa ser aplicada antes de o aplicativo
+  passar a consultar as novas colunas.
+- Validacoes aprovadas: `flutter analyze` e 87 testes Flutter.
+- Durante esta etapa, a carga Pokemon permaneceu ativa e alcancou 40/781
+  edicoes sem interrupcao do processo `65012`.
