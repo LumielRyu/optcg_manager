@@ -8,6 +8,7 @@ import '../../core/utils/auth_action_guard.dart';
 import '../../core/widgets/catalog_grid_card.dart';
 import '../../core/widgets/home_navigation_button.dart';
 import '../../core/widgets/tcg_liga_price.dart';
+import '../../core/widgets/tcg_wanted_add_button.dart';
 import '../../data/models/pokemon_card.dart';
 import '../../data/models/tcg_collection_item.dart';
 import '../../data/repositories/tcg_collection_repository.dart';
@@ -102,22 +103,7 @@ class _PokemonLibraryScreenState extends ConsumerState<PokemonLibraryScreen> {
     try {
       await ref
           .read(tcgCollectionRepositoryProvider)
-          .addOrIncrement(
-            TcgCollectionDraft(
-              gameSlug: 'pokemon',
-              catalogCardId: card.id,
-              variantId: card.id,
-              cardCode: card.ligaLookupCode,
-              name: card.name,
-              imageUrl: card.largeImageUrl,
-              setName: card.setName,
-              rarity: card.rarity,
-              color: card.types.join(', '),
-              type: card.supertype,
-              text: card.description,
-              attribute: card.subtypes.join(', '),
-            ),
-          );
+          .addOrIncrement(_draftFor(card));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -134,6 +120,23 @@ class _PokemonLibraryScreenState extends ConsumerState<PokemonLibraryScreen> {
         SnackBar(content: Text('Não foi possível adicionar a carta: $error')),
       );
     }
+  }
+
+  TcgCollectionDraft _draftFor(PokemonCard card) {
+    return TcgCollectionDraft(
+      gameSlug: 'pokemon',
+      catalogCardId: card.id,
+      variantId: card.id,
+      cardCode: card.ligaLookupCode,
+      name: card.name,
+      imageUrl: card.largeImageUrl,
+      setName: card.setName,
+      rarity: card.rarity,
+      color: card.types.join(', '),
+      type: card.supertype,
+      text: card.description,
+      attribute: card.subtypes.join(', '),
+    );
   }
 
   @override
@@ -277,6 +280,12 @@ class _PokemonLibraryScreenState extends ConsumerState<PokemonLibraryScreen> {
                           onPressed: () => _addToCollection(card),
                           icon: const Icon(Icons.add_circle_outline),
                         ),
+                        TcgWantedAddButton(
+                          draft: _draftFor(card),
+                          gameLabel: 'Pokemon',
+                          wantedRoute: '/pokemon/wanted',
+                          compact: true,
+                        ),
                       ],
                       onTap: () => _openCardSheet(context, card),
                     );
@@ -319,6 +328,7 @@ class _PokemonLibraryScreenState extends ConsumerState<PokemonLibraryScreen> {
       showDragHandle: true,
       builder: (context) => _PokemonCardDetailsSheet(
         card: card,
+        draft: _draftFor(card),
         onAddToCollection: () => _addToCollection(card),
       ),
     );
@@ -361,10 +371,12 @@ class _PokemonStatChip extends StatelessWidget {
 
 class _PokemonCardDetailsSheet extends StatelessWidget {
   final PokemonCard card;
+  final TcgCollectionDraft draft;
   final Future<void> Function() onAddToCollection;
 
   const _PokemonCardDetailsSheet({
     required this.card,
+    required this.draft,
     required this.onAddToCollection,
   });
 
@@ -430,6 +442,12 @@ class _PokemonCardDetailsSheet extends StatelessWidget {
               onPressed: onAddToCollection,
               icon: const Icon(Icons.add_circle_outline),
               label: const Text('Adicionar à minha coleção'),
+            ),
+            const SizedBox(height: 8),
+            TcgWantedAddButton(
+              draft: draft,
+              gameLabel: 'Pokemon',
+              wantedRoute: '/pokemon/wanted',
             ),
             if (card.description.isNotEmpty) ...[
               const SizedBox(height: 20),

@@ -42,6 +42,7 @@ import '../features/tcg/tcg_hub_screen.dart';
 import '../features/tcg/tcg_selector_screen.dart';
 import '../features/wanted/wanted_cards_screen.dart';
 import '../features/wanted/shared_wanted_cards_screen.dart';
+import '../features/wanted/tcg_wanted_screen.dart';
 import '../features/yugioh/yugioh_library_screen.dart';
 import '../features/weeklies/pokemon_weekly_report_screen.dart';
 import '../features/weeklies/weekly_dashboard_screen.dart';
@@ -168,6 +169,14 @@ final GoRouter appRouter = GoRouter(
       },
     ),
     GoRoute(
+      path: '/shared/wanted/:gameSlug/:userId',
+      builder: (context, state) {
+        final game = TcgGame.fromSlug(state.pathParameters['gameSlug']);
+        final userId = state.pathParameters['userId'] ?? '';
+        return TcgWantedScreen(game: game, sharedUserId: userId);
+      },
+    ),
+    GoRoute(
       path: '/shared/wanted/:userId',
       builder: (context, state) {
         final userId = state.pathParameters['userId'] ?? '';
@@ -196,6 +205,7 @@ final GoRouter appRouter = GoRouter(
         deckRoute: '/digimon/decks',
         salesRoute: '/digimon/sales',
         marketplaceRoute: '/digimon/marketplace',
+        wantedRoute: '/digimon/wanted',
         highlights: ['Busca em API', 'Preços Liga', 'Coleção'],
       ),
     ),
@@ -222,6 +232,10 @@ final GoRouter appRouter = GoRouter(
           const TcgMarketplaceScreen(game: TcgGame.digimon),
     ),
     GoRoute(
+      path: '/digimon/wanted',
+      builder: (context, state) => const TcgWantedScreen(game: TcgGame.digimon),
+    ),
+    GoRoute(
       path: '/magic',
       builder: (context, state) => const TcgHubScreen(
         title: 'Magic',
@@ -235,6 +249,7 @@ final GoRouter appRouter = GoRouter(
         deckRoute: '/magic/decks',
         salesRoute: '/magic/sales',
         marketplaceRoute: '/magic/marketplace',
+        wantedRoute: '/magic/wanted',
         highlights: ['Busca em API', 'Preços Liga', 'Coleção'],
       ),
     ),
@@ -261,6 +276,10 @@ final GoRouter appRouter = GoRouter(
           const TcgMarketplaceScreen(game: TcgGame.magic),
     ),
     GoRoute(
+      path: '/magic/wanted',
+      builder: (context, state) => const TcgWantedScreen(game: TcgGame.magic),
+    ),
+    GoRoute(
       path: '/pokemon',
       builder: (context, state) => const TcgHubScreen(
         title: 'Pokemon',
@@ -274,6 +293,7 @@ final GoRouter appRouter = GoRouter(
         deckRoute: '/pokemon/decks',
         salesRoute: '/pokemon/sales',
         marketplaceRoute: '/pokemon/marketplace',
+        wantedRoute: '/pokemon/wanted',
         highlights: ['Busca em API', 'Preços Liga', 'Coleção'],
       ),
     ),
@@ -300,6 +320,10 @@ final GoRouter appRouter = GoRouter(
           const TcgMarketplaceScreen(game: TcgGame.pokemon),
     ),
     GoRoute(
+      path: '/pokemon/wanted',
+      builder: (context, state) => const TcgWantedScreen(game: TcgGame.pokemon),
+    ),
+    GoRoute(
       path: '/riftbound',
       builder: (context, state) => const TcgHubScreen(
         title: 'Riftbound',
@@ -313,6 +337,7 @@ final GoRouter appRouter = GoRouter(
         deckRoute: '/riftbound/decks',
         salesRoute: '/riftbound/sales',
         marketplaceRoute: '/riftbound/marketplace',
+        wantedRoute: '/riftbound/wanted',
         highlights: ['Busca em API', 'Preços Liga', 'Coleção'],
       ),
     ),
@@ -341,6 +366,11 @@ final GoRouter appRouter = GoRouter(
           const TcgMarketplaceScreen(game: TcgGame.riftbound),
     ),
     GoRoute(
+      path: '/riftbound/wanted',
+      builder: (context, state) =>
+          const TcgWantedScreen(game: TcgGame.riftbound),
+    ),
+    GoRoute(
       path: '/yugioh',
       builder: (context, state) => const TcgHubScreen(
         title: 'Yu-Gi-Oh',
@@ -354,6 +384,7 @@ final GoRouter appRouter = GoRouter(
         deckRoute: '/yugioh/decks',
         salesRoute: '/yugioh/sales',
         marketplaceRoute: '/yugioh/marketplace',
+        wantedRoute: '/yugioh/wanted',
         highlights: ['Busca em API', 'Preços por edição', 'Coleção'],
       ),
     ),
@@ -378,6 +409,10 @@ final GoRouter appRouter = GoRouter(
       path: '/yugioh/marketplace',
       builder: (context, state) =>
           const TcgMarketplaceScreen(game: TcgGame.yugioh),
+    ),
+    GoRoute(
+      path: '/yugioh/wanted',
+      builder: (context, state) => const TcgWantedScreen(game: TcgGame.yugioh),
     ),
     GoRoute(
       path: '/integrations/liga-one-piece-test',

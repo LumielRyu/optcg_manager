@@ -15,6 +15,7 @@ class TcgHubScreen extends StatelessWidget {
   final String? deckRoute;
   final String? salesRoute;
   final String? marketplaceRoute;
+  final String? wantedRoute;
   final List<String> highlights;
 
   const TcgHubScreen({
@@ -29,6 +30,7 @@ class TcgHubScreen extends StatelessWidget {
     this.deckRoute,
     this.salesRoute,
     this.marketplaceRoute,
+    this.wantedRoute,
     required this.highlights,
   });
 
@@ -173,6 +175,25 @@ class TcgHubScreen extends StatelessWidget {
                         onTap: marketplaceRoute == null
                             ? null
                             : () => context.go(marketplaceRoute!),
+                      ),
+                    ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: _HubFeatureCard(
+                        title: 'Procuradas',
+                        description: wantedRoute == null
+                            ? 'As listas de cartas procuradas serão disponibilizadas em uma próxima etapa.'
+                            : 'Publique o que está procurando e receba ofertas da comunidade pelo WhatsApp.',
+                        icon: Icons.favorite_outline,
+                        accent: wantedRoute == null
+                            ? const Color(0xFF7A7A7A)
+                            : accent,
+                        buttonLabel: wantedRoute == null
+                            ? 'Em breve'
+                            : 'Ver procuradas',
+                        onTap: wantedRoute == null
+                            ? null
+                            : () => context.go(wantedRoute!),
                       ),
                     ),
                   ],

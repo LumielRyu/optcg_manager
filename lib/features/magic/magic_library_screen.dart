@@ -8,6 +8,7 @@ import '../../core/widgets/catalog_grid_card.dart';
 import '../../core/widgets/home_navigation_button.dart';
 import '../../core/widgets/tcg_collection_add_button.dart';
 import '../../core/widgets/tcg_liga_price.dart';
+import '../../core/widgets/tcg_wanted_add_button.dart';
 import '../../data/models/magic_card.dart';
 import '../../data/services/magic_tcg_service.dart';
 
@@ -232,6 +233,12 @@ class _MagicLibraryScreenState extends ConsumerState<MagicLibraryScreen> {
                           collectionRoute: '/magic/collection',
                           compact: true,
                         ),
+                        TcgWantedAddButton(
+                          draft: card.collectionDraft,
+                          gameLabel: 'Magic',
+                          wantedRoute: '/magic/wanted',
+                          compact: true,
+                        ),
                       ],
                       footer: TcgLigaPriceLabel(
                         lookupCode: card.ligaLookupCode,
@@ -386,6 +393,12 @@ class _MagicCardDetailsSheet extends StatelessWidget {
               draft: card.collectionDraft,
               gameLabel: 'Magic',
               collectionRoute: '/magic/collection',
+            ),
+            const SizedBox(height: 8),
+            TcgWantedAddButton(
+              draft: card.collectionDraft,
+              gameLabel: 'Magic',
+              wantedRoute: '/magic/wanted',
             ),
             if (card.oracleText.isNotEmpty) ...[
               const SizedBox(height: 20),

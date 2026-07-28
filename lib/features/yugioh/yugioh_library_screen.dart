@@ -8,6 +8,7 @@ import '../../core/widgets/catalog_grid_card.dart';
 import '../../core/widgets/home_navigation_button.dart';
 import '../../core/widgets/tcg_collection_add_button.dart';
 import '../../core/widgets/tcg_liga_price.dart';
+import '../../core/widgets/tcg_wanted_add_button.dart';
 import '../../data/models/yugioh_card.dart';
 import '../../data/services/yugioh_tcg_service.dart';
 
@@ -160,11 +161,22 @@ class _YugiohLibraryScreenState extends ConsumerState<YugiohLibraryScreen> {
                             ),
                           ],
                         ),
-                        trailing: TcgCollectionAddButton(
-                          draft: card.collectionDraftFor(printing),
-                          gameLabel: 'Yu-Gi-Oh',
-                          collectionRoute: '/yugioh/collection',
-                          compact: true,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            TcgCollectionAddButton(
+                              draft: card.collectionDraftFor(printing),
+                              gameLabel: 'Yu-Gi-Oh',
+                              collectionRoute: '/yugioh/collection',
+                              compact: true,
+                            ),
+                            TcgWantedAddButton(
+                              draft: card.collectionDraftFor(printing),
+                              gameLabel: 'Yu-Gi-Oh',
+                              wantedRoute: '/yugioh/wanted',
+                              compact: true,
+                            ),
+                          ],
                         ),
                       );
                     },

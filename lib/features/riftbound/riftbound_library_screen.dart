@@ -8,6 +8,7 @@ import '../../core/widgets/catalog_grid_card.dart';
 import '../../core/widgets/home_navigation_button.dart';
 import '../../core/widgets/tcg_collection_add_button.dart';
 import '../../core/widgets/tcg_liga_price.dart';
+import '../../core/widgets/tcg_wanted_add_button.dart';
 import '../../data/models/riftbound_card.dart';
 import '../../data/services/riftbound_tcg_service.dart';
 
@@ -235,6 +236,12 @@ class _RiftboundLibraryScreenState
                           collectionRoute: '/riftbound/collection',
                           compact: true,
                         ),
+                        TcgWantedAddButton(
+                          draft: card.collectionDraft,
+                          gameLabel: 'Riftbound',
+                          wantedRoute: '/riftbound/wanted',
+                          compact: true,
+                        ),
                       ],
                       footer: TcgLigaPriceLabel(
                         lookupCode: card.ligaLookupCode,
@@ -402,6 +409,12 @@ class _RiftboundCardDetailsSheet extends StatelessWidget {
               draft: card.collectionDraft,
               gameLabel: 'Riftbound',
               collectionRoute: '/riftbound/collection',
+            ),
+            const SizedBox(height: 8),
+            TcgWantedAddButton(
+              draft: card.collectionDraft,
+              gameLabel: 'Riftbound',
+              wantedRoute: '/riftbound/wanted',
             ),
             if (card.rulesText.isNotEmpty) ...[
               const SizedBox(height: 20),

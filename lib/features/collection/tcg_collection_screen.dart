@@ -8,6 +8,7 @@ import '../../core/utils/auth_action_guard.dart';
 import '../../core/widgets/catalog_grid_card.dart';
 import '../../core/widgets/home_navigation_button.dart';
 import '../../core/widgets/tcg_liga_price.dart';
+import '../../core/widgets/tcg_wanted_add_button.dart';
 import '../../data/models/tcg_collection_item.dart';
 import '../../data/repositories/tcg_collection_repository.dart';
 import '../../data/repositories/tcg_marketplace_repository.dart';
@@ -386,6 +387,25 @@ class _TcgCollectionScreenState extends ConsumerState<TcgCollectionScreen> {
                 onPressed: _saving ? null : () => _addToSales(item),
                 icon: const Icon(Icons.add_shopping_cart_outlined),
                 label: const Text('Colocar uma à venda'),
+              ),
+              const SizedBox(height: 6),
+              TcgWantedAddButton(
+                draft: TcgCollectionDraft(
+                  gameSlug: item.gameSlug,
+                  catalogCardId: item.catalogCardId,
+                  variantId: item.variantId,
+                  cardCode: item.cardCode,
+                  name: item.name,
+                  imageUrl: item.imageUrl,
+                  setName: item.setName,
+                  rarity: item.rarity,
+                  color: item.color,
+                  type: item.type,
+                  text: item.text,
+                  attribute: item.attribute,
+                ),
+                gameLabel: widget.game.label,
+                wantedRoute: '/${widget.game.slug}/wanted',
               ),
               const SizedBox(height: 6),
               TextButton.icon(

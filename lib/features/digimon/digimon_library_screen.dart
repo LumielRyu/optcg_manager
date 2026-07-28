@@ -8,6 +8,7 @@ import '../../core/widgets/catalog_grid_card.dart';
 import '../../core/widgets/home_navigation_button.dart';
 import '../../core/widgets/tcg_collection_add_button.dart';
 import '../../core/widgets/tcg_liga_price.dart';
+import '../../core/widgets/tcg_wanted_add_button.dart';
 import '../../data/models/digimon_card.dart';
 import '../../data/services/digimon_tcg_service.dart';
 
@@ -232,6 +233,12 @@ class _DigimonLibraryScreenState extends ConsumerState<DigimonLibraryScreen> {
                           collectionRoute: '/digimon/collection',
                           compact: true,
                         ),
+                        TcgWantedAddButton(
+                          draft: card.collectionDraft,
+                          gameLabel: 'Digimon',
+                          wantedRoute: '/digimon/wanted',
+                          compact: true,
+                        ),
                       ],
                       footer: TcgLigaPriceLabel(
                         lookupCode: card.ligaLookupCode,
@@ -397,6 +404,12 @@ class _DigimonCardDetailsSheet extends StatelessWidget {
               draft: card.collectionDraft,
               gameLabel: 'Digimon',
               collectionRoute: '/digimon/collection',
+            ),
+            const SizedBox(height: 8),
+            TcgWantedAddButton(
+              draft: card.collectionDraft,
+              gameLabel: 'Digimon',
+              wantedRoute: '/digimon/wanted',
             ),
             if (card.effect.isNotEmpty) ...[
               const SizedBox(height: 20),
