@@ -13,6 +13,8 @@ class TcgHubScreen extends StatelessWidget {
   final String libraryRoute;
   final String? collectionRoute;
   final String? deckRoute;
+  final String? salesRoute;
+  final String? marketplaceRoute;
   final List<String> highlights;
 
   const TcgHubScreen({
@@ -25,6 +27,8 @@ class TcgHubScreen extends StatelessWidget {
     required this.libraryRoute,
     this.collectionRoute,
     this.deckRoute,
+    this.salesRoute,
+    this.marketplaceRoute,
     required this.highlights,
   });
 
@@ -135,24 +139,40 @@ class TcgHubScreen extends StatelessWidget {
                     ),
                     SizedBox(
                       width: cardWidth,
-                      child: const _HubFeatureCard(
+                      child: _HubFeatureCard(
                         title: 'Vendas',
-                        description:
-                            'Os modulos de vitrine e venda vao entrar depois que a base dessas bibliotecas estiver estabilizada.',
+                        description: salesRoute == null
+                            ? 'Os módulos de vitrine e venda serão disponibilizados em uma próxima etapa.'
+                            : 'Importe cartas da coleção, defina condição e preço e publique anúncios por 7 dias.',
                         icon: Icons.storefront_outlined,
-                        accent: Color(0xFF7A7A7A),
-                        buttonLabel: 'Em breve',
+                        accent: salesRoute == null
+                            ? const Color(0xFF7A7A7A)
+                            : accent,
+                        buttonLabel: salesRoute == null
+                            ? 'Em breve'
+                            : 'Gerenciar vendas',
+                        onTap: salesRoute == null
+                            ? null
+                            : () => context.go(salesRoute!),
                       ),
                     ),
                     SizedBox(
                       width: cardWidth,
-                      child: const _HubFeatureCard(
+                      child: _HubFeatureCard(
                         title: 'Marketplace',
-                        description:
-                            'Marketplace dedicado para esse TCG tambem fica reservado para a etapa seguinte.',
+                        description: marketplaceRoute == null
+                            ? 'O marketplace dedicado será disponibilizado em uma próxima etapa.'
+                            : 'Veja somente anúncios ativos deste TCG e fale com o vendedor pelo WhatsApp.',
                         icon: Icons.public_outlined,
-                        accent: Color(0xFF7A7A7A),
-                        buttonLabel: 'Em breve',
+                        accent: marketplaceRoute == null
+                            ? const Color(0xFF7A7A7A)
+                            : accent,
+                        buttonLabel: marketplaceRoute == null
+                            ? 'Em breve'
+                            : 'Abrir marketplace',
+                        onTap: marketplaceRoute == null
+                            ? null
+                            : () => context.go(marketplaceRoute!),
                       ),
                     ),
                   ],

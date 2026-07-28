@@ -61,7 +61,7 @@ const ROUTES = [
     name: 'pokemon-hub',
     hash: '#/pokemon',
     title: 'Pokemon | TCG BH',
-    content: ['Pokemon', 'Biblioteca', 'Colecao', 'Decks'],
+    content: ['Pokemon', 'Biblioteca', 'Colecao', 'Decks', 'Vendas', 'Marketplace'],
     backTarget: '#/home',
     backButtonLabel: 'Voltar ao Home',
   },
@@ -88,10 +88,25 @@ const ROUTES = [
     backTarget: '#/pokemon',
   },
   {
+    name: 'pokemon-sales-guest',
+    hash: '#/pokemon/sales',
+    title: 'Vendas Pokemon | TCG BH',
+    content: ['Cartas a venda', 'necessario entrar'],
+    backTarget: '#/pokemon',
+  },
+  {
+    name: 'pokemon-marketplace',
+    hash: '#/pokemon/marketplace',
+    title: 'Marketplace Pokemon | TCG BH',
+    content: ['Marketplace', 'anuncios ativos'],
+    backTarget: '#/pokemon',
+    screenshot: 'pokemon-marketplace.png',
+  },
+  {
     name: 'digimon-hub',
     hash: '#/digimon',
     title: 'Digimon | TCG BH',
-    content: ['Digimon', 'Biblioteca', 'Colecao', 'Decks'],
+    content: ['Digimon', 'Biblioteca', 'Colecao', 'Decks', 'Vendas', 'Marketplace'],
     backTarget: '#/home',
     backButtonLabel: 'Voltar ao Home',
   },
@@ -118,10 +133,24 @@ const ROUTES = [
     backTarget: '#/digimon',
   },
   {
+    name: 'digimon-sales-guest',
+    hash: '#/digimon/sales',
+    title: 'Vendas Digimon | TCG BH',
+    content: ['Cartas a venda', 'necessario entrar'],
+    backTarget: '#/digimon',
+  },
+  {
+    name: 'digimon-marketplace',
+    hash: '#/digimon/marketplace',
+    title: 'Marketplace Digimon | TCG BH',
+    content: ['Marketplace', 'anuncios ativos'],
+    backTarget: '#/digimon',
+  },
+  {
     name: 'magic-hub',
     hash: '#/magic',
     title: 'Magic | TCG BH',
-    content: ['Magic', 'Biblioteca', 'Colecao', 'Decks'],
+    content: ['Magic', 'Biblioteca', 'Colecao', 'Decks', 'Vendas', 'Marketplace'],
     backTarget: '#/home',
     backButtonLabel: 'Voltar ao Home',
   },
@@ -148,10 +177,24 @@ const ROUTES = [
     backTarget: '#/magic',
   },
   {
+    name: 'magic-sales-guest',
+    hash: '#/magic/sales',
+    title: 'Vendas Magic | TCG BH',
+    content: ['Cartas a venda', 'necessario entrar'],
+    backTarget: '#/magic',
+  },
+  {
+    name: 'magic-marketplace',
+    hash: '#/magic/marketplace',
+    title: 'Marketplace Magic | TCG BH',
+    content: ['Marketplace', 'anuncios ativos'],
+    backTarget: '#/magic',
+  },
+  {
     name: 'riftbound-hub',
     hash: '#/riftbound',
     title: 'Riftbound | TCG BH',
-    content: ['Riftbound', 'Biblioteca', 'Colecao', 'Decks'],
+    content: ['Riftbound', 'Biblioteca', 'Colecao', 'Decks', 'Vendas', 'Marketplace'],
     backTarget: '#/home',
     backButtonLabel: 'Voltar ao Home',
   },
@@ -178,10 +221,24 @@ const ROUTES = [
     backTarget: '#/riftbound',
   },
   {
+    name: 'riftbound-sales-guest',
+    hash: '#/riftbound/sales',
+    title: 'Vendas Riftbound | TCG BH',
+    content: ['Cartas a venda', 'necessario entrar'],
+    backTarget: '#/riftbound',
+  },
+  {
+    name: 'riftbound-marketplace',
+    hash: '#/riftbound/marketplace',
+    title: 'Marketplace Riftbound | TCG BH',
+    content: ['Marketplace', 'anuncios ativos'],
+    backTarget: '#/riftbound',
+  },
+  {
     name: 'yugioh-hub',
     hash: '#/yugioh',
     title: 'Yu-Gi-Oh | TCG BH',
-    content: ['Yu-Gi-Oh', 'Biblioteca', 'Colecao', 'Decks'],
+    content: ['Yu-Gi-Oh', 'Biblioteca', 'Colecao', 'Decks', 'Vendas', 'Marketplace'],
     backTarget: '#/home',
     backButtonLabel: 'Voltar ao Home',
   },
@@ -211,6 +268,20 @@ const ROUTES = [
     backTarget: '#/yugioh',
   },
   {
+    name: 'yugioh-sales-guest',
+    hash: '#/yugioh/sales',
+    title: 'Vendas Yu-Gi-Oh | TCG BH',
+    content: ['Cartas a venda', 'necessario entrar'],
+    backTarget: '#/yugioh',
+  },
+  {
+    name: 'yugioh-marketplace',
+    hash: '#/yugioh/marketplace',
+    title: 'Marketplace Yu-Gi-Oh | TCG BH',
+    content: ['Marketplace', 'anuncios ativos'],
+    backTarget: '#/yugioh',
+  },
+  {
     name: 'products',
     hash: '#/products',
     title: 'Produtos personalizados | TCG BH',
@@ -234,7 +305,7 @@ function parseArguments(argv) {
     baseUrl: process.env.E2E_BASE_URL || DEFAULT_BASE_URL,
     headed: false,
     skipApi: false,
-    route: null,
+    routes: [],
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -247,7 +318,7 @@ function parseArguments(argv) {
     } else if (argument === '--skip-api') {
       options.skipApi = true;
     } else if (argument === '--route') {
-      options.route = argv[index + 1];
+      options.routes.push(argv[index + 1]);
       index += 1;
     } else if (argument === '--help') {
       console.log(
@@ -477,6 +548,13 @@ async function checkRoute(browser, baseUrl, route) {
         fullPage: true,
       });
     }
+    if (route.screenshot) {
+      fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
+      await page.screenshot({
+        path: path.join(ARTIFACTS_DIR, route.screenshot),
+        fullPage: true,
+      });
+    }
 
     const title = await page.title();
     const accessibleText = await readAccessibleText(page);
@@ -615,11 +693,11 @@ async function main() {
   });
 
   try {
-    const routes = options.route
-      ? ROUTES.filter((route) => route.name === options.route)
+    const routes = options.routes.length > 0
+      ? ROUTES.filter((route) => options.routes.includes(route.name))
       : ROUTES;
     if (routes.length === 0) {
-      throw new Error(`Rota E2E desconhecida: ${options.route}`);
+      throw new Error(`Rota E2E desconhecida: ${options.routes.join(', ')}`);
     }
     for (const route of routes) {
       await checkRoute(browser, options.baseUrl, route);
@@ -628,7 +706,7 @@ async function main() {
     await browser.close();
   }
 
-  console.log(`E2E aprovado: ${options.route ? 1 : ROUTES.length} fluxos publicos validados.`);
+  console.log(`E2E aprovado: ${options.routes.length > 0 ? options.routes.length : ROUTES.length} fluxos publicos validados.`);
 }
 
 main().catch((error) => {

@@ -10,6 +10,7 @@ import '../../core/widgets/home_navigation_button.dart';
 import '../../core/widgets/tcg_liga_price.dart';
 import '../../data/models/tcg_collection_item.dart';
 import '../../data/repositories/tcg_collection_repository.dart';
+import '../../data/repositories/tcg_marketplace_repository.dart';
 
 class TcgCollectionScreen extends ConsumerStatefulWidget {
   final TcgGame game;
@@ -79,6 +80,34 @@ class _TcgCollectionScreenState extends ConsumerState<TcgCollectionScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Não foi possível atualizar: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _addToSales(TcgCollectionItem item) async {
+    if (_saving || !requireSignedIn(context)) return;
+    setState(() => _saving = true);
+    try {
+      await ref.read(tcgMarketplaceRepositoryProvider).addFromCollection(item);
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).maybePop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Carta adicionada a Cartas à venda.'),
+          action: SnackBarAction(
+            label: 'Abrir',
+            onPressed: () => context.go('/${widget.game.slug}/sales'),
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString().replaceFirst('Bad state: ', '')),
+        ),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -353,6 +382,12 @@ class _TcgCollectionScreenState extends ConsumerState<TcgCollectionScreen> {
                 ],
               ),
               const SizedBox(height: 10),
+              FilledButton.tonalIcon(
+                onPressed: _saving ? null : () => _addToSales(item),
+                icon: const Icon(Icons.add_shopping_cart_outlined),
+                label: const Text('Colocar uma à venda'),
+              ),
+              const SizedBox(height: 6),
               TextButton.icon(
                 onPressed: _saving
                     ? null
