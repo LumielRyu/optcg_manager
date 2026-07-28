@@ -965,3 +965,12 @@ git diff --stat
   aliases de catalogo, adaptadores de variantes, agendamento, monitoramento,
   ordem de implantacao e criterios de qualidade para levar precos da Liga aos
   demais TCGs.
+- Validacoes locais aprovadas: `flutter analyze`, 74 testes Flutter, 9 testes
+  Node das APIs, build web, E2E da home e E2E de Produtos em desktop/celular.
+- Commit funcional `0d269e6`, enviado para `origin/main`.
+- Deploy Vercel de producao
+  `dpl_EGQhTXwqvoAzCVCHmjGFQrNonN1k`, status READY e publicado no alias
+  `https://optcgbh.vercel.app`.
+- A verificacao posterior ao deploy confirmou os titulos `TCG BH`, as rotas
+  home/Produtos, API de saude, protecao de origem e Supabase operacionais. O
+  release reportado por `/api/health` foi `0d269e68bfc2`.
