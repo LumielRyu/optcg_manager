@@ -1005,3 +1005,28 @@ git diff --stat
 - Deploy Vercel `dpl_4xiHKVfzVFXKtWKq7xFKhj3FiH1v`, status READY. O health
   check em `https://tcgbh.vercel.app` reportou release `0078aee7db7d`, banco e
   configuracao operacionais.
+
+### 28/07/2026 - Retorno correto em cada TCG
+
+- A causa do retorno indevido da biblioteca Pokemon para One Piece era o
+  fallback implicito `/home/one-piece` do `HomeNavigationButton`. O problema
+  aparecia principalmente ao abrir ou recarregar uma rota direta, quando nao
+  havia historico interno para desempilhar.
+- O botao compartilhado agora exige `destinationRoute` e sempre navega para o
+  pai semantico declarado pela pagina. Nao existe mais fallback global para
+  One Piece nem dependencia de `context.canPop()`.
+- Bibliotecas Pokemon, Digimon, Magic, Riftbound e Yu-Gi-Oh retornam para seus
+  respectivos hubs. A biblioteca e os recursos de One Piece retornam ao hub
+  One Piece; telas globais retornam ao seletor de TCGs.
+- Detalhes e comparacao retornam para a biblioteca One Piece. Importacoes
+  retornam para Colecao ou Vendas de acordo com o destino recebido na rota.
+- Login, cadastro, perfil e links publicos retornam para a home global.
+- O E2E passou a validar o clique real de retorno em rotas abertas diretamente,
+  incluindo as seis bibliotecas, Produtos, Semanais e autenticacao.
+- Validacoes aprovadas: `flutter analyze`, 80 testes Flutter, build web e 14
+  fluxos E2E tanto localmente quanto em producao.
+- Commit funcional `ddcd46f`, enviado para `origin/main`.
+- Deploy Vercel `dpl_8X8aamFqThDnZTcDq275j1wpNGhC`, status READY e aliases
+  `https://tcgbh.vercel.app` e `https://optcgbh.vercel.app`.
+- O health check de producao reportou release `ddcd46f19378`, configuracao e
+  banco operacionais. A varredura de logs nao encontrou erros no novo deploy.
