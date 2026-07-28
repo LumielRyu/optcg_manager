@@ -974,3 +974,34 @@ git diff --stat
 - A verificacao posterior ao deploy confirmou os titulos `TCG BH`, as rotas
   home/Produtos, API de saude, protecao de origem e Supabase operacionais. O
   release reportado por `/api/health` foi `0d269e68bfc2`.
+
+### 28/07/2026 - Dominio tcgbh e primeiros precos Pokemon
+
+- O projeto Vercel foi renomeado de `optcg_manager` para `tcgbh`.
+- `https://tcgbh.vercel.app` foi cadastrado como dominio verificado do projeto,
+  portanto acompanha automaticamente os proximos deploys de producao.
+- `optcgbh.vercel.app` continua ativo por compatibilidade, mas canonical,
+  sitemap, robots, metadados, health check e E2E passaram a usar `tcgbh`.
+- Foi criado `scripts/update_liga_tcg_price_cache.py`, coletor compartilhado
+  para Pokemon, Digimon, Magic, Riftbound e Yu-Gi-Oh. As chaves possuem
+  namespace por jogo para conviver com o cache One Piece atual.
+- Pokemon foi o primeiro TCG ativado. A edicao `PBL` foi importada manualmente
+  com 120/120 linhas; a leitura posterior no Supabase confirmou todas as
+  linhas e seus menores precos.
+- A biblioteca Pokemon exibe o menor preco e estado da verificacao na grade e
+  no detalhe. O catalogo Pokemon ganhou ate tres tentativas para respostas 429
+  e 5xx, pois a API apresentou falhas intermitentes.
+- O workflow `Update Liga price cache` aceita selecao manual entre One Piece e
+  Pokemon. Nas agendas de 00:00, 08:00 e 16:00, Pokemon atualiza sempre as tres
+  edicoes recentes e percorre o historico em 12 shards automaticos, preservando
+  o intervalo de 30 segundos.
+- O GitHub reconheceu o workflow atualizado como `active`. O ambiente local
+  nao possui o executavel `gh`, por isso o disparo manual do workflow nao foi
+  feito pela CLI; a importacao inicial foi executada diretamente e validada.
+- Validacoes aprovadas: 78 testes Flutter, 9 testes Node, 2 testes Python,
+  `flutter analyze`, build web, verificacao visual da grade/detalhe Pokemon,
+  E2E da home e de Produtos.
+- Commit funcional `0078aee`, enviado para `origin/main`.
+- Deploy Vercel `dpl_4xiHKVfzVFXKtWKq7xFKhj3FiH1v`, status READY. O health
+  check em `https://tcgbh.vercel.app` reportou release `0078aee7db7d`, banco e
+  configuracao operacionais.
