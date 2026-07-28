@@ -1176,3 +1176,40 @@ git diff --stat
   alcancado 236/781 edicoes no ultimo acompanhamento.
 - Proxima camada recomendada: vendas e marketplace isolados por TCG, seguida
   por procurados e importacao/scanner.
+
+### 28/07/2026 - Vendas e marketplaces multi-TCG
+
+- Pokemon, Digimon, Magic, Riftbound e Yu-Gi-Oh ganharam as rotas
+  `/[jogo]/sales` e `/[jogo]/marketplace`. O fluxo antigo de One Piece foi
+  preservado para evitar regressao nos anuncios existentes.
+- Nenhum SQL adicional foi necessario: a fundacao multi-TCG ja havia
+  adicionado `game_slug`, `catalog_card_id`, `variant_id` e o indice de
+  marketplace por jogo em `collection_items`.
+- A colecao de cada jogo agora possui a acao `Colocar uma a venda`. A
+  importacao reaproveita a identidade exata da impressao e impede anunciar
+  mais copias do que o usuario possui.
+- A tela de vendas permite alterar quantidade, condicao, observacoes e status,
+  escolher preco manual ou percentual sobre o menor preco da Liga e publicar
+  ou renovar o anuncio por sete dias.
+- A precificacao percentual suporta ajuste positivo ou negativo e
+  arredondamento para cima, para baixo ou sem arredondar. Precos dinamicos
+  vencidos ha mais de 24 horas sao recalculados ao abrir as vendas.
+- A publicacao exige preco valido e WhatsApp cadastrado. Anuncios reservados,
+  vendidos ou expirados deixam de aparecer automaticamente.
+- Cada marketplace consulta apenas o `game_slug` correspondente, possui busca
+  por carta, edicao ou vendedor e libera o contato protegido pelo WhatsApp
+  somente depois do login.
+- Os cinco hubs passaram a exibir Vendas e Marketplace como recursos ativos.
+  Metadados web foram adicionados para as dez novas rotas.
+- O utilitario E2E passou a aceitar varias ocorrencias de `--route`, permitindo
+  validar um conjunto direcionado de telas em uma unica sessao do navegador.
+- Validacoes aprovadas: `flutter analyze`, 97 testes Flutter, build web,
+  verificacao visual e 15 fluxos E2E locais e em producao. Health check,
+  protecao de origem e varredura de runtime tambem passaram.
+- Commit funcional `6aaca3b`, enviado para `origin/main`.
+- Deploy Vercel `dpl_84dF2zZcQM6aAyX25ZKrgRHEvkUn`, status READY e publicado
+  em `https://tcgbh.vercel.app`.
+- A carga inicial Pokemon permaneceu ativa no processo `65012` e alcancou
+  270/781 edicoes no ultimo acompanhamento.
+- Proxima camada recomendada: procurados multi-TCG, seguida por
+  importacao/scanner e compartilhamento de vitrines por jogo.
