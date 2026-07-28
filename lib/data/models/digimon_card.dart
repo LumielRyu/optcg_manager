@@ -36,4 +36,8 @@ class DigimonCard {
     required this.playCost,
     required this.dp,
   });
+
+  String get ligaLookupCode {
+    return 'DIGIMON:${number.trim().toUpperCase()}';
+  }
 }

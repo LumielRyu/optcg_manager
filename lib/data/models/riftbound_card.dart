@@ -4,6 +4,7 @@ class RiftboundCard {
   final String riftboundId;
   final int collectorNumber;
   final String imageUrl;
+  final String setCode;
   final String setName;
   final String rarity;
   final String type;
@@ -22,6 +23,7 @@ class RiftboundCard {
     required this.riftboundId,
     required this.collectorNumber,
     required this.imageUrl,
+    required this.setCode,
     required this.setName,
     required this.rarity,
     required this.type,
@@ -50,6 +52,7 @@ class RiftboundCard {
       riftboundId: (json['riftbound_id'] ?? '').toString().trim(),
       collectorNumber: (json['collector_number'] as num?)?.toInt() ?? 0,
       imageUrl: (media['image_url'] ?? '').toString().trim(),
+      setCode: (set['set_id'] ?? '').toString().trim(),
       setName: (set['label'] ?? '').toString().trim(),
       rarity: (classification['rarity'] ?? '').toString().trim(),
       type: (classification['type'] ?? '').toString().trim(),
@@ -68,5 +71,9 @@ class RiftboundCard {
       might: (attributes['might'] as num?)?.toInt(),
       power: (attributes['power'] as num?)?.toInt(),
     );
+  }
+
+  String get ligaLookupCode {
+    return 'RIFTBOUND:${setCode.trim().toUpperCase()}:$collectorNumber';
   }
 }

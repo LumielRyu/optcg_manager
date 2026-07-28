@@ -11,6 +11,10 @@ on:
         options:
           - one_piece
           - pokemon
+          - digimon
+          - magic
+          - riftbound
+          - yugioh
       card_code:
         description: "Codigo One Piece para atualizar uma carta especifica"
         required: false
@@ -75,23 +79,12 @@ jobs:
             $env:GAME.Trim().ToLowerInvariant()
           }
 
-          if ($selectedGame -eq "pokemon") {
-            $pokemonArgs = @(
-              "scripts/update_liga_tcg_price_cache.py",
-              "--game", "pokemon",
-              "--delay", "30"
-            )
-            if (-not [string]::IsNullOrWhiteSpace($env:EDITION)) {
-              $pokemonArgs += @("--edition", $env:EDITION)
-            } else {
-              $pokemonArgs += @(
-                "--shard-count", "12",
-                "--shard-index", "auto",
-                "--priority-editions", "3"
-              )
-            }
-            python @pokemonArgs
-          } elseif (-not [string]::IsNullOrWhiteSpace($env:CARD_CODE)) {
+          if ($selectedGame -ne "one_piece" -and $env:EVENT_NAME -ne "schedule") {
+            Write-Output "A atualizacao manual de $selectedGame sera executada pelo job multi-TCG."
+            exit 0
+          }
+
+          if (-not [string]::IsNullOrWhiteSpace($env:CARD_CODE)) {
             python scripts/update_marketplace_liga_price_cache.py `
               --code "$env:CARD_CODE" `
               --name "$env:CARD_NAME" `
@@ -112,15 +105,89 @@ jobs:
             exit $LASTEXITCODE
           }
 
-          if ($env:EVENT_NAME -eq "schedule") {
-            python scripts/update_liga_tcg_price_cache.py `
-              --game pokemon `
-              --shard-count 12 `
-              --shard-index auto `
-              --priority-editions 3 `
-              --delay 30
+  update-multi-tcg-cache:
+    needs: update-cache
+    if: github.event_name == 'schedule' || inputs.game != 'one_piece'
+    strategy:
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        include:
+          - game: pokemon
+            shard_count: 12
+            priority_editions: 3
+          - game: digimon
+            shard_count: 12
+            priority_editions: 2
+          - game: magic
+            shard_count: 24
+            priority_editions: 3
+          - game: riftbound
+            shard_count: 6
+            priority_editions: 2
+          - game: yugioh
+            shard_count: 24
+            priority_editions: 3
+    runs-on: [self-hosted, Windows, X64, liga-price-cache]
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Refresh ${{ matrix.game }} prices
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SELECTED_GAME: ${{ inputs.game }}
+          EDITION: ${{ inputs.edition }}
+          EVENT_NAME: ${{ github.event_name }}
+          MATRIX_GAME: ${{ matrix.game }}
+          SHARD_COUNT: ${{ matrix.shard_count }}
+          PRIORITY_EDITIONS: ${{ matrix.priority_editions }}
+          PYTHONUNBUFFERED: "1"
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          if (
+            [string]::IsNullOrWhiteSpace($env:SUPABASE_URL) -or
+            [string]::IsNullOrWhiteSpace($env:SUPABASE_SERVICE_ROLE_KEY)
+          ) {
+            Write-Output "::error::SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY nao configurado."
+            exit 1
           }
 
+          if (
+            $env:EVENT_NAME -ne "schedule" -and
+            $env:SELECTED_GAME -ne $env:MATRIX_GAME
+          ) {
+            Write-Output "Ignorando $env:MATRIX_GAME; o disparo manual selecionou $env:SELECTED_GAME."
+            exit 0
+          }
+
+          $args = @(
+            "scripts/update_liga_tcg_price_cache.py",
+            "--game", $env:MATRIX_GAME,
+            "--delay", "30"
+          )
+          if (
+            $env:EVENT_NAME -ne "schedule" -and
+            -not [string]::IsNullOrWhiteSpace($env:EDITION)
+          ) {
+            $args += @("--edition", $env:EDITION)
+          } else {
+            $args += @(
+              "--shard-count", $env:SHARD_COUNT,
+              "--shard-index", "auto",
+              "--priority-editions", $env:PRIORITY_EDITIONS
+            )
+          }
+
+          python @args
           if ($LASTEXITCODE -ne 0) {
             exit $LASTEXITCODE
           }

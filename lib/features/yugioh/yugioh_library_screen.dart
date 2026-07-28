@@ -3,8 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/tcg/tcg_collection_drafts.dart';
 import '../../core/widgets/catalog_grid_card.dart';
 import '../../core/widgets/home_navigation_button.dart';
+import '../../core/widgets/tcg_collection_add_button.dart';
+import '../../core/widgets/tcg_liga_price.dart';
 import '../../data/models/yugioh_card.dart';
 import '../../data/services/yugioh_tcg_service.dart';
 
@@ -89,6 +92,90 @@ class _YugiohLibraryScreenState extends ConsumerState<YugiohLibraryScreen> {
         _loadingMore = false;
       });
     }
+  }
+
+  Future<void> _selectPrintingAndAdd(YugiohCard card) async {
+    if (card.printings.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'A fonte do catálogo ainda não informou edições para esta carta.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => TcgLigaPriceScope(
+        lookupCodes: card.printings.map((printing) => printing.ligaLookupCode),
+        child: SafeArea(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 620),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                  child: Column(
+                    children: [
+                      Text(
+                        'Escolha a edição',
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.w900),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        card.name,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
+                    itemCount: card.printings.length,
+                    separatorBuilder: (_, _) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final printing = card.printings[index];
+                      return ListTile(
+                        title: Text(printing.setName),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              [
+                                printing.setCode,
+                                printing.rarity,
+                              ].where((value) => value.isNotEmpty).join(' • '),
+                            ),
+                            const SizedBox(height: 4),
+                            TcgLigaPriceLabel(
+                              lookupCode: printing.ligaLookupCode,
+                            ),
+                          ],
+                        ),
+                        trailing: TcgCollectionAddButton(
+                          draft: card.collectionDraftFor(printing),
+                          gameLabel: 'Yu-Gi-Oh',
+                          collectionRoute: '/yugioh/collection',
+                          compact: true,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -220,6 +307,19 @@ class _YugiohLibraryScreenState extends ConsumerState<YugiohLibraryScreen> {
                         child: Icon(Icons.broken_image_outlined),
                       ),
                     ),
+                    trailingActions: [
+                      IconButton(
+                        tooltip: 'Escolher edição e adicionar à coleção',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () => _selectPrintingAndAdd(card),
+                        icon: const Icon(Icons.add_circle_outline),
+                      ),
+                    ],
+                    footer: Text(
+                      card.printings.isEmpty
+                          ? 'Edição não informada'
+                          : '${card.printings.length} edições disponíveis',
+                    ),
                     onTap: () => _openCardSheet(context, card),
                   );
                 }, childCount: _cards.length),
@@ -258,7 +358,10 @@ class _YugiohLibraryScreenState extends ConsumerState<YugiohLibraryScreen> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (context) => _YugiohCardDetailsSheet(card: card),
+      builder: (context) => _YugiohCardDetailsSheet(
+        card: card,
+        onChoosePrinting: () => _selectPrintingAndAdd(card),
+      ),
     );
   }
 }
@@ -299,8 +402,12 @@ class _YugiohStatChip extends StatelessWidget {
 
 class _YugiohCardDetailsSheet extends StatelessWidget {
   final YugiohCard card;
+  final VoidCallback onChoosePrinting;
 
-  const _YugiohCardDetailsSheet({required this.card});
+  const _YugiohCardDetailsSheet({
+    required this.card,
+    required this.onChoosePrinting,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -358,6 +465,12 @@ class _YugiohCardDetailsSheet extends StatelessWidget {
                       : '${card.attack} / ${card.defense}',
                 ),
               ],
+            ),
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              onPressed: onChoosePrinting,
+              icon: const Icon(Icons.library_add_outlined),
+              label: const Text('Escolher edição e adicionar'),
             ),
             if (card.description.isNotEmpty) ...[
               const SizedBox(height: 20),

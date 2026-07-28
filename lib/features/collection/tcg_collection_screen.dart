@@ -279,6 +279,8 @@ class _TcgCollectionScreenState extends ConsumerState<TcgCollectionScreen> {
     final parts = lookupCode.split(':');
     return parts.length >= 3
         ? '${parts[parts.length - 2]}-${parts.last}'
+        : parts.length == 2
+        ? parts.last
         : lookupCode;
   }
 

@@ -189,12 +189,18 @@ final GoRouter appRouter = GoRouter(
         accent: Color(0xFF0F766E),
         heroIcon: Icons.memory_outlined,
         libraryRoute: '/digimon/library',
-        highlights: ['Busca em API', 'Biblioteca inicial'],
+        collectionRoute: '/digimon/collection',
+        highlights: ['Busca em API', 'Preços Liga', 'Coleção'],
       ),
     ),
     GoRoute(
       path: '/digimon/library',
       builder: (context, state) => const DigimonLibraryScreen(),
+    ),
+    GoRoute(
+      path: '/digimon/collection',
+      builder: (context, state) =>
+          const TcgCollectionScreen(game: TcgGame.digimon),
     ),
     GoRoute(
       path: '/magic',
@@ -206,12 +212,18 @@ final GoRouter appRouter = GoRouter(
         accent: Color(0xFFB45309),
         heroIcon: Icons.auto_fix_high_outlined,
         libraryRoute: '/magic/library',
-        highlights: ['Busca em API', 'Biblioteca inicial'],
+        collectionRoute: '/magic/collection',
+        highlights: ['Busca em API', 'Preços Liga', 'Coleção'],
       ),
     ),
     GoRoute(
       path: '/magic/library',
       builder: (context, state) => const MagicLibraryScreen(),
+    ),
+    GoRoute(
+      path: '/magic/collection',
+      builder: (context, state) =>
+          const TcgCollectionScreen(game: TcgGame.magic),
     ),
     GoRoute(
       path: '/pokemon',
@@ -246,12 +258,18 @@ final GoRouter appRouter = GoRouter(
         accent: Color(0xFF2563EB),
         heroIcon: Icons.bolt_outlined,
         libraryRoute: '/riftbound/library',
-        highlights: ['Busca em API', 'Biblioteca inicial'],
+        collectionRoute: '/riftbound/collection',
+        highlights: ['Busca em API', 'Preços Liga', 'Coleção'],
       ),
     ),
     GoRoute(
       path: '/riftbound/library',
       builder: (context, state) => const RiftboundLibraryScreen(),
+    ),
+    GoRoute(
+      path: '/riftbound/collection',
+      builder: (context, state) =>
+          const TcgCollectionScreen(game: TcgGame.riftbound),
     ),
     GoRoute(
       path: '/yugioh',
@@ -263,12 +281,18 @@ final GoRouter appRouter = GoRouter(
         accent: Color(0xFF4A4E9B),
         heroIcon: Icons.auto_awesome_outlined,
         libraryRoute: '/yugioh/library',
-        highlights: ['Busca em API', 'Biblioteca inicial'],
+        collectionRoute: '/yugioh/collection',
+        highlights: ['Busca em API', 'Preços por edição', 'Coleção'],
       ),
     ),
     GoRoute(
       path: '/yugioh/library',
       builder: (context, state) => const YugiohLibraryScreen(),
+    ),
+    GoRoute(
+      path: '/yugioh/collection',
+      builder: (context, state) =>
+          const TcgCollectionScreen(game: TcgGame.yugioh),
     ),
     GoRoute(
       path: '/integrations/liga-one-piece-test',

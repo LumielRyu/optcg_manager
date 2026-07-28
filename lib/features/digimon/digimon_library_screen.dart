@@ -3,8 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/tcg/tcg_collection_drafts.dart';
 import '../../core/widgets/catalog_grid_card.dart';
 import '../../core/widgets/home_navigation_button.dart';
+import '../../core/widgets/tcg_collection_add_button.dart';
+import '../../core/widgets/tcg_liga_price.dart';
 import '../../data/models/digimon_card.dart';
 import '../../data/services/digimon_tcg_service.dart';
 
@@ -107,148 +110,162 @@ class _DigimonLibraryScreenState extends ConsumerState<DigimonLibraryScreen> {
           ),
         ],
       ),
-      body: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-              child: Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Heroicc Digimon API',
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Busque por nome, numero, efeito ou outros termos livres. Quando a busca estiver vazia, mostramos a base geral de Digimon.',
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Ex.: Agumon, BT14, blocker',
-                        prefixIcon: const Icon(Icons.search),
-                        suffixIcon: _searchController.text.isEmpty
-                            ? null
-                            : IconButton(
-                                onPressed: _searchController.clear,
-                                icon: const Icon(Icons.close),
-                              ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _DigimonStatChip(
-                          label: 'Resultados',
-                          value: '$_totalCount',
-                        ),
-                        _DigimonStatChip(
-                          label: 'Carregadas',
-                          value: '${_cards.length}',
-                        ),
-                        _DigimonStatChip(label: 'Pagina', value: '$_page'),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          if (_loading)
-            const SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (_errorMessage != null)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    'Erro ao carregar cartas:\n$_errorMessage',
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-            )
-          else if (_cards.isEmpty)
-            const SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text(
-                    'Nenhuma carta encontrada para a busca atual.',
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-            )
-          else ...[
-            SliverPadding(
-              padding: const EdgeInsets.all(12),
-              sliver: SliverGrid(
-                delegate: SliverChildBuilderDelegate((context, index) {
-                  final card = _cards[index];
-                  return CatalogGridCard(
-                    code: card.number.isEmpty ? card.id : card.number,
-                    title: card.name,
-                    metadata: [
-                      card.setName.isEmpty ? '-' : card.setName,
-                      card.category.isEmpty ? '-' : card.category,
-                      card.rarity.isEmpty ? '-' : card.rarity,
-                    ],
-                    image: Image.network(
-                      card.imageUrl,
-                      fit: BoxFit.contain,
-                      webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-                      errorBuilder: (_, _, _) => const Center(
-                        child: Icon(Icons.broken_image_outlined),
-                      ),
-                    ),
-                    onTap: () => _openCardSheet(context, card),
-                  );
-                }, childCount: _cards.length),
-                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 220,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 0.53,
-                ),
-              ),
-            ),
+      body: TcgLigaPriceScope(
+        lookupCodes: _cards.map((card) => card.ligaLookupCode),
+        child: CustomScrollView(
+          slivers: [
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                child: Center(
-                  child: _loadingMore
-                      ? const CircularProgressIndicator()
-                      : _hasMore
-                      ? FilledButton.icon(
-                          onPressed: () => _fetchCards(reset: false),
-                          icon: const Icon(Icons.expand_more),
-                          label: const Text('Carregar mais'),
-                        )
-                      : const Text('Fim dos resultados carregados.'),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                child: Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Heroicc Digimon API',
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Busque por nome, numero, efeito ou outros termos livres. Quando a busca estiver vazia, mostramos a base geral de Digimon.',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Ex.: Agumon, BT14, blocker',
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: _searchController.text.isEmpty
+                              ? null
+                              : IconButton(
+                                  onPressed: _searchController.clear,
+                                  icon: const Icon(Icons.close),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _DigimonStatChip(
+                            label: 'Resultados',
+                            value: '$_totalCount',
+                          ),
+                          _DigimonStatChip(
+                            label: 'Carregadas',
+                            value: '${_cards.length}',
+                          ),
+                          _DigimonStatChip(label: 'Pagina', value: '$_page'),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
+            if (_loading)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_errorMessage != null)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      'Erro ao carregar cartas:\n$_errorMessage',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              )
+            else if (_cards.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Text(
+                      'Nenhuma carta encontrada para a busca atual.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              )
+            else ...[
+              SliverPadding(
+                padding: const EdgeInsets.all(12),
+                sliver: SliverGrid(
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final card = _cards[index];
+                    return CatalogGridCard(
+                      code: card.number.isEmpty ? card.id : card.number,
+                      title: card.name,
+                      metadata: [
+                        card.setName.isEmpty ? '-' : card.setName,
+                        card.category.isEmpty ? '-' : card.category,
+                        card.rarity.isEmpty ? '-' : card.rarity,
+                      ],
+                      image: Image.network(
+                        card.imageUrl,
+                        fit: BoxFit.contain,
+                        webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+                        errorBuilder: (_, _, _) => const Center(
+                          child: Icon(Icons.broken_image_outlined),
+                        ),
+                      ),
+                      trailingActions: [
+                        TcgCollectionAddButton(
+                          draft: card.collectionDraft,
+                          gameLabel: 'Digimon',
+                          collectionRoute: '/digimon/collection',
+                          compact: true,
+                        ),
+                      ],
+                      footer: TcgLigaPriceLabel(
+                        lookupCode: card.ligaLookupCode,
+                      ),
+                      onTap: () => _openCardSheet(context, card),
+                    );
+                  }, childCount: _cards.length),
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 220,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 0.53,
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  child: Center(
+                    child: _loadingMore
+                        ? const CircularProgressIndicator()
+                        : _hasMore
+                        ? FilledButton.icon(
+                            onPressed: () => _fetchCards(reset: false),
+                            icon: const Icon(Icons.expand_more),
+                            label: const Text('Carregar mais'),
+                          )
+                        : const Text('Fim dos resultados carregados.'),
+                  ),
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -369,6 +386,17 @@ class _DigimonCardDetailsSheet extends StatelessWidget {
                 ),
                 _DigimonDetailChip(label: 'Raridade', value: card.rarity),
               ],
+            ),
+            const SizedBox(height: 18),
+            TcgLigaPriceDetailsPanel(
+              lookupCode: card.ligaLookupCode,
+              gameLabel: 'Digimon',
+            ),
+            const SizedBox(height: 14),
+            TcgCollectionAddButton(
+              draft: card.collectionDraft,
+              gameLabel: 'Digimon',
+              collectionRoute: '/digimon/collection',
             ),
             if (card.effect.isNotEmpty) ...[
               const SizedBox(height: 20),

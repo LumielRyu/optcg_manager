@@ -11,6 +11,7 @@ class YugiohCard {
   final int level;
   final int attack;
   final int defense;
+  final List<YugiohCardPrinting> printings;
 
   YugiohCard({
     required this.id,
@@ -25,6 +26,7 @@ class YugiohCard {
     required this.level,
     required this.attack,
     required this.defense,
+    required this.printings,
   });
 
   factory YugiohCard.fromJson(Map<String, dynamic> json) {
@@ -41,21 +43,50 @@ class YugiohCard {
       attribute: (json['attribute'] ?? '').toString().trim(),
       archetype: (json['archetype'] ?? '').toString().trim(),
       description: (json['desc'] ?? '').toString().trim(),
-      imageUrl: (imageData['image_url'] ??
-              imageData['image_url_small'] ??
-              imageData['image_url_cropped'] ??
-              '')
-          .toString()
-          .trim(),
-      largeImageUrl: (imageData['image_url'] ??
-              imageData['image_url_small'] ??
-              imageData['image_url_cropped'] ??
-              '')
-          .toString()
-          .trim(),
+      imageUrl:
+          (imageData['image_url'] ??
+                  imageData['image_url_small'] ??
+                  imageData['image_url_cropped'] ??
+                  '')
+              .toString()
+              .trim(),
+      largeImageUrl:
+          (imageData['image_url'] ??
+                  imageData['image_url_small'] ??
+                  imageData['image_url_cropped'] ??
+                  '')
+              .toString()
+              .trim(),
       level: (json['level'] as num?)?.toInt() ?? 0,
       attack: (json['atk'] as num?)?.toInt() ?? 0,
       defense: (json['def'] as num?)?.toInt() ?? 0,
+      printings: (json['card_sets'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(YugiohCardPrinting.fromJson)
+          .where((printing) => printing.setCode.isNotEmpty)
+          .toList(growable: false),
     );
   }
+}
+
+class YugiohCardPrinting {
+  final String setName;
+  final String setCode;
+  final String rarity;
+
+  const YugiohCardPrinting({
+    required this.setName,
+    required this.setCode,
+    required this.rarity,
+  });
+
+  factory YugiohCardPrinting.fromJson(Map<String, dynamic> json) {
+    return YugiohCardPrinting(
+      setName: (json['set_name'] ?? '').toString().trim(),
+      setCode: (json['set_code'] ?? '').toString().trim(),
+      rarity: (json['set_rarity'] ?? '').toString().trim(),
+    );
+  }
+
+  String get ligaLookupCode => 'YUGIOH:${setCode.trim().toUpperCase()}';
 }

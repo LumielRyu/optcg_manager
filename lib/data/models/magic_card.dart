@@ -4,6 +4,7 @@ class MagicCard {
   final String collectorNumber;
   final String imageUrl;
   final String largeImageUrl;
+  final String setCode;
   final String setName;
   final String rarity;
   final String typeLine;
@@ -19,6 +20,7 @@ class MagicCard {
     required this.collectorNumber,
     required this.imageUrl,
     required this.largeImageUrl,
+    required this.setCode,
     required this.setName,
     required this.rarity,
     required this.typeLine,
@@ -42,6 +44,7 @@ class MagicCard {
       largeImageUrl: (imageUris['large'] ?? imageUris['normal'] ?? '')
           .toString()
           .trim(),
+      setCode: (json['set'] ?? '').toString().trim(),
       setName: (json['set_name'] ?? '').toString().trim(),
       rarity: (json['rarity'] ?? '').toString().trim(),
       typeLine: (json['type_line'] ?? '').toString().trim(),
@@ -54,5 +57,11 @@ class MagicCard {
           .where((item) => item.isNotEmpty)
           .toList(growable: false),
     );
+  }
+
+  String get ligaLookupCode {
+    final rawNumber = collectorNumber.trim().toUpperCase();
+    final number = int.tryParse(rawNumber)?.toString() ?? rawNumber;
+    return 'MAGIC:${setCode.trim().toUpperCase()}:$number';
   }
 }

@@ -81,31 +81,98 @@ const ROUTES = [
     backTarget: '#/pokemon',
   },
   {
+    name: 'digimon-hub',
+    hash: '#/digimon',
+    title: 'Digimon | TCG BH',
+    content: ['Digimon', 'Biblioteca', 'Colecao'],
+    backTarget: '#/home',
+    backButtonLabel: 'Voltar ao Home',
+  },
+  {
     name: 'digimon-library',
     hash: '#/digimon/library',
     title: 'Biblioteca Digimon | TCG BH',
-    content: ['Biblioteca Digimon'],
+    content: ['Biblioteca Digimon', 'Adicionar à coleção'],
     backTarget: '#/digimon',
+    waitForContent: 'Adicionar à coleção',
+  },
+  {
+    name: 'digimon-collection-guest',
+    hash: '#/digimon/collection',
+    title: 'Coleção Digimon | TCG BH',
+    content: ['Minha colecao Digimon', 'necessario entrar'],
+    backTarget: '#/digimon',
+  },
+  {
+    name: 'magic-hub',
+    hash: '#/magic',
+    title: 'Magic | TCG BH',
+    content: ['Magic', 'Biblioteca', 'Colecao'],
+    backTarget: '#/home',
+    backButtonLabel: 'Voltar ao Home',
   },
   {
     name: 'magic-library',
     hash: '#/magic/library',
     title: 'Biblioteca Magic | TCG BH',
-    content: ['Biblioteca Magic'],
+    content: ['Biblioteca Magic', 'Adicionar à coleção'],
     backTarget: '#/magic',
+    waitForContent: 'Adicionar à coleção',
+  },
+  {
+    name: 'magic-collection-guest',
+    hash: '#/magic/collection',
+    title: 'Coleção Magic | TCG BH',
+    content: ['Minha colecao Magic', 'necessario entrar'],
+    backTarget: '#/magic',
+  },
+  {
+    name: 'riftbound-hub',
+    hash: '#/riftbound',
+    title: 'Riftbound | TCG BH',
+    content: ['Riftbound', 'Biblioteca', 'Colecao'],
+    backTarget: '#/home',
+    backButtonLabel: 'Voltar ao Home',
   },
   {
     name: 'riftbound-library',
     hash: '#/riftbound/library',
     title: 'Biblioteca Riftbound | TCG BH',
-    content: ['Biblioteca Riftbound'],
+    content: ['Biblioteca Riftbound', 'Adicionar à coleção'],
     backTarget: '#/riftbound',
+    waitForContent: 'Adicionar à coleção',
+  },
+  {
+    name: 'riftbound-collection-guest',
+    hash: '#/riftbound/collection',
+    title: 'Coleção Riftbound | TCG BH',
+    content: ['Minha colecao Riftbound', 'necessario entrar'],
+    backTarget: '#/riftbound',
+  },
+  {
+    name: 'yugioh-hub',
+    hash: '#/yugioh',
+    title: 'Yu-Gi-Oh | TCG BH',
+    content: ['Yu-Gi-Oh', 'Biblioteca', 'Colecao'],
+    backTarget: '#/home',
+    backButtonLabel: 'Voltar ao Home',
   },
   {
     name: 'yugioh-library',
     hash: '#/yugioh/library',
     title: 'Biblioteca Yu-Gi-Oh | TCG BH',
-    content: ['Biblioteca Yu-Gi-Oh'],
+    content: [
+      'Biblioteca Yu-Gi-Oh',
+      'Escolher edição e adicionar à coleção',
+    ],
+    backTarget: '#/yugioh',
+    waitForContent: 'Escolher edição e adicionar à coleção',
+  },
+  {
+    name: 'yugioh-collection-guest',
+    hash: '#/yugioh/collection',
+    title: 'Coleção Yu-Gi-Oh | TCG BH',
+    content: ['Minha colecao Yu-Gi-Oh', 'necessario entrar'],
     backTarget: '#/yugioh',
   },
   {
@@ -320,6 +387,19 @@ async function checkRoute(browser, baseUrl, route) {
       { timeout: 30_000 },
     );
     await enableFlutterSemantics(page);
+    if (route.waitForContent) {
+      await page.waitForFunction(
+        (expected) =>
+          Array.from(document.querySelectorAll('flt-semantics')).some((item) =>
+            [
+              item.textContent || '',
+              item.getAttribute('aria-label') || '',
+            ].some((value) => value.includes(expected)),
+          ),
+        { timeout: 60_000 },
+        route.waitForContent,
+      );
+    }
     if (route.name === 'pokemon-weekly') {
       await page.waitForFunction(
         () =>
