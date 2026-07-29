@@ -1282,3 +1282,24 @@ git diff --stat
   146 linhas `POKEMON:LA:*` e 58.200 linhas Pokemon no cache.
 - Proxima camada recomendada: compartilhamento de colecoes e vitrines
   filtradas por TCG, seguida por importacao em lote por planilha.
+
+### 29/07/2026 - Visual de decks One Piece
+
+- O detalhe do deck na colecao deixou de usar uma lista compacta e passou a
+  destacar o `Leader` principal em um cartao grande e centralizado.
+- As demais cartas aparecem abaixo em uma grade visual com arte, nome, codigo
+  e um selo sobre a imagem indicando `1x`, `2x`, `4x` e demais quantidades.
+- Os controles de aumentar e diminuir copias foram preservados na visualizacao
+  privada e agora atualizam imediatamente o estado exibido no dialogo.
+- Listas antigas sem o tipo da carta salvo tentam identificar o lider pelo
+  nome do deck e pela quantidade de uma copia. Quando nao existe identificacao
+  segura, a interface informa que o lider precisa ser revisado.
+- A mesma composicao foi aplicada ao deck compartilhado publicamente, com
+  layout responsivo para desktop e celular.
+- Validacoes aprovadas: `flutter analyze`, 106 testes Flutter, build web,
+  verificacao visual local em desktop e celular e verificacao do deck publico
+  real em producao. Health check, protecao de origem e varredura de runtime
+  passaram sem erros.
+- Commit funcional `844c347`, enviado para `origin/main`.
+- Deploy Vercel `dpl_GjdaCJ5qMVggtYuxenXa6WMT1e8r`, status READY e publicado
+  em `https://tcgbh.vercel.app`.
