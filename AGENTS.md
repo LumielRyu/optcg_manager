@@ -1330,3 +1330,26 @@ git diff --stat
 - Commit funcional `8e5dc05`, enviado para `origin/main`.
 - Deploy Vercel `dpl_uNosaqskoRtvug866gF5BqEsHH48`, status READY e publicado
   em `https://tcgbh.vercel.app`.
+
+### 29/07/2026 - Valor total do deck pela Liga
+
+- O cabecalho do deck privado e do deck compartilhado passou a mostrar o valor
+  total estimado pela Liga.
+- O calculo usa o menor preco da arte exata selecionada e multiplica pela
+  quantidade daquela arte. Normal, parallel e alternative art do mesmo codigo
+  podem contribuir com valores diferentes.
+- Quando todas as copias possuem preco, a interface mostra
+  `Valor total do deck` e a cobertura, por exemplo `51/51 copias com preco`.
+- Quando alguma arte nao possui valor verificado, a interface deixa claro que
+  se trata de `Valor parcial`, informa a cobertura e nao apresenta o resultado
+  como um total completo.
+- O deck publico real `Mihawk` foi usado na verificacao visual e retornou
+  `R$ 4.578,24`, com `51/51` copias precificadas, em desktop e celular.
+- Nenhuma migracao SQL foi necessaria; o recurso consulta o cache publico de
+  precos da Liga ja existente.
+- Validacoes aprovadas: `flutter analyze`, 110 testes Flutter, build web,
+  verificacao visual local responsiva e verificacao em producao. Health check,
+  protecao de origem e varredura de runtime passaram sem erros.
+- Commit funcional `1e3313a`, enviado para `origin/main`.
+- Deploy Vercel `dpl_Bnet8bduZotUNjwvms7Kf9Bw2FAy`, status READY e publicado
+  em `https://tcgbh.vercel.app`.
