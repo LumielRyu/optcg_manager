@@ -1494,3 +1494,29 @@ git diff --stat
 - Commit funcional `18d3196`, enviado para `origin/main`.
 - Deploy Vercel `dpl_By86nw8NNbyNYAtYzguamcGQgB5p`, status READY e publicado
   em `https://tcgbh.vercel.app`.
+
+### 29/07/2026 - Importacao direta de decks do Piltover Archive
+
+- O dialogo de importacao Riftbound agora aceita diretamente o link publico de
+  um deck do Piltover Archive, alem de manter a lista de texto como alternativa.
+- A acao `Buscar` recupera o nome e a composicao do deck, preenche a lista e
+  inicia automaticamente a revisao das impressoes antes de gravar no deck ou
+  na colecao.
+- Links encontrados na area de transferencia tambem sao reconhecidos
+  automaticamente pela acao de colar.
+- A integracao usa os endpoints publicos de deck e preco do Piltover Archive
+  por meio de `/api/import-riftbound-deck`. O proxy aceita apenas HTTPS no
+  dominio oficial, valida o UUID, possui limite de requisicoes, limite de
+  resposta, timeout, protecao de origem e nao permite destinos arbitrarios.
+- O deck real de validacao retornou 64 cartas: 1 Lenda, 1 Campeao, 39 cartas
+  principais, 3 campos de batalha, 12 runas e 8 cartas no sideboard.
+- Nenhuma migracao SQL ou nova variavel de ambiente foi necessaria.
+- Validacoes aprovadas: `flutter analyze`, 122 testes Flutter, 15 testes Node,
+  build web com variaveis publicas, consulta real ao Piltover Archive, quality
+  gate do GitHub e cinco fluxos E2E em producao (home, hub, biblioteca,
+  colecao e decks Riftbound). A API de producao e a varredura de runtime
+  passaram sem erros.
+- Commit funcional `8205620`, enviado para `origin/main`; quality gate do
+  GitHub concluido com sucesso.
+- Deploy Vercel `dpl_6mnsxpdQMcyfb8xammExxNqBcBcG`, status READY e publicado
+  em `https://tcgbh.vercel.app`.
