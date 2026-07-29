@@ -13,6 +13,17 @@ import update_liga_edition_price_cache as edition_cache
 
 
 class LigaEditionPriceCacheTest(unittest.TestCase):
+    def test_normalizes_liga_repository_image_urls(self):
+        self.assertEqual(
+            (
+                "https://repositorio.sbrauble.com/arquivos/in/onepiece/"
+                "2/card.jpg"
+            ),
+            edition_cache.liga.normalize_asset_url(
+                "//arquivos/in/onepiece/2/card.jpg"
+            ),
+        )
+
     def test_parses_and_orders_main_and_aux_editions(self):
         payload = {
             "main": [

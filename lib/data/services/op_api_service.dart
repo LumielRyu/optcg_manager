@@ -23,7 +23,7 @@ class OpApiService {
       'https://www.optcgapi.com/api/allPromos/?format=json';
   static const String _webProxyUrl = '/api/optcg-cards';
   static const String _assetCachePath = 'assets/one_piece_cards_cache.json';
-  static const String _cachedCardsKey = 'all_cards_v2';
+  static const String _cachedCardsKey = 'all_cards_v3';
   static const String _cachedAtKey = 'all_cards_cached_at';
   static const Duration _cacheMaxAge = Duration(hours: 12);
 
@@ -156,9 +156,7 @@ class OpApiService {
 
   Future<void> _refreshFromApi() async {
     final responses = kIsWeb
-        ? [
-            await _getJson(_webProxyUrl),
-          ]
+        ? [await _getJson(_webProxyUrl)]
         : await Future.wait([
             _getJson(_mainSetUrl),
             _getJson(_starterDeckUrl),

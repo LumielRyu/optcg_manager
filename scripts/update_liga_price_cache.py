@@ -313,6 +313,8 @@ def select_price_map(raw_price, prefer_foil: bool):
 def normalize_asset_url(raw: str) -> str:
     if not raw:
         return ""
+    if raw.startswith("//arquivos/"):
+        return f"https://repositorio.sbrauble.com{raw[1:]}"
     if raw.startswith("//"):
         return f"https:{raw}"
     return raw
