@@ -1258,6 +1258,11 @@ class _VirtualizedDeckLibraryView extends StatelessWidget {
             0,
             (sum, item) => sum + item.quantity,
           );
+          final uniqueCards = deck.value
+              .map((item) => item.cardCode.trim().toUpperCase())
+              .where((code) => code.isNotEmpty)
+              .toSet()
+              .length;
           return Card(
             child: ListTile(
               leading: const CircleAvatar(
@@ -1265,7 +1270,7 @@ class _VirtualizedDeckLibraryView extends StatelessWidget {
               ),
               title: Text(deck.key),
               subtitle: Text(
-                '${deck.value.length} cartas \u00fanicas \u2022 '
+                '$uniqueCards cartas diferentes \u2022 '
                 '$totalCards cartas no total',
               ),
               onTap: () => onOpenDeck(deck.key, deck.value),

@@ -5,6 +5,8 @@ import '../../../data/models/card_record.dart';
 typedef DeckCardImageBuilder =
     Widget Function(BuildContext context, CardRecord item);
 typedef DeckCardAction = Future<void> Function(CardRecord item);
+typedef DeckArtAllocationAction =
+    Future<void> Function(List<CardRecord> sameCodeItems);
 
 class DeckVisualSections {
   final CardRecord? leader;
@@ -60,6 +62,7 @@ class DeckVisualLayout extends StatelessWidget {
   final DeckCardImageBuilder imageBuilder;
   final DeckCardAction? onIncrement;
   final DeckCardAction? onDecrement;
+  final DeckArtAllocationAction? onConfigureArts;
 
   const DeckVisualLayout({
     super.key,
@@ -68,6 +71,7 @@ class DeckVisualLayout extends StatelessWidget {
     required this.imageBuilder,
     this.onIncrement,
     this.onDecrement,
+    this.onConfigureArts,
   });
 
   bool get _isEditable => onIncrement != null && onDecrement != null;
@@ -79,6 +83,13 @@ class DeckVisualLayout extends StatelessWidget {
       0,
       (sum, item) => sum + item.quantity,
     );
+    final itemsByCode = <String, List<CardRecord>>{};
+    for (final item in sections.cards) {
+      itemsByCode
+          .putIfAbsent(item.cardCode.trim().toUpperCase(), () => [])
+          .add(item);
+    }
+    final uniqueMainCards = itemsByCode.length;
 
     return CustomScrollView(
       slivers: [
@@ -118,7 +129,7 @@ class DeckVisualLayout extends StatelessWidget {
                   icon: Icons.grid_view_rounded,
                   title: 'Cartas do deck',
                   subtitle:
-                      '${sections.cards.length} cartas únicas • '
+                      '$uniqueMainCards cartas diferentes • '
                       '$mainDeckCount cartas no deck principal',
                 ),
               ],
@@ -138,19 +149,32 @@ class DeckVisualLayout extends StatelessWidget {
             sliver: SliverGrid(
               delegate: SliverChildBuilderDelegate((context, index) {
                 final item = sections.cards[index];
+                final sameCodeItems =
+                    itemsByCode[item.cardCode.trim().toUpperCase()] ?? [item];
+                final sameCodeTotal = sameCodeItems.fold<int>(
+                  0,
+                  (sum, entry) => sum + entry.quantity,
+                );
+                final canConfigureArts =
+                    onConfigureArts != null &&
+                    sameCodeTotal > 1 &&
+                    sameCodeItems.first.id == item.id;
                 return _VisualDeckCard(
                   item: item,
                   imageBuilder: imageBuilder,
                   isEditable: _isEditable,
                   onIncrement: onIncrement,
                   onDecrement: onDecrement,
+                  onConfigureArts: canConfigureArts
+                      ? () => onConfigureArts!(sameCodeItems)
+                      : null,
                 );
               }, childCount: sections.cards.length),
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
                 maxCrossAxisExtent: 205,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
-                childAspectRatio: 0.54,
+                childAspectRatio: _isEditable ? 0.48 : 0.54,
               ),
             ),
           ),
@@ -218,6 +242,7 @@ class _VisualDeckCard extends StatelessWidget {
   final bool isEditable;
   final DeckCardAction? onIncrement;
   final DeckCardAction? onDecrement;
+  final Future<void> Function()? onConfigureArts;
 
   const _VisualDeckCard({
     required this.item,
@@ -226,6 +251,7 @@ class _VisualDeckCard extends StatelessWidget {
     this.isLeader = false,
     this.onIncrement,
     this.onDecrement,
+    this.onConfigureArts,
   });
 
   @override
@@ -319,6 +345,15 @@ class _VisualDeckCard extends StatelessWidget {
               ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
             ),
           ),
+          if (onConfigureArts != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
+              child: OutlinedButton.icon(
+                onPressed: onConfigureArts,
+                icon: const Icon(Icons.palette_outlined, size: 18),
+                label: const Text('Distribuir artes'),
+              ),
+            ),
           if (isEditable)
             Padding(
               padding: const EdgeInsets.fromLTRB(6, 3, 6, 5),

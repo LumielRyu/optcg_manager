@@ -68,6 +68,11 @@ class _SharedDeckScreenState extends ConsumerState<SharedDeckScreen> {
             0,
             (sum, item) => sum + item.quantity,
           );
+          final uniqueCards = deck.items
+              .map((item) => item.cardCode.trim().toUpperCase())
+              .where((code) => code.isNotEmpty)
+              .toSet()
+              .length;
 
           return Column(
             children: [
@@ -84,9 +89,7 @@ class _SharedDeckScreenState extends ConsumerState<SharedDeckScreen> {
                     const SizedBox(height: 8),
                     Text('Código de compartilhamento: ${deck.shareCode}'),
                     const SizedBox(height: 4),
-                    Text(
-                      '${deck.items.length} cartas únicas • $totalCards cartas',
-                    ),
+                    Text('$uniqueCards cartas diferentes • $totalCards cartas'),
                   ],
                 ),
               ),

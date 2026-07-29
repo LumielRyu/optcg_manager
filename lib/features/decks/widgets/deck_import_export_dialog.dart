@@ -40,24 +40,17 @@ class _DeckImportExportDialogState
   }
 
   String _buildExportText() {
-    final sorted = [...widget.items]
-      ..sort((a, b) => a.cardCode.compareTo(b.cardCode));
-
-    return sorted.map((e) => '${e.quantity}x${e.cardCode}').join('\n');
+    return buildDeckExportText(widget.items);
   }
 
   Future<void> _copyExportText(String exportText) async {
-    await Clipboard.setData(
-      ClipboardData(text: exportText),
-    );
+    await Clipboard.setData(ClipboardData(text: exportText));
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Lista copiada.'),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Lista copiada.')));
   }
 
   Future<void> _importList() async {
@@ -102,8 +95,9 @@ class _DeckImportExportDialogState
         (sum, item) => sum + item.quantity,
       );
 
-      final finalTotal =
-          _replaceExisting ? incomingTotal : currentTotal + incomingTotal;
+      final finalTotal = _replaceExisting
+          ? incomingTotal
+          : currentTotal + incomingTotal;
 
       if (finalTotal > 51) {
         setState(() {
@@ -135,13 +129,15 @@ class _DeckImportExportDialogState
             existing.copyWith(
               quantity: existing.quantity + entry.quantity,
               name: apiCard.name.isNotEmpty ? apiCard.name : existing.name,
-              imageUrl:
-                  apiCard.image.isNotEmpty ? apiCard.image : existing.imageUrl,
+              imageUrl: apiCard.image.isNotEmpty
+                  ? apiCard.image
+                  : existing.imageUrl,
               setName: apiCard.setName.isNotEmpty
                   ? apiCard.setName
                   : existing.setName,
-              rarity:
-                  apiCard.rarity.isNotEmpty ? apiCard.rarity : existing.rarity,
+              rarity: apiCard.rarity.isNotEmpty
+                  ? apiCard.rarity
+                  : existing.rarity,
               color: apiCard.color.isNotEmpty ? apiCard.color : existing.color,
               type: apiCard.type.isNotEmpty ? apiCard.type : existing.type,
               text: apiCard.text.isNotEmpty ? apiCard.text : existing.text,
@@ -196,9 +192,10 @@ class _DeckImportExportDialogState
     for (final line in lines) {
       final compact = line.replaceAll(' ', '');
 
-      final match =
-          RegExp(r'^(\d+)x([A-Za-z0-9\-]+)$', caseSensitive: false)
-              .firstMatch(compact);
+      final match = RegExp(
+        r'^(\d+)x([A-Za-z0-9\-]+)$',
+        caseSensitive: false,
+      ).firstMatch(compact);
 
       if (match == null) continue;
 
@@ -207,12 +204,7 @@ class _DeckImportExportDialogState
 
       if (code.isEmpty) continue;
 
-      result.add(
-        _ParsedDeckLine(
-          quantity: quantity,
-          code: code,
-        ),
-      );
+      result.add(_ParsedDeckLine(quantity: quantity, code: code));
     }
 
     return result;
@@ -230,10 +222,7 @@ class _DeckImportExportDialogState
     return Dialog(
       insetPadding: const EdgeInsets.all(16),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 720,
-          maxHeight: 820,
-        ),
+        constraints: const BoxConstraints(maxWidth: 720, maxHeight: 820),
         child: Column(
           children: [
             Padding(
@@ -243,8 +232,8 @@ class _DeckImportExportDialogState
                   Text(
                     'Importar / Exportar Deck',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Text(widget.deckName),
@@ -260,9 +249,7 @@ class _DeckImportExportDialogState
                   children: [
                     const Text(
                       'Exportar lista atual',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 8),
                     TextField(
@@ -286,9 +273,7 @@ class _DeckImportExportDialogState
                     const Divider(height: 28),
                     const Text(
                       'Importar para este deck',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 8),
                     TextField(
@@ -296,7 +281,8 @@ class _DeckImportExportDialogState
                       minLines: 8,
                       maxLines: 12,
                       decoration: const InputDecoration(
-                        hintText: 'Exemplo:\n4xOP01-077\n2xOP02-036\n1xOP09-062',
+                        hintText:
+                            'Exemplo:\n4xOP01-077\n2xOP02-036\n1xOP09-062',
                         border: OutlineInputBorder(),
                         alignLabelWithHint: true,
                       ),
@@ -319,10 +305,7 @@ class _DeckImportExportDialogState
                     ),
                     if (_error != null) ...[
                       const SizedBox(height: 8),
-                      Text(
-                        _error!,
-                        style: const TextStyle(color: Colors.red),
-                      ),
+                      Text(_error!, style: const TextStyle(color: Colors.red)),
                     ],
                   ],
                 ),
@@ -334,8 +317,9 @@ class _DeckImportExportDialogState
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed:
-                          _isBusy ? null : () => Navigator.of(context).pop(),
+                      onPressed: _isBusy
+                          ? null
+                          : () => Navigator.of(context).pop(),
                       icon: const Icon(Icons.close),
                       label: const Text('Cancelar'),
                     ),
@@ -364,12 +348,25 @@ class _DeckImportExportDialogState
   }
 }
 
+String buildDeckExportText(List<CardRecord> items) {
+  final quantitiesByCode = <String, int>{};
+  for (final item in items) {
+    final code = item.cardCode.trim().toUpperCase();
+    if (code.isEmpty) continue;
+    quantitiesByCode.update(
+      code,
+      (quantity) => quantity + item.quantity,
+      ifAbsent: () => item.quantity,
+    );
+  }
+  final entries = quantitiesByCode.entries.toList()
+    ..sort((a, b) => a.key.compareTo(b.key));
+  return entries.map((entry) => '${entry.value}x${entry.key}').join('\n');
+}
+
 class _ParsedDeckLine {
   final int quantity;
   final String code;
 
-  _ParsedDeckLine({
-    required this.quantity,
-    required this.code,
-  });
+  _ParsedDeckLine({required this.quantity, required this.code});
 }

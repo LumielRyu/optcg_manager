@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/constants/collection_types.dart';
 import '../../data/models/card_record.dart';
 import '../../data/repositories/collection_repository.dart';
 import '../../data/services/op_api_service.dart';
+import '../decks/widgets/deck_art_allocation_dialog.dart';
 import '../decks/widgets/deck_visual_layout.dart';
 import '../decks/widgets/deck_import_export_dialog.dart';
 import 'collection_controller.dart';
@@ -59,6 +61,29 @@ class _DeckDetailsDialogState extends ConsumerState<DeckDetailsDialog> {
       final index = _items.indexWhere((entry) => entry.id == item.id);
       if (index >= 0) _items[index] = updated;
     });
+  }
+
+  Future<void> _configureArts(List<CardRecord> sameCodeItems) async {
+    final changed = await showDialog<bool>(
+      context: context,
+      builder: (_) => DeckArtAllocationDialog(
+        deckName: widget.deckName,
+        cardCode: sameCodeItems.first.cardCode,
+        currentItems: sameCodeItems,
+      ),
+    );
+    if (changed != true || !mounted) return;
+
+    final refreshed = ref
+        .read(collectionRepositoryProvider)
+        .getAll()
+        .where(
+          (item) =>
+              item.collectionType == CollectionTypes.deck &&
+              (item.deckName ?? '').trim() == widget.deckName.trim(),
+        )
+        .toList(growable: false);
+    setState(() => _items = refreshed);
   }
 
   Future<void> _shareDeck() async {
@@ -194,6 +219,7 @@ class _DeckDetailsDialogState extends ConsumerState<DeckDetailsDialog> {
                 ),
                 onDecrement: _decrement,
                 onIncrement: _increment,
+                onConfigureArts: _configureArts,
               ),
             ),
             const Divider(),
@@ -206,9 +232,7 @@ class _DeckDetailsDialogState extends ConsumerState<DeckDetailsDialog> {
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: () {
-                            final exportText = sortedItems
-                                .map((e) => '${e.quantity}x${e.cardCode}')
-                                .join('\n');
+                            final exportText = buildDeckExportText(sortedItems);
 
                             Clipboard.setData(ClipboardData(text: exportText));
 
