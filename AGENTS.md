@@ -1353,3 +1353,25 @@ git diff --stat
 - Commit funcional `1e3313a`, enviado para `origin/main`.
 - Deploy Vercel `dpl_Bnet8bduZotUNjwvms7Kf9Bw2FAy`, status READY e publicado
   em `https://tcgbh.vercel.app`.
+
+### 29/07/2026 - Preco individual nas cartas do deck
+
+- Cada cartao do deck privado e compartilhado passou a mostrar o menor preco
+  da Liga correspondente a arte exata selecionada.
+- Quando existe mais de uma copia da mesma arte, o cartao mostra o valor
+  unitario e o subtotal daquela arte no deck, por exemplo
+  `R$ 4,60 cada • R$ 13,80 no deck`.
+- Cartas sem valor deixam explicito se ainda nao possuem preco verificado ou
+  se foram verificadas mas nao possuem oferta. Valores desatualizados mantem
+  uma indicacao visual distinta.
+- O tamanho dos cartoes foi ajustado para acomodar o preco sem sobrepor arte,
+  nome, codigo ou controles, tanto em desktop quanto em celular.
+- Nenhuma migracao SQL foi necessaria; a exibicao reutiliza o mesmo cache
+  publico e o mesmo criterio por arte usados no total do deck.
+- Validacoes aprovadas: `flutter analyze`, 110 testes Flutter, build web,
+  verificacao visual local responsiva, verificacao do deck publico real em
+  producao e quality gate do GitHub. Health check, protecao de origem,
+  console do navegador e varredura de runtime passaram sem erros.
+- Commit funcional `41c3670`, enviado para `origin/main`.
+- Deploy Vercel `dpl_7u7naeR1Zsws6ujKL6vsPGAwLyos`, status READY e publicado
+  em `https://tcgbh.vercel.app`.
