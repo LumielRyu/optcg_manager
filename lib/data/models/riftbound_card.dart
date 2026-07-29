@@ -80,11 +80,15 @@ class RiftboundCard {
       final value => value,
     };
     final idParts = riftboundId.trim().split('-');
-    final rawNumber = idParts.length >= 2 ? idParts[1] : '$collectorNumber';
-    final normalizedNumber = rawNumber
-        .trim()
-        .toUpperCase()
-        .replaceFirst(RegExp(r'^0+(?=\d)'), '');
+    final idNumber = idParts.length >= 2 ? idParts[1].trim() : '';
+    final rawNumber =
+        RegExp(r'^\d+[a-z]?$', caseSensitive: false).hasMatch(idNumber)
+        ? idNumber
+        : '$collectorNumber';
+    final normalizedNumber = rawNumber.trim().toUpperCase().replaceFirst(
+      RegExp(r'^0+(?=\d)'),
+      '',
+    );
     return 'RIFTBOUND:$normalizedSet:$normalizedNumber';
   }
 }
