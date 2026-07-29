@@ -4,6 +4,7 @@ import re
 import sys
 import time
 import urllib.parse
+import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
@@ -86,6 +87,14 @@ def parse_args():
         action="store_true",
         help="Inclui edições já publicadas pela Liga antes da data de lançamento.",
     )
+    parser.add_argument(
+        "--missing-only",
+        action="store_true",
+        help=(
+            "Processa somente edições cujo ID da Liga ainda não aparece no "
+            "cache. Útil para cargas iniciais retomáveis."
+        ),
+    )
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
 
@@ -166,6 +175,73 @@ def fetch_editions(
     host = GAME_CONFIGS[game]["host"]
     source = liga.fetch_text(f"https://{host}/?view=cards/edicoes")
     return parse_editions_page(source, game, include_future=include_future)
+
+
+def fetch_cached_edition_ids(game: str, *, page_size: int = 1000) -> set[int]:
+    env = liga.load_env()
+    supabase_url = (env.get("SUPABASE_URL") or "").rstrip("/")
+    api_key = (
+        env.get("SUPABASE_SERVICE_ROLE_KEY")
+        or env.get("SUPABASE_ANON_KEY")
+        or ""
+    )
+    if not supabase_url or not api_key:
+        raise RuntimeError(
+            "SUPABASE_URL e uma chave do Supabase precisam existir no .env."
+        )
+
+    prefix = f"{game.upper()}:"
+    edition_ids: set[int] = set()
+    start = 0
+    while True:
+        query = urllib.parse.urlencode(
+            {
+                "select": "note,source_url",
+                "lookup_code": f"like.{prefix}*",
+                "order": "lookup_code.asc",
+            }
+        )
+        request = urllib.request.Request(
+            f"{supabase_url}/rest/v1/liga_card_price_cache?{query}",
+            headers={
+                "apikey": api_key,
+                "authorization": f"Bearer {api_key}",
+                "range": f"{start}-{start + page_size - 1}",
+            },
+        )
+        with urllib.request.urlopen(request, timeout=30) as response:
+            page = json.load(response)
+        for row in page:
+            edition_id = extract_cached_edition_id(row)
+            if edition_id is not None:
+                edition_ids.add(edition_id)
+        if len(page) < page_size:
+            break
+        start += page_size
+    return edition_ids
+
+
+def extract_cached_edition_id(row: dict) -> int | None:
+    note = str(row.get("note") or "")
+    match = re.search(r"Liga ID\s+(\d+)", note, flags=re.IGNORECASE)
+    if match:
+        return int(match.group(1))
+
+    source_url = str(row.get("source_url") or "")
+    decoded_url = urllib.parse.unquote_plus(source_url)
+    match = re.search(r"\bedid=(\d+)\b", decoded_url, flags=re.IGNORECASE)
+    return int(match.group(1)) if match else None
+
+
+def select_missing_editions(
+    editions: list[LigaTcgEdition],
+    cached_edition_ids: set[int],
+) -> list[LigaTcgEdition]:
+    return [
+        edition
+        for edition in editions
+        if edition.edition_id not in cached_edition_ids
+    ]
 
 
 def resolve_shard_index(raw_index: str, shard_count: int) -> int:
@@ -358,6 +434,10 @@ def main():
         raise ValueError("--delay nao pode ser negativo.")
     shard_index = resolve_shard_index(args.shard_index, args.shard_count)
     editions = fetch_editions(args.game, include_future=args.include_future)
+    published_count = len(editions)
+    if args.missing_only:
+        cached_edition_ids = fetch_cached_edition_ids(args.game)
+        editions = select_missing_editions(editions, cached_edition_ids)
     selected = select_editions(
         editions,
         requested=args.edition,
@@ -369,7 +449,9 @@ def main():
         selected = selected[: max(0, args.limit)]
 
     print(f"TCG: {GAME_CONFIGS[args.game]['label']}")
-    print(f"Edicoes publicadas e ja lancadas: {len(editions)}")
+    print(f"Edicoes publicadas e ja lancadas: {published_count}")
+    if args.missing_only:
+        print(f"Edicoes ainda sem carga pelo ID da Liga: {len(editions)}")
     print(f"Shard: {shard_index + 1}/{args.shard_count}")
     print(f"Edicoes selecionadas: {len(selected)}")
     for edition in selected:

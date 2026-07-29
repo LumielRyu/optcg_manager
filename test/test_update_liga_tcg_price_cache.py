@@ -85,6 +85,50 @@ class LigaTcgPriceCacheTest(unittest.TestCase):
 
         self.assertEqual([edition.acronym for edition in editions], ["VEN"])
 
+    def test_extracts_cached_edition_id_from_note_or_source_url(self):
+        self.assertEqual(
+            updater.extract_cached_edition_id(
+                {"note": "TCG=magic; coletado de FIN (Liga ID 1234)."}
+            ),
+            1234,
+        )
+        self.assertEqual(
+            updater.extract_cached_edition_id(
+                {
+                    "source_url": (
+                        "https://example.test/?view=cards%2Fsearch&"
+                        "card=edid%3D987+ed%3DFIN"
+                    )
+                }
+            ),
+            987,
+        )
+        self.assertIsNone(updater.extract_cached_edition_id({}))
+
+    def test_missing_editions_are_compared_by_liga_id_not_acronym(self):
+        editions = [
+            updater.LigaTcgEdition(
+                game="yugioh",
+                edition_id=1,
+                acronym="VOL",
+                name="Volume 1",
+                release_date="2000-01-01",
+                group="main",
+            ),
+            updater.LigaTcgEdition(
+                game="yugioh",
+                edition_id=2,
+                acronym="VOL",
+                name="Volume 2",
+                release_date="2000-02-01",
+                group="main",
+            ),
+        ]
+
+        missing = updater.select_missing_editions(editions, {1})
+
+        self.assertEqual([edition.edition_id for edition in missing], [2])
+
 
 if __name__ == "__main__":
     unittest.main()
