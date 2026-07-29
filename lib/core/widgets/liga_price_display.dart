@@ -366,6 +366,120 @@ class LigaPriceLabel extends ConsumerWidget {
   }
 }
 
+class LigaDeckCardPrice extends ConsumerWidget {
+  final String cardName;
+  final String cardCode;
+  final String imageUrl;
+  final int quantity;
+
+  const LigaDeckCardPrice({
+    super.key,
+    required this.cardName,
+    required this.cardCode,
+    this.imageUrl = '',
+    required this.quantity,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final data = _LigaPriceData.maybeOf(context);
+    final theme = Theme.of(context);
+
+    if (data == null || data.loading) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 11,
+            height: 11,
+            child: CircularProgressIndicator(
+              strokeWidth: 1.6,
+              color: theme.colorScheme.primary,
+            ),
+          ),
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(
+              'Preço: calculando...',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall,
+            ),
+          ),
+        ],
+      );
+    }
+
+    final service = ref.read(ligaOnePieceServiceProvider);
+    final referenceKey = service.priceReferenceKeyForCard(
+      cardName: cardName,
+      cardCode: cardCode,
+      imageUrl: imageUrl,
+    );
+    final lookupCode = service.lookupCodeForCard(
+      cardName: cardName,
+      cardCode: cardCode,
+    );
+    final snapshot = selectLigaPriceSnapshot(
+      snapshots: data.snapshots,
+      referenceKey: referenceKey,
+      lookupCode: lookupCode,
+      cardCode: cardCode,
+    );
+    final unitPrice = snapshot?.minimumPrice ?? snapshot?.lowestListing?.price;
+    final stale = snapshot?.isStale ?? false;
+    final color = unitPrice == null
+        ? theme.colorScheme.onSurfaceVariant
+        : stale
+        ? theme.colorScheme.tertiary
+        : theme.colorScheme.primary;
+    final safeQuantity = quantity < 0 ? 0 : quantity;
+    final label = unitPrice == null
+        ? snapshot == null
+              ? 'Sem preço verificado'
+              : 'Sem oferta na Liga'
+        : safeQuantity > 1
+        ? '${formatLigaPrice(unitPrice)} cada • '
+              '${formatLigaPrice(unitPrice * safeQuantity)} no deck'
+        : formatLigaPrice(unitPrice);
+
+    return Tooltip(
+      message: unitPrice == null
+          ? label
+          : stale
+          ? 'Preço da arte selecionada desatualizado na Liga.'
+          : 'Preço da arte selecionada verificado na Liga.',
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            unitPrice == null
+                ? Icons.help_outline
+                : stale
+                ? Icons.history
+                : Icons.sell_outlined,
+            size: 14,
+            color: color,
+          ),
+          const SizedBox(width: 5),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w800,
+                height: 1.15,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class LigaPriceDetailsPanel extends ConsumerStatefulWidget {
   final String cardName;
   final String cardCode;

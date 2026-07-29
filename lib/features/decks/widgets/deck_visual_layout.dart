@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/liga_price_display.dart';
 import '../../../data/models/card_record.dart';
 
 typedef DeckCardImageBuilder =
@@ -111,7 +112,7 @@ class DeckVisualLayout extends StatelessWidget {
                   Center(
                     child: SizedBox(
                       width: 250,
-                      height: _isEditable ? 430 : 385,
+                      height: _isEditable ? 455 : 410,
                       child: _VisualDeckCard(
                         item: leader,
                         imageBuilder: imageBuilder,
@@ -174,7 +175,7 @@ class DeckVisualLayout extends StatelessWidget {
                 maxCrossAxisExtent: 205,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
-                childAspectRatio: _isEditable ? 0.48 : 0.54,
+                childAspectRatio: _isEditable ? 0.45 : 0.50,
               ),
             ),
           ),
@@ -343,6 +344,15 @@ class _VisualDeckCard extends StatelessWidget {
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 5, 10, 1),
+            child: LigaDeckCardPrice(
+              cardName: item.name,
+              cardCode: item.cardCode,
+              imageUrl: item.imageUrl,
+              quantity: item.quantity,
             ),
           ),
           if (onConfigureArts != null)
