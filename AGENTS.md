@@ -1375,3 +1375,35 @@ git diff --stat
 - Commit funcional `41c3670`, enviado para `origin/main`.
 - Deploy Vercel `dpl_7u7naeR1Zsws6ujKL6vsPGAwLyos`, status READY e publicado
   em `https://tcgbh.vercel.app`.
+
+### 29/07/2026 - Catalogo completo de promocionais One Piece
+
+- A edicao promocional `PC-01` ja fazia parte do catalogo de 78 edicoes, mas a
+  API principal da biblioteca entregava somente 328 impressoes promocionais e
+  nao representava todo o conteudo publicado pela Liga.
+- A pagina `PC-01` da Liga foi coletada diretamente e confirmou 1.203 cartas e
+  variantes. Todas foram atualizadas imediatamente no Supabase.
+- O endereco abreviado `//arquivos/...` usado pela Liga passou a ser
+  normalizado para `https://repositorio.sbrauble.com/arquivos/...`. As 1.203
+  imagens foram verificadas no cache e uma requisicao real respondeu HTTP 200.
+- O endpoint `/api/optcg-cards` agora combina as 5.105 impressoes da API
+  One Piece com as 1.203 variantes de `PC-01`, totalizando 6.308 registros.
+  A biblioteca identifica o conjunto como `Promotion Cards (PC-01)` e
+  reaproveita cor, tipo, raridade, texto e atributo da carta-base quando
+  disponiveis.
+- A chave local do catalogo foi atualizada para que navegadores com cache
+  antigo busquem a lista completa imediatamente apos a nova versao.
+- Precos iguais a zero passaram a ser interpretados como ausencia de oferta,
+  evitando exibir `R$ 0,00` como valor real. Das 1.203 variantes, 878 possuem
+  preco e 325 aparecem corretamente como verificadas sem oferta.
+- A biblioteca em producao mostrou 6.168 impressoes com imagem visivel; a
+  diferenca para os 6.308 registros totais corresponde a registros antigos da
+  API principal que nao possuem imagem. As 1.203 promocoes possuem imagem.
+- Nenhuma migracao SQL foi necessaria.
+- Validacoes aprovadas: 10 testes Python do coletor, 12 testes Node das APIs,
+  `flutter analyze`, 110 testes Flutter, build web, E2E da biblioteca e
+  verificacao visual real em producao. Quality gate do GitHub, console do
+  navegador e varredura de runtime da Vercel passaram sem erros.
+- Commits funcionais `58ea8ad` e `2acda87`, enviados para `origin/main`.
+- Deploy Vercel `dpl_Bc2f5znrwo9ShSnSQhv36RmKWfeq`, status READY e publicado
+  em `https://tcgbh.vercel.app`.
