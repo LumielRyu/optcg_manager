@@ -9,6 +9,7 @@ import '../../data/models/riftbound_card.dart';
 import '../../data/models/tcg_deck.dart';
 import '../../data/repositories/tcg_collection_repository.dart';
 import '../../data/repositories/tcg_deck_repository.dart';
+import '../../data/services/piltover_archive_import_service.dart';
 import '../../data/services/riftbound_tcg_service.dart';
 
 enum RiftboundTextImportTarget { deck, collection }
@@ -41,18 +42,21 @@ class RiftboundTextListImportDialog extends ConsumerStatefulWidget {
 class _RiftboundTextListImportDialogState
     extends ConsumerState<RiftboundTextListImportDialog> {
   final _controller = TextEditingController();
+  final _urlController = TextEditingController();
   RiftboundTextDeckParseResult? _parsed;
   Map<String, List<RiftboundCard>> _candidates = const {};
   final Map<String, RiftboundCard> _selected = {};
   bool _replaceDeck = true;
   bool _busy = false;
   String? _error;
+  String? _sourceDeckName;
 
   bool get _isDeck => widget.target == RiftboundTextImportTarget.deck;
 
   @override
   void dispose() {
     _controller.dispose();
+    _urlController.dispose();
     super.dispose();
   }
 
@@ -64,13 +68,47 @@ class _RiftboundTextListImportDialogState
       setState(() => _error = 'A área de transferência não possui texto.');
       return;
     }
+    if (text.contains('piltoverarchive.com/decks/view/')) {
+      _urlController.text = text.trim();
+      await _loadFromUrl();
+      return;
+    }
     _controller.text = text;
     setState(() {
       _parsed = null;
       _candidates = const {};
       _selected.clear();
       _error = null;
+      _sourceDeckName = null;
     });
+  }
+
+  Future<void> _loadFromUrl() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final imported = await ref
+          .read(piltoverArchiveImportServiceProvider)
+          .importDeck(_urlController.text);
+      if (!mounted) return;
+      _controller.text = imported.text;
+      setState(() {
+        _busy = false;
+        _parsed = null;
+        _candidates = const {};
+        _selected.clear();
+        _sourceDeckName = imported.deckName;
+      });
+      await _analyze();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = error.toString();
+      });
+    }
   }
 
   Future<void> _analyze() async {
@@ -262,6 +300,60 @@ class _RiftboundTextListImportDialogState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primaryContainer.withValues(alpha: 0.45),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            'Importar diretamente pelo link',
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w900),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _urlController,
+                                  enabled: !_busy,
+                                  keyboardType: TextInputType.url,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Link do Piltover Archive',
+                                    hintText:
+                                        'https://piltoverarchive.com/decks/view/...',
+                                    prefixIcon: Icon(Icons.link),
+                                    isDense: true,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              FilledButton.icon(
+                                onPressed: _busy ? null : _loadFromUrl,
+                                icon: const Icon(Icons.download_outlined),
+                                label: const Text('Buscar'),
+                              ),
+                            ],
+                          ),
+                          if (_sourceDeckName != null) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'Deck encontrado: $_sourceDeckName',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     TextField(
                       controller: _controller,
                       enabled: !_busy,

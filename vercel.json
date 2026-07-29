@@ -15,6 +15,9 @@
     "api/health.js": {
       "regions": ["gru1"]
     },
+    "api/import-riftbound-deck.js": {
+      "regions": ["gru1"]
+    },
     "api/liga-one-piece.js": {
       "regions": ["gru1"]
     }
