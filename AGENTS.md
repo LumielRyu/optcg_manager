@@ -1430,3 +1430,33 @@ git diff --stat
 - Commit funcional `4b3e61a`, enviado para `origin/main`.
 - Deploy Vercel `dpl_AJQrSjFV6BkC14vxunP3kiDfDH2h`, status READY e publicado
   em `https://tcgbh.vercel.app`.
+
+### 29/07/2026 - Precos completos e valor do deck Riftbound
+
+- Todas as edicoes publicadas pela Liga Riftbound foram coletadas em sequencia:
+  `OGN`, `OGS`, `OGN-PR`, `ROPP`, `SFD`, `UNL` e `VEN`.
+- Vendetta foi incluida mesmo com lancamento marcado para 31/07/2026, pois a
+  edicao e os precos ja estavam publicados. A rotina agendada do Riftbound
+  agora tambem inclui futuras edicoes que a Liga ja tenha disponibilizado.
+- O cache terminou com 1.426 cartas: 1.345 com oferta valida e 81 verificadas
+  sem oferta. Nenhum registro permaneceu com preco zero.
+- A integracao com o RiftCodex passou a preservar sufixos de variantes
+  (`63A`, `7B`, etc.) a partir do `riftbound_id`, permitindo consultar o preco
+  da impressao correta. Os conjuntos promocionais `OPP` e `PR` sao
+  compatibilizados com as siglas `ROPP` e `OGN-PR` usadas pela Liga.
+- No editor de decks Riftbound foi adicionado um painel com o valor total ou
+  parcial do deck e a quantidade de copias cobertas pelo cache.
+- Cada carta do deck mostra o menor preco individual da Liga. Quando ha mais
+  de uma copia, tambem mostra o subtotal daquela variante no deck.
+- Cartas sem cache e cartas verificadas sem oferta possuem respostas visuais
+  distintas. Precos antigos continuam identificados como desatualizados.
+- Nenhuma migracao SQL foi necessaria; nao havia registros Riftbound antigos
+  nas tabelas de colecao que exigissem correcao de codigo.
+- Validacoes aprovadas: quality gate completo, 115 testes Flutter, 14 testes
+  Python, 12 testes Node, 29,13% de cobertura, analise estatica, build web,
+  E2E da biblioteca e da area de decks em producao, verificacao visual real e
+  varredura de runtime sem erros.
+- Commits `597d7b8` e `06145c2`, enviados para `origin/main`; quality gate do
+  GitHub concluido com sucesso.
+- Deploy Vercel `dpl_C8VqG47QoVifBWpNUcaD96uNZzsW`, status READY e publicado
+  em `https://tcgbh.vercel.app`.
