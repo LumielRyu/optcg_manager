@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/repositories/collection_repository.dart';
 import '../../data/services/op_api_service.dart';
 import '../../core/widgets/home_navigation_button.dart';
+import 'widgets/deck_visual_layout.dart';
 
 class SharedDeckScreen extends ConsumerStatefulWidget {
   final String shareCode;
@@ -90,65 +91,14 @@ class _SharedDeckScreenState extends ConsumerState<SharedDeckScreen> {
                 ),
               ),
               Expanded(
-                child: GridView.builder(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 210,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 0.56,
+                child: DeckVisualLayout(
+                  deckName: deck.deckName,
+                  items: deck.items,
+                  imageBuilder: (context, item) => _SharedResolvedCardImage(
+                    imageUrl: item.imageUrl,
+                    cardCode: item.cardCode,
+                    fit: BoxFit.contain,
                   ),
-                  itemCount: deck.items.length,
-                  itemBuilder: (context, index) {
-                    final item = deck.items[index];
-
-                    return Card(
-                      clipBehavior: Clip.antiAlias,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Expanded(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .surfaceContainerHighest
-                                      .withValues(alpha: 0.35),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                padding: const EdgeInsets.all(8),
-                                child: _SharedResolvedCardImage(
-                                  imageUrl: item.imageUrl,
-                                  cardCode: item.cardCode,
-                                  fit: BoxFit.contain,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              item.name,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 13,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              item.cardCode,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 6),
-                            Text('Quantidade: ${item.quantity}x'),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
                 ),
               ),
             ],

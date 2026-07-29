@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/card_record.dart';
 import '../../data/repositories/collection_repository.dart';
 import '../../data/services/op_api_service.dart';
+import '../decks/widgets/deck_visual_layout.dart';
 import '../decks/widgets/deck_import_export_dialog.dart';
 import 'collection_controller.dart';
 
@@ -24,6 +25,41 @@ class DeckDetailsDialog extends ConsumerStatefulWidget {
 
 class _DeckDetailsDialogState extends ConsumerState<DeckDetailsDialog> {
   bool _isSharingBusy = false;
+  late List<CardRecord> _items;
+
+  @override
+  void initState() {
+    super.initState();
+    _items = [...widget.items];
+  }
+
+  Future<void> _decrement(CardRecord item) async {
+    final newQuantity = item.quantity - 1;
+    if (newQuantity <= 0) {
+      await ref.read(collectionControllerProvider.notifier).delete(item.id);
+      if (!mounted) return;
+      setState(() => _items.removeWhere((entry) => entry.id == item.id));
+      return;
+    }
+
+    final updated = item.copyWith(quantity: newQuantity);
+    await ref.read(collectionControllerProvider.notifier).update(updated);
+    if (!mounted) return;
+    setState(() {
+      final index = _items.indexWhere((entry) => entry.id == item.id);
+      if (index >= 0) _items[index] = updated;
+    });
+  }
+
+  Future<void> _increment(CardRecord item) async {
+    final updated = item.copyWith(quantity: item.quantity + 1);
+    await ref.read(collectionControllerProvider.notifier).update(updated);
+    if (!mounted) return;
+    setState(() {
+      final index = _items.indexWhere((entry) => entry.id == item.id);
+      if (index >= 0) _items[index] = updated;
+    });
+  }
 
   Future<void> _shareDeck() async {
     setState(() {
@@ -39,21 +75,17 @@ class _DeckDetailsDialogState extends ConsumerState<DeckDetailsDialog> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Link do deck copiado.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Link do deck copiado.')));
 
       setState(() {});
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro ao compartilhar deck: $e'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro ao compartilhar deck: $e')));
     } finally {
       if (mounted) {
         setState(() {
@@ -69,16 +101,14 @@ class _DeckDetailsDialogState extends ConsumerState<DeckDetailsDialog> {
     });
 
     try {
-      await ref.read(collectionRepositoryProvider).disableDeckSharing(
-            widget.deckName,
-          );
+      await ref
+          .read(collectionRepositoryProvider)
+          .disableDeckSharing(widget.deckName);
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Compartilhamento desativado.'),
-        ),
+        const SnackBar(content: Text('Compartilhamento desativado.')),
       );
 
       setState(() {});
@@ -86,9 +116,7 @@ class _DeckDetailsDialogState extends ConsumerState<DeckDetailsDialog> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro ao desativar compartilhamento: $e'),
-        ),
+        SnackBar(content: Text('Erro ao desativar compartilhamento: $e')),
       );
     } finally {
       if (mounted) {
@@ -101,11 +129,10 @@ class _DeckDetailsDialogState extends ConsumerState<DeckDetailsDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final totalCards =
-        widget.items.fold<int>(0, (sum, item) => sum + item.quantity);
+    final totalCards = _items.fold<int>(0, (sum, item) => sum + item.quantity);
     final isValid = totalCards <= 51;
 
-    final sortedItems = [...widget.items]
+    final sortedItems = [..._items]
       ..sort((a, b) => a.cardCode.compareTo(b.cardCode));
 
     final repo = ref.read(collectionRepositoryProvider);
@@ -113,10 +140,7 @@ class _DeckDetailsDialogState extends ConsumerState<DeckDetailsDialog> {
     return Dialog(
       insetPadding: const EdgeInsets.all(16),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 760,
-          maxHeight: 860,
-        ),
+        constraints: const BoxConstraints(maxWidth: 1080, maxHeight: 920),
         child: Column(
           children: [
             Padding(
@@ -160,65 +184,16 @@ class _DeckDetailsDialogState extends ConsumerState<DeckDetailsDialog> {
             ),
             const Divider(),
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.all(12),
-                itemCount: sortedItems.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 10),
-                itemBuilder: (context, index) {
-                  final item = sortedItems[index];
-
-                  return Card(
-                    child: ListTile(
-                      leading: SizedBox(
-                        width: 50,
-                        height: 70,
-                        child: _DeckCardImage(
-                          imageUrl: item.imageUrl,
-                          cardCode: item.cardCode,
-                          cardName: item.name,
-                        ),
-                      ),
-                      title: Text(item.name),
-                      subtitle: Text(item.cardCode),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.remove),
-                            onPressed: () async {
-                              final newQty = item.quantity - 1;
-
-                              if (newQty <= 0) {
-                                await ref
-                                    .read(collectionControllerProvider.notifier)
-                                    .delete(item.id);
-                              } else {
-                                await ref
-                                    .read(collectionControllerProvider.notifier)
-                                    .update(
-                                      item.copyWith(quantity: newQty),
-                                    );
-                              }
-                            },
-                          ),
-                          Text('${item.quantity}x'),
-                          IconButton(
-                            icon: const Icon(Icons.add),
-                            onPressed: () async {
-                              await ref
-                                  .read(collectionControllerProvider.notifier)
-                                  .update(
-                                    item.copyWith(
-                                      quantity: item.quantity + 1,
-                                    ),
-                                  );
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
+              child: DeckVisualLayout(
+                deckName: widget.deckName,
+                items: _items,
+                imageBuilder: (context, item) => _DeckCardImage(
+                  imageUrl: item.imageUrl,
+                  cardCode: item.cardCode,
+                  cardName: item.name,
+                ),
+                onDecrement: _decrement,
+                onIncrement: _increment,
               ),
             ),
             const Divider(),
@@ -235,14 +210,10 @@ class _DeckDetailsDialogState extends ConsumerState<DeckDetailsDialog> {
                                 .map((e) => '${e.quantity}x${e.cardCode}')
                                 .join('\n');
 
-                            Clipboard.setData(
-                              ClipboardData(text: exportText),
-                            );
+                            Clipboard.setData(ClipboardData(text: exportText));
 
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Deck copiado!'),
-                              ),
+                              const SnackBar(content: Text('Deck copiado!')),
                             );
                           },
                           icon: const Icon(Icons.copy),
@@ -257,7 +228,7 @@ class _DeckDetailsDialogState extends ConsumerState<DeckDetailsDialog> {
                               context: context,
                               builder: (_) => DeckImportExportDialog(
                                 deckName: widget.deckName,
-                                items: widget.items,
+                                items: _items,
                               ),
                             );
 
@@ -281,8 +252,9 @@ class _DeckDetailsDialogState extends ConsumerState<DeckDetailsDialog> {
                               ? const SizedBox(
                                   width: 18,
                                   height: 18,
-                                  child:
-                                      CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : const Icon(Icons.share_outlined),
                           label: const Text('Compartilhar'),
@@ -381,15 +353,11 @@ class _ZoomableCardImage extends ConsumerWidget {
         final url = snapshot.data?.image.trim() ?? '';
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(strokeWidth: 2),
-          );
+          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
         }
 
         if (url.isEmpty) {
-          return const Center(
-            child: Icon(Icons.image_not_supported),
-          );
+          return const Center(child: Icon(Icons.image_not_supported));
         }
 
         return _buildTapWrapper(
@@ -397,9 +365,8 @@ class _ZoomableCardImage extends ConsumerWidget {
           _buildNetworkImage(
             url: url,
             fit: fit,
-            onError: () => const Center(
-              child: Icon(Icons.broken_image_outlined),
-            ),
+            onError: () =>
+                const Center(child: Icon(Icons.broken_image_outlined)),
           ),
           url,
         );
@@ -407,7 +374,11 @@ class _ZoomableCardImage extends ConsumerWidget {
     );
   }
 
-  Widget _buildTapWrapper(BuildContext context, Widget child, String resolvedUrl) {
+  Widget _buildTapWrapper(
+    BuildContext context,
+    Widget child,
+    String resolvedUrl,
+  ) {
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: () {
