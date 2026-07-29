@@ -210,6 +210,7 @@ class LigaEditionPriceCacheTest(unittest.TestCase):
                         "sN": "OP16-099",
                         "nEN": "Verified without offer (OP16-099)",
                         "sP": "//example.test/no-offer.jpg",
+                        "precoMenor": "0",
                     }
                 ]
             )

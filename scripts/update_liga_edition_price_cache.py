@@ -359,7 +359,7 @@ def base_card_code(exact_code: str) -> str:
 
 def _safe_price(value):
     price = liga.parse_money(value)
-    if price is None or price < 0 or price > 10_000_000:
+    if price is None or price <= 0 or price > 10_000_000:
         return None
     return round(price, 2)
 
