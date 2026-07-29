@@ -80,7 +80,9 @@ class RiftboundCard {
       final value => value,
     };
     final idParts = riftboundId.trim().split('-');
-    final idNumber = idParts.length >= 2 ? idParts[1].trim() : '';
+    final idNumber = idParts.length >= 2
+        ? idParts[1].trim().replaceAll('*', 'S')
+        : '';
     final rawNumber =
         RegExp(r'^\d+[a-z]?$', caseSensitive: false).hasMatch(idNumber)
         ? idNumber

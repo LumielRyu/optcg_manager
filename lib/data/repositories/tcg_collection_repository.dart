@@ -47,6 +47,11 @@ class TcgCollectionRepository {
   }
 
   Future<void> addOrIncrement(TcgCollectionDraft draft) async {
+    await addOrIncrementBy(draft, 1);
+  }
+
+  Future<void> addOrIncrementBy(TcgCollectionDraft draft, int quantity) async {
+    if (quantity <= 0) return;
     final user = _requireUser();
     final rows = await _client
         .from('collection_items')
@@ -60,15 +65,19 @@ class TcgCollectionRepository {
 
     if (rows.isNotEmpty) {
       final row = Map<String, dynamic>.from(rows.first);
-      final quantity = int.tryParse((row['quantity'] ?? 0).toString()) ?? 0;
+      final existingQuantity =
+          int.tryParse((row['quantity'] ?? 0).toString()) ?? 0;
       await _client
           .from('collection_items')
-          .update({'quantity': quantity + 1})
+          .update({'quantity': existingQuantity + quantity})
           .eq('id', row['id']);
       return;
     }
 
-    await _client.from('collection_items').insert(draft.toInsertJson(user.id));
+    await _client.from('collection_items').insert({
+      ...draft.toInsertJson(user.id),
+      'quantity': quantity,
+    });
   }
 
   Future<void> setQuantity(TcgCollectionItem item, int quantity) async {

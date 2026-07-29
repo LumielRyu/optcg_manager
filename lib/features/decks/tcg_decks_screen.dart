@@ -13,6 +13,7 @@ import '../../data/models/tcg_collection_item.dart';
 import '../../data/models/tcg_deck.dart';
 import '../../data/repositories/tcg_collection_repository.dart';
 import '../../data/repositories/tcg_deck_repository.dart';
+import '../riftbound/riftbound_text_list_import_dialog.dart';
 
 class TcgDecksScreen extends ConsumerStatefulWidget {
   final TcgGame game;
@@ -593,6 +594,30 @@ class _TcgDeckEditorScreenState extends ConsumerState<TcgDeckEditorScreen> {
     );
   }
 
+  Future<void> _importRiftboundTextList() async {
+    final deck = _deck;
+    if (deck == null || _saving || !requireSignedIn(context)) return;
+    final result = await showDialog<RiftboundTextListImportResult>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => RiftboundTextListImportDialog(
+        target: RiftboundTextImportTarget.deck,
+        deck: deck,
+      ),
+    );
+    if (result == null || !mounted) return;
+    await _load();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Deck montado com ${result.totalCards} cartas '
+          '(${result.differentCards} nomes diferentes).',
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final deck = _deck;
@@ -600,7 +625,17 @@ class _TcgDeckEditorScreenState extends ConsumerState<TcgDeckEditorScreen> {
         ? const Center(child: Text('Deck não encontrado.'))
         : _buildEditor(deck);
     return Scaffold(
-      appBar: AppBar(title: Text(deck?.name ?? 'Deck')),
+      appBar: AppBar(
+        title: Text(deck?.name ?? 'Deck'),
+        actions: [
+          if (widget.game == TcgGame.riftbound && deck != null)
+            IconButton(
+              tooltip: 'Montar deck por lista',
+              onPressed: _saving ? null : _importRiftboundTextList,
+              icon: const Icon(Icons.content_paste_go_outlined),
+            ),
+        ],
+      ),
       floatingActionButton: deck == null
           ? null
           : FloatingActionButton.extended(
@@ -682,6 +717,14 @@ class _TcgDeckEditorScreenState extends ConsumerState<TcgDeckEditorScreen> {
           ),
         ),
         const SizedBox(height: 12),
+        if (widget.game == TcgGame.riftbound && deck.items.isEmpty) ...[
+          OutlinedButton.icon(
+            onPressed: _saving ? null : _importRiftboundTextList,
+            icon: const Icon(Icons.content_paste_go_outlined),
+            label: const Text('Montar deck colando uma lista'),
+          ),
+          const SizedBox(height: 12),
+        ],
         if (widget.game == TcgGame.riftbound) ...[
           TcgLigaDeckValueCard(
             gameLabel: widget.game.label,

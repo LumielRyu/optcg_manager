@@ -62,14 +62,20 @@ void main() {
       'name': 'Vi - Destructive',
       'riftbound_id': 'pr-036a-298',
       'collector_number': 167,
-      'set': {
-        'set_id': 'PR',
-        'label': 'Riftbound Promotional Cards',
-      },
+      'set': {'set_id': 'PR', 'label': 'Riftbound Promotional Cards'},
     });
 
     expect(promo.ligaLookupCode, 'RIFTBOUND:ROPP:7B');
     expect(originsPromo.ligaLookupCode, 'RIFTBOUND:OGN-PR:36A');
+
+    final signature = RiftboundCard.fromJson({
+      'id': 'signature',
+      'name': 'Master Yi - Wuju Master (Signature)',
+      'riftbound_id': 'unl-231*-219',
+      'collector_number': 231,
+      'set': {'set_id': 'UNL', 'label': 'Unleashed'},
+    });
+    expect(signature.ligaLookupCode, 'RIFTBOUND:UNL:231S');
   });
 
   test('Pokemon catalog retries temporary server errors', () async {

@@ -12,6 +12,7 @@ import '../../core/widgets/tcg_wanted_add_button.dart';
 import '../../data/models/tcg_collection_item.dart';
 import '../../data/repositories/tcg_collection_repository.dart';
 import '../../data/repositories/tcg_marketplace_repository.dart';
+import '../riftbound/riftbound_text_list_import_dialog.dart';
 
 class TcgCollectionScreen extends ConsumerStatefulWidget {
   final TcgGame game;
@@ -115,6 +116,28 @@ class _TcgCollectionScreenState extends ConsumerState<TcgCollectionScreen> {
     }
   }
 
+  Future<void> _importRiftboundTextList() async {
+    if (!requireSignedIn(context)) return;
+    final result = await showDialog<RiftboundTextListImportResult>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const RiftboundTextListImportDialog(
+        target: RiftboundTextImportTarget.collection,
+      ),
+    );
+    if (result == null || !mounted) return;
+    await _load();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '${result.totalCards} cartas adicionadas à coleção '
+          '(${result.differentCards} nomes diferentes).',
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final totalCards = _items.fold<int>(
@@ -127,6 +150,12 @@ class _TcgCollectionScreenState extends ConsumerState<TcgCollectionScreen> {
         leading: HomeNavigationButton(destinationRoute: '/${widget.game.slug}'),
         title: Text('Minha coleção ${widget.game.label}'),
         actions: [
+          if (widget.game == TcgGame.riftbound)
+            IconButton(
+              tooltip: 'Colar lista de cartas',
+              onPressed: _loading ? null : _importRiftboundTextList,
+              icon: const Icon(Icons.content_paste_go_outlined),
+            ),
           IconButton(
             tooltip: 'Atualizar coleção',
             onPressed: _loading ? null : _load,
@@ -222,6 +251,17 @@ class _TcgCollectionScreenState extends ConsumerState<TcgCollectionScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
+                if (widget.game == TcgGame.riftbound) ...[
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: _importRiftboundTextList,
+                      icon: const Icon(Icons.content_paste_go_outlined),
+                      label: const Text('Adicionar por lista de texto'),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 TcgLigaCollectionValueCard(
                   gameLabel: widget.game.label,
                   items: _items.map(
@@ -262,6 +302,14 @@ class _TcgCollectionScreenState extends ConsumerState<TcgCollectionScreen> {
                       icon: const Icon(Icons.auto_stories_outlined),
                       label: const Text('Abrir biblioteca'),
                     ),
+                    if (widget.game == TcgGame.riftbound) ...[
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: _importRiftboundTextList,
+                        icon: const Icon(Icons.content_paste_go_outlined),
+                        label: const Text('Colar lista de cartas'),
+                      ),
+                    ],
                   ],
                 ),
               ),

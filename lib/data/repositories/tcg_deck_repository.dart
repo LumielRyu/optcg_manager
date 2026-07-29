@@ -11,6 +11,18 @@ final tcgDeckRepositoryProvider = Provider<TcgDeckRepository>((ref) {
   return TcgDeckRepository(ref.watch(supabaseClientProvider));
 });
 
+class TcgDeckImportEntry {
+  final TcgCollectionDraft card;
+  final int quantity;
+  final TcgDeckZone zone;
+
+  const TcgDeckImportEntry({
+    required this.card,
+    required this.quantity,
+    required this.zone,
+  });
+}
+
 class TcgDeckRepository {
   static const _itemColumns =
       'id, deck_id, game_slug, catalog_card_id, variant_id, deck_zone, '
@@ -137,6 +149,93 @@ class TcgDeckRepository {
       'text': card.text,
       'attribute': card.attribute,
     });
+  }
+
+  Future<void> importEntries({
+    required TcgDeck deck,
+    required Iterable<TcgDeckImportEntry> entries,
+    required bool replaceExisting,
+  }) async {
+    _requireUser();
+    final aggregated = <String, TcgDeckImportEntry>{};
+    for (final entry in entries) {
+      if (entry.quantity <= 0) continue;
+      final key = '${entry.card.variantId}|${entry.zone.name}';
+      final existing = aggregated[key];
+      aggregated[key] = TcgDeckImportEntry(
+        card: existing?.card ?? entry.card,
+        quantity: (existing?.quantity ?? 0) + entry.quantity,
+        zone: entry.zone,
+      );
+    }
+    if (aggregated.isEmpty) return;
+
+    if (replaceExisting) {
+      await _client
+          .from('deck_items')
+          .delete()
+          .eq('deck_id', deck.id)
+          .eq('game_slug', deck.gameSlug);
+      await _client
+          .from('deck_items')
+          .insert(
+            aggregated.values
+                .map((entry) => _importRow(deck, entry))
+                .toList(growable: false),
+          );
+      return;
+    }
+
+    final existingRows = await _client
+        .from('deck_items')
+        .select('id, variant_id, deck_zone, quantity')
+        .eq('deck_id', deck.id)
+        .eq('game_slug', deck.gameSlug);
+    final existingByKey = <String, Map<String, dynamic>>{
+      for (final raw in existingRows)
+        '${raw['variant_id']}|${raw['deck_zone']}': Map<String, dynamic>.from(
+          raw,
+        ),
+    };
+    final rowsToInsert = <Map<String, dynamic>>[];
+    for (final imported in aggregated.entries) {
+      final existing = existingByKey[imported.key];
+      if (existing == null) {
+        rowsToInsert.add(_importRow(deck, imported.value));
+        continue;
+      }
+      final currentQuantity =
+          int.tryParse((existing['quantity'] ?? 0).toString()) ?? 0;
+      await _client
+          .from('deck_items')
+          .update({'quantity': currentQuantity + imported.value.quantity})
+          .eq('id', existing['id']);
+    }
+    if (rowsToInsert.isNotEmpty) {
+      await _client.from('deck_items').insert(rowsToInsert);
+    }
+  }
+
+  Map<String, dynamic> _importRow(TcgDeck deck, TcgDeckImportEntry entry) {
+    final card = entry.card;
+    return {
+      'deck_id': deck.id,
+      'game_slug': deck.gameSlug,
+      'catalog_card_id': card.catalogCardId,
+      'variant_id': card.variantId,
+      'deck_zone': entry.zone.name,
+      'card_code': card.cardCode,
+      'quantity': entry.quantity,
+      'is_favorite': false,
+      'image_url': card.imageUrl,
+      'name': card.name,
+      'set_name': card.setName,
+      'rarity': card.rarity,
+      'color': card.color,
+      'type': card.type,
+      'text': card.text,
+      'attribute': card.attribute,
+    };
   }
 
   Future<void> setItemQuantity(TcgDeckItem item, int quantity) async {
