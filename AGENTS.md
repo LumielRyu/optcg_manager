@@ -1460,3 +1460,37 @@ git diff --stat
   GitHub concluido com sucesso.
 - Deploy Vercel `dpl_C8VqG47QoVifBWpNUcaD96uNZzsW`, status READY e publicado
   em `https://tcgbh.vercel.app`.
+
+### 29/07/2026 - Importacao de listas de texto Riftbound
+
+- Riftbound passou a aceitar listas de texto no formato usado pelo Piltover
+  Archive, com as secoes `Legend`, `Champion`, `MainDeck`, `Battlefields`,
+  `Runes` e `Sideboard`.
+- O exemplo fornecido foi validado como uma lista legal de 64 cartas:
+  1 Lenda, 1 Campeao escolhido, 39 cartas principais, 3 campos de batalha,
+  12 runas e 8 cartas no sideboard.
+- No editor de deck existe a acao `Montar deck por lista`. O usuario pode
+  substituir todas as cartas atuais ou somar a lista ao deck existente.
+- Na colecao existe a acao `Adicionar por lista de texto`. Quantidades de uma
+  carta repetida em zonas diferentes sao somadas antes da gravacao.
+- O importador aceita linhas `3 Charm` e `3x Charm`, agrega repeticoes na mesma
+  zona, identifica secoes e mostra erros com o numero da linha.
+- Antes de gravar, todos os nomes sao consultados no RiftCodex e o usuario
+  revisa a impressao de cada carta. Edicoes regulares sao priorizadas, mas o
+  seletor permite trocar para promocional, Starter, Metal, Overnumbered,
+  Signature ou Alternative Art quando o catalogo oferece a variante.
+- Virgulas e hifens nos nomes sao equivalentes durante a busca, permitindo
+  importar `Master Yi, Tempered` mesmo quando o catalogo usa
+  `Master Yi - Tempered`.
+- Identificadores Signature do RiftCodex com `*` sao convertidos para o sufixo
+  `S` usado pela Liga, preservando a consulta do preco da variante correta.
+- O deck pode ser montado diretamente pela lista mesmo que as cartas ainda nao
+  estejam cadastradas na colecao.
+- Nenhuma migracao SQL foi necessaria.
+- Validacoes aprovadas: `flutter analyze`, 121 testes Flutter, 14 testes
+  Python, 12 testes Node, build web, teste responsivo do dialogo, E2E de
+  biblioteca/colecao/decks em producao, quality gate do GitHub e varredura de
+  runtime da Vercel sem erros.
+- Commit funcional `18d3196`, enviado para `origin/main`.
+- Deploy Vercel `dpl_By86nw8NNbyNYAtYzguamcGQgB5p`, status READY e publicado
+  em `https://tcgbh.vercel.app`.
