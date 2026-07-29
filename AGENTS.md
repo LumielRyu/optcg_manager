@@ -1520,3 +1520,25 @@ git diff --stat
   GitHub concluido com sucesso.
 - Deploy Vercel `dpl_6mnsxpdQMcyfb8xammExxNqBcBcG`, status READY e publicado
   em `https://tcgbh.vercel.app`.
+
+### 29/07/2026 - Criacao direta de deck Riftbound por lista
+
+- A tela `Decks Riftbound` agora oferece a acao visivel
+  `Criar por lista ou link`, tanto no estado vazio quanto acima dos decks
+  existentes e na barra superior.
+- Nao e mais necessario criar e abrir um deck vazio antes da importacao. O
+  usuario cola o link do Piltover Archive ou a lista de texto, revisa as
+  impressoes e cria o deck completo no mesmo fluxo.
+- Quando a origem e um link, o nome publicado no Piltover Archive preenche
+  automaticamente o nome do novo deck e ainda pode ser editado pelo usuario.
+- Depois da criacao, o aplicativo abre diretamente o editor do novo deck.
+- Se a gravacao das cartas falhar depois da criacao do registro, o deck vazio
+  e removido automaticamente para nao deixar dados incompletos.
+- Nenhuma migracao SQL ou nova variavel de ambiente foi necessaria.
+- Validacoes aprovadas: quality gate local, 123 testes Flutter, 14 testes
+  Python, 15 testes Node, analise estatica, build web com variaveis publicas,
+  consulta real de 64 cartas no Piltover Archive, E2E de home, hub e decks
+  Riftbound em producao e varredura de runtime sem erros.
+- Commit funcional `d76ac46`, enviado para `origin/main`.
+- Deploy Vercel `dpl_HqirFoMY3phmvNJe5XQyx3KVev9H`, status READY e publicado
+  em `https://tcgbh.vercel.app`.
