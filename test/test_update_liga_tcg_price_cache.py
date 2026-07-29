@@ -57,6 +57,34 @@ class LigaTcgPriceCacheTest(unittest.TestCase):
         self.assertEqual(rows[0]["minimum_price"], 0.15)
         self.assertEqual(rows[0]["maximum_price"], 4.9)
 
+    def test_zero_price_is_treated_as_no_available_offer(self):
+        self.assertIsNone(updater.safe_price("0"))
+        self.assertIsNone(updater.safe_price("R$ 0,00"))
+        self.assertEqual(updater.safe_price("1,25"), 1.25)
+
+    def test_future_edition_can_be_explicitly_included(self):
+        source = """
+        <script>
+        jsonEditions = {
+          "main": [{
+            "id": 7,
+            "acronym": "VEN",
+            "name": "Vendetta",
+            "dtrelease": "2099-07-31 00:00:00"
+          }]
+        };
+        </script>
+        """
+
+        self.assertEqual(updater.parse_editions_page(source, "riftbound"), [])
+        editions = updater.parse_editions_page(
+            source,
+            "riftbound",
+            include_future=True,
+        )
+
+        self.assertEqual([edition.acronym for edition in editions], ["VEN"])
+
 
 if __name__ == "__main__":
     unittest.main()

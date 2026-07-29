@@ -219,6 +219,218 @@ class TcgLigaCollectionItemReference {
   });
 }
 
+class TcgLigaDeckValuation {
+  final double totalValue;
+  final int totalCards;
+  final int pricedCards;
+
+  const TcgLigaDeckValuation({
+    required this.totalValue,
+    required this.totalCards,
+    required this.pricedCards,
+  });
+
+  bool get hasPrices => pricedCards > 0;
+  bool get isComplete => totalCards > 0 && pricedCards == totalCards;
+}
+
+TcgLigaDeckValuation calculateTcgLigaDeckValuation({
+  required Iterable<TcgLigaCollectionItemReference> items,
+  required Map<String, LigaTcgPriceSnapshot> snapshots,
+}) {
+  var totalValue = 0.0;
+  var totalCards = 0;
+  var pricedCards = 0;
+
+  for (final item in items) {
+    if (item.quantity <= 0) continue;
+    totalCards += item.quantity;
+    final code = LigaTcgPriceService.normalizeLookupCode(item.lookupCode);
+    final price = snapshots[code]?.minimumPrice;
+    if (price == null || price <= 0) continue;
+    totalValue += price * item.quantity;
+    pricedCards += item.quantity;
+  }
+
+  return TcgLigaDeckValuation(
+    totalValue: totalValue,
+    totalCards: totalCards,
+    pricedCards: pricedCards,
+  );
+}
+
+class TcgLigaDeckValueCard extends StatelessWidget {
+  final Iterable<TcgLigaCollectionItemReference> items;
+  final String gameLabel;
+
+  const TcgLigaDeckValueCard({
+    super.key,
+    required this.items,
+    required this.gameLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final data = _TcgLigaPriceData.maybeOf(context);
+    final theme = Theme.of(context);
+    final valuation = calculateTcgLigaDeckValuation(
+      items: items,
+      snapshots: data?.snapshots ?? const {},
+    );
+    final loading = data == null || data.loading;
+    final title = loading
+        ? 'Valor do deck'
+        : valuation.isComplete
+        ? 'Valor total do deck'
+        : 'Valor parcial do deck';
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              alignment: Alignment.center,
+              child: loading
+                  ? const SizedBox.square(
+                      dimension: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2.5),
+                    )
+                  : Icon(
+                      Icons.price_check_outlined,
+                      color: theme.colorScheme.primary,
+                    ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    loading
+                        ? 'Consultando a Liga...'
+                        : valuation.hasPrices
+                        ? formatLigaPrice(valuation.totalValue)
+                        : 'Sem preços disponíveis',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    loading
+                        ? 'Somando os preços das variantes escolhidas.'
+                        : '${valuation.pricedCards} de ${valuation.totalCards} cartas com preço verificado na Liga $gameLabel.',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class TcgLigaDeckCardPrice extends StatelessWidget {
+  final String lookupCode;
+  final int quantity;
+
+  const TcgLigaDeckCardPrice({
+    super.key,
+    required this.lookupCode,
+    required this.quantity,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final data = _TcgLigaPriceData.maybeOf(context);
+    final snapshot =
+        data?.snapshots[LigaTcgPriceService.normalizeLookupCode(lookupCode)];
+    final theme = Theme.of(context);
+
+    if (data == null || data.loading) {
+      return Text(
+        'Liga: verificando preço...',
+        style: theme.textTheme.bodySmall,
+      );
+    }
+
+    final price = snapshot?.minimumPrice;
+    if (snapshot == null || price == null || price <= 0) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            snapshot == null ? Icons.help_outline : Icons.info_outline,
+            size: 15,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(
+              snapshot == null
+                  ? 'Liga: preço não verificado'
+                  : 'Liga: verificada, sem oferta',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final stale = snapshot.isStale;
+    final color = stale
+        ? theme.colorScheme.tertiary
+        : theme.colorScheme.primary;
+    final unitPrice = formatLigaPrice(price);
+    final label = quantity > 1
+        ? '$unitPrice cada • ${formatLigaPrice(price * quantity)} no deck'
+        : unitPrice;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          stale ? Icons.history : Icons.verified_outlined,
+          size: 15,
+          color: color,
+        ),
+        const SizedBox(width: 5),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class TcgLigaCollectionValueCard extends StatelessWidget {
   final Iterable<TcgLigaCollectionItemReference> items;
   final String gameLabel;

@@ -8,6 +8,7 @@ import '../../core/tcg/tcg_deck_rules.dart';
 import '../../core/tcg/tcg_game.dart';
 import '../../core/utils/auth_action_guard.dart';
 import '../../core/widgets/home_navigation_button.dart';
+import '../../core/widgets/tcg_liga_price.dart';
 import '../../data/models/tcg_collection_item.dart';
 import '../../data/models/tcg_deck.dart';
 import '../../data/repositories/tcg_collection_repository.dart';
@@ -595,6 +596,9 @@ class _TcgDeckEditorScreenState extends ConsumerState<TcgDeckEditorScreen> {
   @override
   Widget build(BuildContext context) {
     final deck = _deck;
+    final editor = deck == null
+        ? const Center(child: Text('Deck não encontrado.'))
+        : _buildEditor(deck);
     return Scaffold(
       appBar: AppBar(title: Text(deck?.name ?? 'Deck')),
       floatingActionButton: deck == null
@@ -608,9 +612,12 @@ class _TcgDeckEditorScreenState extends ConsumerState<TcgDeckEditorScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
           ? Center(child: Text(_errorMessage!))
-          : deck == null
-          ? const Center(child: Text('Deck não encontrado.'))
-          : _buildEditor(deck),
+          : deck != null && widget.game == TcgGame.riftbound
+          ? TcgLigaPriceScope(
+              lookupCodes: deck.items.map((item) => item.cardCode),
+              child: editor,
+            )
+          : editor,
     );
   }
 
@@ -675,6 +682,18 @@ class _TcgDeckEditorScreenState extends ConsumerState<TcgDeckEditorScreen> {
           ),
         ),
         const SizedBox(height: 12),
+        if (widget.game == TcgGame.riftbound) ...[
+          TcgLigaDeckValueCard(
+            gameLabel: widget.game.label,
+            items: deck.items.map(
+              (item) => TcgLigaCollectionItemReference(
+                lookupCode: item.cardCode,
+                quantity: item.quantity,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         for (final zone in rules.zones.keys)
           _DeckZoneSection(
             zone: zone,
@@ -682,6 +701,7 @@ class _TcgDeckEditorScreenState extends ConsumerState<TcgDeckEditorScreen> {
             items: deck.items.where((item) => item.zone == zone).toList(),
             allZones: rules.zones.keys.toList(growable: false),
             saving: _saving,
+            showLigaPrice: widget.game == TcgGame.riftbound,
             onSetQuantity: (item, quantity) => _mutate(
               () => ref
                   .read(tcgDeckRepositoryProvider)
@@ -703,6 +723,7 @@ class _DeckZoneSection extends StatelessWidget {
   final List<TcgDeckItem> items;
   final List<TcgDeckZone> allZones;
   final bool saving;
+  final bool showLigaPrice;
   final Future<void> Function(TcgDeckItem item, int quantity) onSetQuantity;
   final Future<void> Function(TcgDeckItem item, TcgDeckZone zone) onMove;
 
@@ -712,6 +733,7 @@ class _DeckZoneSection extends StatelessWidget {
     required this.items,
     required this.allZones,
     required this.saving,
+    required this.showLigaPrice,
     required this.onSetQuantity,
     required this.onMove,
   });
@@ -746,22 +768,38 @@ class _DeckZoneSection extends StatelessWidget {
                         ),
                       ),
                       title: Text(item.name),
-                      subtitle: DropdownButton<TcgDeckZone>(
-                        value: item.zone,
-                        isDense: true,
-                        items: allZones
-                            .map(
-                              (zone) => DropdownMenuItem(
-                                value: zone,
-                                child: Text(zone.label),
-                              ),
-                            )
-                            .toList(growable: false),
-                        onChanged: saving
-                            ? null
-                            : (nextZone) {
-                                if (nextZone != null) onMove(item, nextZone);
-                              },
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (showLigaPrice) ...[
+                            const SizedBox(height: 3),
+                            TcgLigaDeckCardPrice(
+                              lookupCode: item.cardCode,
+                              quantity: item.quantity,
+                            ),
+                            const SizedBox(height: 3),
+                          ],
+                          DropdownButton<TcgDeckZone>(
+                            value: item.zone,
+                            isDense: true,
+                            items: allZones
+                                .map(
+                                  (zone) => DropdownMenuItem(
+                                    value: zone,
+                                    child: Text(zone.label),
+                                  ),
+                                )
+                                .toList(growable: false),
+                            onChanged: saving
+                                ? null
+                                : (nextZone) {
+                                    if (nextZone != null) {
+                                      onMove(item, nextZone);
+                                    }
+                                  },
+                          ),
+                        ],
                       ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,

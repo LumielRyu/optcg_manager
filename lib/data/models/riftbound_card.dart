@@ -74,6 +74,17 @@ class RiftboundCard {
   }
 
   String get ligaLookupCode {
-    return 'RIFTBOUND:${setCode.trim().toUpperCase()}:$collectorNumber';
+    final normalizedSet = switch (setCode.trim().toUpperCase()) {
+      'OPP' => 'ROPP',
+      'PR' => 'OGN-PR',
+      final value => value,
+    };
+    final idParts = riftboundId.trim().split('-');
+    final rawNumber = idParts.length >= 2 ? idParts[1] : '$collectorNumber';
+    final normalizedNumber = rawNumber
+        .trim()
+        .toUpperCase()
+        .replaceFirst(RegExp(r'^0+(?=\d)'), '');
+    return 'RIFTBOUND:$normalizedSet:$normalizedNumber';
   }
 }

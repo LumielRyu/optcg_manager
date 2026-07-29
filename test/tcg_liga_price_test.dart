@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:optcg_manager/data/models/pokemon_card.dart';
+import 'package:optcg_manager/data/models/riftbound_card.dart';
 import 'package:optcg_manager/data/services/liga_tcg_price_service.dart';
 import 'package:optcg_manager/data/services/pokemon_tcg_service.dart';
 
@@ -43,6 +44,32 @@ void main() {
     expect(snapshot.lookupCode, 'POKEMON:PBL:41');
     expect(snapshot.minimumPrice, 0.42);
     expect(snapshot.isStale, isFalse);
+  });
+
+  test('Riftbound maps promotional sets and preserves variant suffixes', () {
+    final promo = RiftboundCard.fromJson({
+      'id': 'promo',
+      'name': 'Fury Rune',
+      'riftbound_id': 'opp-007b-298',
+      'collector_number': 1,
+      'set': {
+        'set_id': 'OPP',
+        'label': 'Riftbound Organized Play Promotional Cards',
+      },
+    });
+    final originsPromo = RiftboundCard.fromJson({
+      'id': 'origins-promo',
+      'name': 'Vi - Destructive',
+      'riftbound_id': 'pr-036a-298',
+      'collector_number': 167,
+      'set': {
+        'set_id': 'PR',
+        'label': 'Riftbound Promotional Cards',
+      },
+    });
+
+    expect(promo.ligaLookupCode, 'RIFTBOUND:ROPP:7B');
+    expect(originsPromo.ligaLookupCode, 'RIFTBOUND:OGN-PR:36A');
   });
 
   test('Pokemon catalog retries temporary server errors', () async {

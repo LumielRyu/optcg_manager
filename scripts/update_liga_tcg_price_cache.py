@@ -81,11 +81,21 @@ def parse_args():
     parser.add_argument("--priority-editions", type=int, default=3)
     parser.add_argument("--delay", type=float, default=DEFAULT_CRAWL_DELAY_SECONDS)
     parser.add_argument("--limit", type=int)
+    parser.add_argument(
+        "--include-future",
+        action="store_true",
+        help="Inclui edições já publicadas pela Liga antes da data de lançamento.",
+    )
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
 
 
-def parse_editions_page(source: str, game: str) -> list[LigaTcgEdition]:
+def parse_editions_page(
+    source: str,
+    game: str,
+    *,
+    include_future: bool = False,
+) -> list[LigaTcgEdition]:
     raw = liga.extract_assignment(source, "jsonEditions")
     if not raw:
         raise RuntimeError("jsonEditions nao foi encontrado na pagina de edicoes.")
@@ -122,7 +132,7 @@ def parse_editions_page(source: str, game: str) -> list[LigaTcgEdition]:
             if not acronym or edition_id <= 0 or edition_id in seen:
                 continue
             release_date = str(item.get("dtrelease") or "").strip()
-            if _is_future_release(release_date):
+            if not include_future and _is_future_release(release_date):
                 continue
             seen.add(edition_id)
             editions.append(
@@ -148,10 +158,14 @@ def parse_editions_page(source: str, game: str) -> list[LigaTcgEdition]:
     return editions
 
 
-def fetch_editions(game: str) -> list[LigaTcgEdition]:
+def fetch_editions(
+    game: str,
+    *,
+    include_future: bool = False,
+) -> list[LigaTcgEdition]:
     host = GAME_CONFIGS[game]["host"]
     source = liga.fetch_text(f"https://{host}/?view=cards/edicoes")
-    return parse_editions_page(source, game)
+    return parse_editions_page(source, game, include_future=include_future)
 
 
 def resolve_shard_index(raw_index: str, shard_count: int) -> int:
@@ -310,7 +324,7 @@ def upsert_rows(rows: list[dict], batch_size: int = DEFAULT_BATCH_SIZE) -> int:
 
 def safe_price(value):
     price = liga.parse_money(value)
-    if price is None or price < 0 or price > 10_000_000:
+    if price is None or price <= 0 or price > 10_000_000:
         return None
     return round(price, 2)
 
@@ -343,7 +357,7 @@ def main():
     if args.delay < 0:
         raise ValueError("--delay nao pode ser negativo.")
     shard_index = resolve_shard_index(args.shard_index, args.shard_count)
-    editions = fetch_editions(args.game)
+    editions = fetch_editions(args.game, include_future=args.include_future)
     selected = select_editions(
         editions,
         requested=args.edition,
