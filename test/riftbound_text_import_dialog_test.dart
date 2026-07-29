@@ -162,4 +162,74 @@ void main() {
     expect(find.text('4 cartas'), findsOneWidget);
     expect(find.text('Adicionar à coleção'), findsOneWidget);
   });
+
+  testWidgets('preenche o nome ao criar um deck diretamente pelo link', (
+    tester,
+  ) async {
+    final catalog = RiftboundTcgService(
+      MockClient(
+        (_) async => http.Response(
+          jsonEncode({
+            'items': [
+              _card(
+                id: 'yi',
+                name: 'Master Yi - Tempered',
+                riftboundId: 'unl-113-219',
+                number: 113,
+              ),
+            ],
+            'page': 1,
+            'size': 100,
+            'total': 1,
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        ),
+      ),
+    );
+    final importer = PiltoverArchiveImportService(
+      MockClient(
+        (_) async => http.Response(
+          jsonEncode({
+            'deckId': '99f9a2a9-b0fd-4399-bdfd-4327a030c6e3',
+            'deckName': 'Master Yi do Piltover',
+            'text': 'Champion:\n1 Master Yi, Tempered',
+            'totalCards': 1,
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          riftboundTcgServiceProvider.overrideWithValue(catalog),
+          piltoverArchiveImportServiceProvider.overrideWithValue(importer),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: RiftboundTextListImportDialog(
+              target: RiftboundTextImportTarget.newDeck,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.enterText(
+      textFieldWithLabel('Link do Piltover Archive'),
+      'https://piltoverarchive.com/decks/view/'
+      '99f9a2a9-b0fd-4399-bdfd-4327a030c6e3',
+    );
+    await tester.tap(find.text('Buscar'));
+    await tester.pumpAndSettle();
+
+    final nameField = tester.widget<TextField>(
+      textFieldWithLabel('Nome do novo deck'),
+    );
+    expect(nameField.controller?.text, 'Master Yi do Piltover');
+    expect(find.text('Criar deck'), findsOneWidget);
+  });
 }

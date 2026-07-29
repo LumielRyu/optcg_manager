@@ -154,6 +154,35 @@ class _TcgDecksScreenState extends ConsumerState<TcgDecksScreen> {
     }
   }
 
+  Future<void> _createRiftboundDeckFromList() async {
+    if (!requireSignedIn(context)) return;
+    final result = await showDialog<RiftboundTextListImportResult>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const RiftboundTextListImportDialog(
+        target: RiftboundTextImportTarget.newDeck,
+      ),
+    );
+    if (result == null || !mounted) return;
+    await _load();
+    if (!mounted || result.deckId == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Deck criado com ${result.totalCards} cartas '
+          'e ${result.differentCards} cartas diferentes.',
+        ),
+      ),
+    );
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            TcgDeckEditorScreen(game: widget.game, deckId: result.deckId!),
+      ),
+    );
+    await _load();
+  }
+
   Future<void> _deleteDeck(TcgDeck deck) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -186,6 +215,12 @@ class _TcgDecksScreenState extends ConsumerState<TcgDecksScreen> {
         leading: HomeNavigationButton(destinationRoute: '/${widget.game.slug}'),
         title: Text('Decks ${widget.game.label}'),
         actions: [
+          if (widget.game == TcgGame.riftbound)
+            IconButton(
+              tooltip: 'Criar por lista ou link',
+              onPressed: _loading ? null : _createRiftboundDeckFromList,
+              icon: const Icon(Icons.playlist_add),
+            ),
           IconButton(
             tooltip: 'Atualizar decks',
             onPressed: _loading ? null : _load,
@@ -252,16 +287,29 @@ class _TcgDecksScreenState extends ConsumerState<TcgDecksScreen> {
                 icon: const Icon(Icons.add),
                 label: const Text('Criar primeiro deck'),
               ),
+              if (widget.game == TcgGame.riftbound) ...[
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: _createRiftboundDeckFromList,
+                  icon: const Icon(Icons.playlist_add),
+                  label: const Text('Criar por lista ou link'),
+                ),
+              ],
             ],
           ),
         ),
       );
     }
 
-    return RefreshIndicator(
+    final deckGrid = RefreshIndicator(
       onRefresh: _load,
       child: GridView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          widget.game == TcgGame.riftbound ? 8 : 16,
+          16,
+          100,
+        ),
         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
           maxCrossAxisExtent: 430,
           mainAxisExtent: 260,
@@ -368,6 +416,34 @@ class _TcgDecksScreenState extends ConsumerState<TcgDecksScreen> {
           );
         },
       ),
+    );
+    if (widget.game != TcgGame.riftbound) return deckGrid;
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: Card(
+            child: ListTile(
+              leading: const Icon(Icons.link),
+              title: const Text(
+                'Já possui uma lista?',
+                style: TextStyle(fontWeight: FontWeight.w900),
+              ),
+              subtitle: const Text(
+                'Crie o deck diretamente pelo link do Piltover Archive '
+                'ou colando o texto.',
+              ),
+              trailing: FilledButton.tonalIcon(
+                onPressed: _createRiftboundDeckFromList,
+                icon: const Icon(Icons.playlist_add),
+                label: const Text('Importar'),
+              ),
+              onTap: _createRiftboundDeckFromList,
+            ),
+          ),
+        ),
+        Expanded(child: deckGrid),
+      ],
     );
   }
 }

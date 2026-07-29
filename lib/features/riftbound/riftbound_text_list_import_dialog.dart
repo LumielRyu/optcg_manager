@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/tcg/riftbound_text_deck_parser.dart';
 import '../../core/tcg/tcg_deck_rules.dart';
 import '../../core/tcg/tcg_collection_drafts.dart';
+import '../../core/tcg/tcg_game.dart';
 import '../../data/models/riftbound_card.dart';
 import '../../data/models/tcg_deck.dart';
 import '../../data/repositories/tcg_collection_repository.dart';
@@ -12,15 +13,17 @@ import '../../data/repositories/tcg_deck_repository.dart';
 import '../../data/services/piltover_archive_import_service.dart';
 import '../../data/services/riftbound_tcg_service.dart';
 
-enum RiftboundTextImportTarget { deck, collection }
+enum RiftboundTextImportTarget { deck, newDeck, collection }
 
 class RiftboundTextListImportResult {
   final int totalCards;
   final int differentCards;
+  final String? deckId;
 
   const RiftboundTextListImportResult({
     required this.totalCards,
     required this.differentCards,
+    this.deckId,
   });
 }
 
@@ -43,6 +46,7 @@ class _RiftboundTextListImportDialogState
     extends ConsumerState<RiftboundTextListImportDialog> {
   final _controller = TextEditingController();
   final _urlController = TextEditingController();
+  final _deckNameController = TextEditingController();
   RiftboundTextDeckParseResult? _parsed;
   Map<String, List<RiftboundCard>> _candidates = const {};
   final Map<String, RiftboundCard> _selected = {};
@@ -52,11 +56,13 @@ class _RiftboundTextListImportDialogState
   String? _sourceDeckName;
 
   bool get _isDeck => widget.target == RiftboundTextImportTarget.deck;
+  bool get _createsDeck => widget.target == RiftboundTextImportTarget.newDeck;
 
   @override
   void dispose() {
     _controller.dispose();
     _urlController.dispose();
+    _deckNameController.dispose();
     super.dispose();
   }
 
@@ -94,6 +100,9 @@ class _RiftboundTextListImportDialogState
           .importDeck(_urlController.text);
       if (!mounted) return;
       _controller.text = imported.text;
+      if (_createsDeck && _deckNameController.text.trim().isEmpty) {
+        _deckNameController.text = imported.deckName;
+      }
       setState(() {
         _busy = false;
         _parsed = null;
@@ -186,22 +195,40 @@ class _RiftboundTextListImportDialogState
       });
       return;
     }
+    if (_createsDeck && _deckNameController.text.trim().isEmpty) {
+      setState(() => _error = 'Informe o nome do novo deck.');
+      return;
+    }
 
     setState(() {
       _busy = true;
       _error = null;
     });
+    String? createdDeckId;
     try {
-      if (_isDeck) {
-        final deck = widget.deck;
-        if (deck == null) {
-          throw StateError('Deck de destino não encontrado.');
+      if (_isDeck || _createsDeck) {
+        TcgDeck deck;
+        if (_createsDeck) {
+          final deckName = _deckNameController.text.trim();
+          final repository = ref.read(tcgDeckRepositoryProvider);
+          createdDeckId = await repository.createDeck(
+            game: TcgGame.riftbound,
+            name: deckName,
+            format: TcgDeckRulesRegistry.defaultFor(TcgGame.riftbound),
+          );
+          deck = await repository.getDeck(createdDeckId);
+        } else {
+          final existingDeck = widget.deck;
+          if (existingDeck == null) {
+            throw StateError('Deck de destino não encontrado.');
+          }
+          deck = existingDeck;
         }
         await ref
             .read(tcgDeckRepositoryProvider)
             .importEntries(
               deck: deck,
-              replaceExisting: _replaceDeck,
+              replaceExisting: _createsDeck || _replaceDeck,
               entries: parsed.entries.map((entry) {
                 final card =
                     _selected[normalizeRiftboundCardName(entry.cardName)]!;
@@ -238,9 +265,17 @@ class _RiftboundTextListImportDialogState
         RiftboundTextListImportResult(
           totalCards: parsed.totalCards,
           differentCards: uniqueNames.length,
+          deckId: createdDeckId,
         ),
       );
     } catch (error) {
+      if (createdDeckId != null) {
+        try {
+          await ref.read(tcgDeckRepositoryProvider).deleteDeck(createdDeckId);
+        } catch (_) {
+          // The original import error is more useful to the user.
+        }
+      }
       if (!mounted) return;
       setState(() {
         _busy = false;
@@ -275,6 +310,8 @@ class _RiftboundTextListImportDialogState
                         Text(
                           _isDeck
                               ? 'Montar deck por lista'
+                              : _createsDeck
+                              ? 'Criar deck por lista'
                               : 'Adicionar lista à coleção',
                           style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(fontWeight: FontWeight.w900),
@@ -354,6 +391,17 @@ class _RiftboundTextListImportDialogState
                       ),
                     ),
                     const SizedBox(height: 16),
+                    if (_createsDeck) ...[
+                      TextField(
+                        controller: _deckNameController,
+                        enabled: !_busy,
+                        decoration: const InputDecoration(
+                          labelText: 'Nome do novo deck',
+                          prefixIcon: Icon(Icons.edit_outlined),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                     TextField(
                       controller: _controller,
                       enabled: !_busy,
@@ -474,7 +522,9 @@ class _RiftboundTextListImportDialogState
                       ),
                       label: Text(
                         canImport
-                            ? _isDeck
+                            ? _createsDeck
+                                  ? 'Criar deck'
+                                  : _isDeck
                                   ? 'Montar deck'
                                   : 'Adicionar à coleção'
                             : 'Analisar lista',
