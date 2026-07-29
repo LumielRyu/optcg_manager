@@ -1407,3 +1407,26 @@ git diff --stat
 - Commits funcionais `58ea8ad` e `2acda87`, enviados para `origin/main`.
 - Deploy Vercel `dpl_Bc2f5znrwo9ShSnSQhv36RmKWfeq`, status READY e publicado
   em `https://tcgbh.vercel.app`.
+
+### 29/07/2026 - Preco da Girl promocional no deck
+
+- O registro antigo da carta `Girl (OP14 Release Event)` usa o codigo-base
+  `P-096`, mas a Liga identifica essa impressao como `P-096-RE`. Por isso a
+  consulta em lote do deck buscava apenas `P-096` e nao recebia a linha de
+  preco, embora ela estivesse corretamente salva no Supabase.
+- A resolucao de variantes agora converte nomes `Release Event` para o sufixo
+  `-RE`. A variante `Release Event Winner` recebe `-RW`, evitando misturar o
+  preco das duas artes.
+- Codigos promocionais exatos com sufixos fora da lista antiga, como
+  `P-096-RW`, passam a ser preservados sem duplicar o sufixo.
+- A verificacao em producao confirmou `P-096` e `P-096-RE` por `R$ 35,95`,
+  enquanto `P-096` Winner e `P-096-RW` mostram `R$ 289,00`.
+- Decks existentes com o codigo-base nao precisam ser editados nem recriados;
+  a compatibilidade e aplicada durante a consulta.
+- Nenhuma migracao SQL ou nova coleta de precos foi necessaria.
+- Validacoes aprovadas: `flutter analyze`, 112 testes Flutter, build web e
+  verificacao visual da biblioteca real em producao. Quality gate do GitHub,
+  console do navegador e varredura de runtime da Vercel passaram sem erros.
+- Commit funcional `4b3e61a`, enviado para `origin/main`.
+- Deploy Vercel `dpl_AJQrSjFV6BkC14vxunP3kiDfDH2h`, status READY e publicado
+  em `https://tcgbh.vercel.app`.
