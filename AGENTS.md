@@ -1276,8 +1276,9 @@ git diff --stat
 - Commit funcional `8eebd48`, enviado para `origin/main`.
 - Deploy Vercel `dpl_6v3LvV48bLtTz33rpo2hyRVZz8b3`, status READY e publicado
   em `https://tcgbh.vercel.app`.
-- A carga inicial Pokemon permaneceu ativa no processo `65012` e alcancou
-  571/781 edicoes no ultimo acompanhamento; a edicao `LA` teve timeout pontual
-  e o processo continuou normalmente para a proxima edicao.
+- A carga inicial Pokemon concluiu as 781 edicoes e gravou inicialmente
+  58.054 linhas. A unica falha, `LA`, foi reprocessada isoladamente com
+  sucesso e adicionou 146 cartas. A verificacao direta no Supabase confirmou
+  146 linhas `POKEMON:LA:*` e 58.200 linhas Pokemon no cache.
 - Proxima camada recomendada: compartilhamento de colecoes e vitrines
   filtradas por TCG, seguida por importacao em lote por planilha.
