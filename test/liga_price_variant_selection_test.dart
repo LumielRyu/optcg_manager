@@ -49,4 +49,31 @@ void main() {
 
     expect(selected?['edition_code'], 'OP-15');
   });
+
+  test('mapeia carta Release Event promocional para o codigo da Liga', () {
+    expect(
+      inferLigaLookupCode(
+        cardName: 'Girl (OP14 Release Event)',
+        cardCode: 'P-096',
+      ),
+      'P-096-RE',
+    );
+  });
+
+  test('distingue a vencedora e preserva codigos promocionais exatos', () {
+    expect(
+      inferLigaLookupCode(
+        cardName: 'Girl (OP14 Release Event Winner)',
+        cardCode: 'P-096',
+      ),
+      'P-096-RW',
+    );
+    expect(
+      inferLigaLookupCode(
+        cardName: 'Girl (OP14 Release Event Winner)',
+        cardCode: 'P-096-RW',
+      ),
+      'P-096-RW',
+    );
+  });
 }

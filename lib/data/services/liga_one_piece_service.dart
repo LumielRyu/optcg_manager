@@ -17,6 +17,42 @@ final ligaOnePieceServiceProvider = Provider<LigaOnePieceService>((ref) {
   return LigaOnePieceService(client);
 });
 
+@visibleForTesting
+String inferLigaLookupCode({
+  required String cardName,
+  required String cardCode,
+}) {
+  final normalizedCode = cardCode.trim().toUpperCase();
+  if (RegExp(r'-(AA|DP|FA|G|MA|OP|PA|PR|RE|SP|TR)$').hasMatch(normalizedCode) ||
+      RegExp(r'^[A-Z0-9]+-\d{3}-[A-Z0-9]+$').hasMatch(normalizedCode)) {
+    return normalizedCode;
+  }
+  final normalizedName = cardName
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+      .trim();
+  final tokens = normalizedName.split(RegExp(r'\s+')).toSet();
+
+  if (normalizedName.contains('release event winner')) {
+    return '$normalizedCode-RW';
+  }
+  if (normalizedName.contains('release event')) return '$normalizedCode-RE';
+  if (normalizedName.contains('manga')) return '$normalizedCode-MA';
+  if (normalizedName.contains('treasure rare')) return '$normalizedCode-TR';
+  if (normalizedName.contains('full art')) return '$normalizedCode-FA';
+  if (normalizedName.contains('don parallel')) return '$normalizedCode-DP';
+  if (normalizedName.contains('gold')) return '$normalizedCode-G';
+  if (normalizedName.contains('reprint')) return '$normalizedCode-RE';
+  if (tokens.contains('sp')) return '$normalizedCode-SP';
+  if (normalizedName.contains('special')) return '$normalizedCode-SP';
+  if (normalizedName.contains('alternate art') ||
+      normalizedName.contains('alt art')) {
+    return '$normalizedCode-AA';
+  }
+  if (normalizedName.contains('parallel')) return '$normalizedCode-PA';
+  return normalizedCode;
+}
+
 class LigaOnePieceService {
   static const String _baseCardPageUrl = 'https://www.ligaonepiece.com.br/';
   static const String _autocompleteBaseUrl =
@@ -41,32 +77,7 @@ class LigaOnePieceService {
     required String cardName,
     required String cardCode,
   }) {
-    final normalizedCode = cardCode.trim().toUpperCase();
-    if (RegExp(
-      r'-(AA|DP|FA|G|MA|OP|PA|PR|RE|SP|TR)$',
-    ).hasMatch(normalizedCode)) {
-      return normalizedCode;
-    }
-    final normalizedName = cardName
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
-        .trim();
-    final tokens = normalizedName.split(RegExp(r'\s+')).toSet();
-
-    if (normalizedName.contains('manga')) return '$normalizedCode-MA';
-    if (normalizedName.contains('treasure rare')) return '$normalizedCode-TR';
-    if (normalizedName.contains('full art')) return '$normalizedCode-FA';
-    if (normalizedName.contains('don parallel')) return '$normalizedCode-DP';
-    if (normalizedName.contains('gold')) return '$normalizedCode-G';
-    if (normalizedName.contains('reprint')) return '$normalizedCode-RE';
-    if (tokens.contains('sp')) return '$normalizedCode-SP';
-    if (normalizedName.contains('special')) return '$normalizedCode-SP';
-    if (normalizedName.contains('alternate art') ||
-        normalizedName.contains('alt art')) {
-      return '$normalizedCode-AA';
-    }
-    if (normalizedName.contains('parallel')) return '$normalizedCode-PA';
-    return normalizedCode;
+    return inferLigaLookupCode(cardName: cardName, cardCode: cardCode);
   }
 
   String priceReferenceKeyForCard({
