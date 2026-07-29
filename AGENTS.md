@@ -1303,3 +1303,30 @@ git diff --stat
 - Commit funcional `844c347`, enviado para `origin/main`.
 - Deploy Vercel `dpl_GjdaCJ5qMVggtYuxenXa6WMT1e8r`, status READY e publicado
   em `https://tcgbh.vercel.app`.
+
+### 29/07/2026 - Distribuicao de copias por arte no deck
+
+- Cartas com duas ou mais copias no deck privado ganharam a acao
+  `Distribuir artes`.
+- O editor consulta todas as versoes do mesmo codigo na API One Piece e
+  permite dividir a quantidade fixa entre arte normal, parallel, alternative
+  art e demais impressoes. Exemplo validado: quatro copias de `EB03-055`
+  divididas em `3x` normal e `1x` alternative art.
+- O salvamento cria ou atualiza um registro por arte usando a imagem exata,
+  sem alterar o total legal do codigo no deck. A soma precisa permanecer
+  exatamente igual ao total anterior para o botao de salvar ser habilitado.
+- Depois do salvamento, cada arte aparece como um cartao independente com seu
+  proprio selo de quantidade. O deck compartilhado preserva a mesma
+  composicao visual.
+- Contagens de cartas diferentes passaram a agrupar pelo codigo, evitando que
+  normal e alternative art sejam contabilizadas como cartas distintas.
+- A exportacao da lista tambem agrega as artes pelo codigo; uma composicao
+  `3x + 1x` continua sendo exportada como `4xEB03-055`.
+- Nenhuma migracao SQL foi necessaria, pois `deck_items` ja aceitava registros
+  separados com o mesmo codigo e imagens diferentes.
+- Validacoes aprovadas: `flutter analyze`, 109 testes Flutter, build web,
+  verificacao visual local e verificacao do deck publico em producao. Health
+  check, protecao de origem e varredura de runtime passaram sem erros.
+- Commit funcional `8e5dc05`, enviado para `origin/main`.
+- Deploy Vercel `dpl_uNosaqskoRtvug866gF5BqEsHH48`, status READY e publicado
+  em `https://tcgbh.vercel.app`.
