@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/widgets/liga_price_display.dart';
 import '../../data/repositories/collection_repository.dart';
 import '../../data/services/op_api_service.dart';
 import '../../core/widgets/home_navigation_button.dart';
@@ -73,38 +74,58 @@ class _SharedDeckScreenState extends ConsumerState<SharedDeckScreen> {
               .where((code) => code.isNotEmpty)
               .toSet()
               .length;
-
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Column(
-                  children: [
-                    Text(
-                      deck.deckName,
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w800),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text('Código de compartilhamento: ${deck.shareCode}'),
-                    const SizedBox(height: 4),
-                    Text('$uniqueCards cartas diferentes • $totalCards cartas'),
-                  ],
+          final priceItems = deck.items
+              .map(
+                (item) => LigaPriceCollectionItemReference(
+                  cardName: item.name,
+                  cardCode: item.cardCode,
+                  imageUrl: item.imageUrl,
+                  quantity: item.quantity,
                 ),
-              ),
-              Expanded(
-                child: DeckVisualLayout(
-                  deckName: deck.deckName,
-                  items: deck.items,
-                  imageBuilder: (context, item) => _SharedResolvedCardImage(
-                    imageUrl: item.imageUrl,
-                    cardCode: item.cardCode,
-                    fit: BoxFit.contain,
+              )
+              .toList(growable: false);
+
+          return LigaPriceScope(
+            cards: priceItems,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Column(
+                    children: [
+                      Text(
+                        deck.deckName,
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text('Código de compartilhamento: ${deck.shareCode}'),
+                      const SizedBox(height: 4),
+                      Text(
+                        '$uniqueCards cartas diferentes • $totalCards cartas',
+                      ),
+                      const SizedBox(height: 12),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 380),
+                        child: LigaDeckValueCard(items: priceItems),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
+                Expanded(
+                  child: DeckVisualLayout(
+                    deckName: deck.deckName,
+                    items: deck.items,
+                    imageBuilder: (context, item) => _SharedResolvedCardImage(
+                      imageUrl: item.imageUrl,
+                      cardCode: item.cardCode,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           );
         },
       ),

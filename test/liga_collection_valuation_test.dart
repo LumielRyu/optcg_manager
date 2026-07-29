@@ -128,4 +128,30 @@ void main() {
     expect(valuation.pricedUniqueCards, 1);
     expect(valuation.unpricedUniqueCards, 1);
   });
+
+  test('deck value prices normal and alternate arts independently', () {
+    final valuation = calculateLigaCollectionValuation(
+      items: const [
+        LigaPriceCollectionItemReference(
+          cardName: 'Nico Robin',
+          cardCode: 'EB03-055',
+          imageUrl: 'normal.jpg',
+          quantity: 3,
+        ),
+        LigaPriceCollectionItemReference(
+          cardName: 'Nico Robin (Alternate Art)',
+          cardCode: 'EB03-055',
+          imageUrl: 'alternate.jpg',
+          quantity: 1,
+        ),
+      ],
+      prices: const {'EB03-055::normal.jpg': 2, 'EB03-055::alternate.jpg': 20},
+      priceReferenceKeyForCard: (_, cardCode, imageUrl) =>
+          '$cardCode::$imageUrl',
+    );
+
+    expect(valuation.totalValue, 26);
+    expect(valuation.totalUnits, 4);
+    expect(valuation.pricedUnits, 4);
+  });
 }

@@ -216,6 +216,61 @@ class LigaCollectionValueCard extends ConsumerWidget {
   }
 }
 
+class LigaDeckValueCard extends ConsumerWidget {
+  final List<LigaPriceCollectionItemReference> items;
+
+  const LigaDeckValueCard({super.key, required this.items});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final data = _LigaPriceData.maybeOf(context);
+    if (data == null || data.loading) {
+      return const SummaryStatCard(
+        label: 'Valor total do deck',
+        value: 'Calculando...',
+        icon: Icons.account_balance_wallet_outlined,
+      );
+    }
+
+    final service = ref.read(ligaOnePieceServiceProvider);
+    final prices = data.snapshots.map(
+      (code, snapshot) => MapEntry(
+        code,
+        snapshot.minimumPrice ?? snapshot.lowestListing?.price,
+      ),
+    );
+    final valuation = calculateLigaCollectionValuation(
+      items: items,
+      prices: prices,
+      priceReferenceKeyForCard: (cardName, cardCode, imageUrl) =>
+          service.priceReferenceKeyForCard(
+            cardName: cardName,
+            cardCode: cardCode,
+            imageUrl: imageUrl,
+          ),
+    );
+    final missingUnits = valuation.totalUnits - valuation.pricedUnits;
+    final complete = missingUnits == 0;
+    final label = complete
+        ? 'Valor total do deck • ${valuation.pricedUnits}/${valuation.totalUnits} cópias com preço'
+        : 'Valor parcial • ${valuation.pricedUnits}/${valuation.totalUnits} cópias com preço';
+    final value = valuation.pricedUnits == 0
+        ? 'Indisponível'
+        : formatLigaPrice(valuation.totalValue);
+
+    return Tooltip(
+      message: complete
+          ? 'Todas as cópias do deck possuem preço verificado na Liga.'
+          : '$missingUnits cópias ainda estão sem preço verificado na Liga.',
+      child: SummaryStatCard(
+        label: label,
+        value: value,
+        icon: Icons.account_balance_wallet_outlined,
+      ),
+    );
+  }
+}
+
 class LigaPriceLabel extends ConsumerWidget {
   final String cardName;
   final String cardCode;

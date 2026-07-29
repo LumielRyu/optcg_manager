@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/collection_types.dart';
+import '../../core/widgets/liga_price_display.dart';
 import '../../data/models/card_record.dart';
 import '../../data/repositories/collection_repository.dart';
 import '../../data/services/op_api_service.dart';
@@ -162,152 +163,175 @@ class _DeckDetailsDialogState extends ConsumerState<DeckDetailsDialog> {
 
     final repo = ref.read(collectionRepositoryProvider);
 
-    return Dialog(
-      insetPadding: const EdgeInsets.all(16),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1080, maxHeight: 920),
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Column(
-                children: [
-                  Text(
-                    widget.deckName,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '$totalCards / 51 cartas',
-                    style: TextStyle(
-                      color: isValid ? Colors.green : Colors.red,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  FutureBuilder(
-                    future: repo.getDeckShareInfo(widget.deckName),
-                    builder: (context, snapshot) {
-                      final info = snapshot.data;
-                      if (info == null ||
-                          !info.isPublic ||
-                          info.shareCode == null) {
-                        return const Text('Deck privado');
-                      }
+    final priceItems = _items
+        .map(
+          (item) => LigaPriceCollectionItemReference(
+            cardName: item.name,
+            cardCode: item.cardCode,
+            imageUrl: item.imageUrl,
+            quantity: item.quantity,
+          ),
+        )
+        .toList(growable: false);
 
-                      return Text(
-                        'Deck público • código: ${info.shareCode}',
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-            const Divider(),
-            Expanded(
-              child: DeckVisualLayout(
-                deckName: widget.deckName,
-                items: _items,
-                imageBuilder: (context, item) => _DeckCardImage(
-                  imageUrl: item.imageUrl,
-                  cardCode: item.cardCode,
-                  cardName: item.name,
+    return LigaPriceScope(
+      cards: priceItems,
+      child: Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1080, maxHeight: 920),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Column(
+                  children: [
+                    Text(
+                      widget.deckName,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '$totalCards / 51 cartas',
+                      style: TextStyle(
+                        color: isValid ? Colors.green : Colors.red,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 380),
+                      child: LigaDeckValueCard(items: priceItems),
+                    ),
+                    const SizedBox(height: 8),
+                    FutureBuilder(
+                      future: repo.getDeckShareInfo(widget.deckName),
+                      builder: (context, snapshot) {
+                        final info = snapshot.data;
+                        if (info == null ||
+                            !info.isPublic ||
+                            info.shareCode == null) {
+                          return const Text('Deck privado');
+                        }
+
+                        return Text(
+                          'Deck público • código: ${info.shareCode}',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        );
+                      },
+                    ),
+                  ],
                 ),
-                onDecrement: _decrement,
-                onIncrement: _increment,
-                onConfigureArts: _configureArts,
               ),
-            ),
-            const Divider(),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            final exportText = buildDeckExportText(sortedItems);
+              const Divider(),
+              Expanded(
+                child: DeckVisualLayout(
+                  deckName: widget.deckName,
+                  items: _items,
+                  imageBuilder: (context, item) => _DeckCardImage(
+                    imageUrl: item.imageUrl,
+                    cardCode: item.cardCode,
+                    cardName: item.name,
+                  ),
+                  onDecrement: _decrement,
+                  onIncrement: _increment,
+                  onConfigureArts: _configureArts,
+                ),
+              ),
+              const Divider(),
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              final exportText = buildDeckExportText(
+                                sortedItems,
+                              );
 
-                            Clipboard.setData(ClipboardData(text: exportText));
+                              Clipboard.setData(
+                                ClipboardData(text: exportText),
+                              );
 
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Deck copiado!')),
-                            );
-                          },
-                          icon: const Icon(Icons.copy),
-                          label: const Text('Exportar'),
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Deck copiado!')),
+                              );
+                            },
+                            icon: const Icon(Icons.copy),
+                            label: const Text('Exportar'),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () async {
-                            final changed = await showDialog<bool>(
-                              context: context,
-                              builder: (_) => DeckImportExportDialog(
-                                deckName: widget.deckName,
-                                items: _items,
-                              ),
-                            );
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              final changed = await showDialog<bool>(
+                                context: context,
+                                builder: (_) => DeckImportExportDialog(
+                                  deckName: widget.deckName,
+                                  items: _items,
+                                ),
+                              );
 
-                            if (changed == true && context.mounted) {
+                              if (changed == true && context.mounted) {
+                                Navigator.of(context).pop();
+                              }
+                            },
+                            icon: const Icon(Icons.upload_file),
+                            label: const Text('Importar lista'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton.tonalIcon(
+                            onPressed: _isSharingBusy ? null : _shareDeck,
+                            icon: _isSharingBusy
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.share_outlined),
+                            label: const Text('Compartilhar'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: FilledButton.tonalIcon(
+                            onPressed: _isSharingBusy ? null : _disableSharing,
+                            icon: const Icon(Icons.link_off),
+                            label: const Text('Desativar link'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: () {
                               Navigator.of(context).pop();
-                            }
-                          },
-                          icon: const Icon(Icons.upload_file),
-                          label: const Text('Importar lista'),
+                            },
+                            icon: const Icon(Icons.close),
+                            label: const Text('Fechar'),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: FilledButton.tonalIcon(
-                          onPressed: _isSharingBusy ? null : _shareDeck,
-                          icon: _isSharingBusy
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.share_outlined),
-                          label: const Text('Compartilhar'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: FilledButton.tonalIcon(
-                          onPressed: _isSharingBusy ? null : _disableSharing,
-                          icon: const Icon(Icons.link_off),
-                          label: const Text('Desativar link'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: FilledButton.icon(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                          },
-                          icon: const Icon(Icons.close),
-                          label: const Text('Fechar'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
