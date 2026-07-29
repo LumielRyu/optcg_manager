@@ -1543,3 +1543,37 @@ git diff --stat
   GitHub concluido com sucesso.
 - Deploy Vercel `dpl_HqirFoMY3phmvNJe5XQyx3KVev9H`, status READY e publicado
   em `https://tcgbh.vercel.app`.
+
+### 29/07/2026 - Carga inicial completa dos precos multi-TCG
+
+- Foi auditada a cobertura do cache da Liga pelo ID real de cada edicao, pois
+  Yu-Gi-Oh reutiliza algumas siglas em IDs diferentes.
+- Estado antes da nova carga:
+  - Pokemon: 770 das 781 edicoes tinham registros; faltavam 11 IDs;
+  - Digimon: 24 das 95 edicoes tinham registros; faltavam 71 IDs;
+  - Magic: faltavam 1.314 dos 1.492 IDs publicados;
+  - Riftbound: 7 de 7 edicoes completas;
+  - Yu-Gi-Oh: faltavam 1.134 dos 1.234 IDs publicados.
+- `update_liga_tcg_price_cache.py` ganhou `--missing-only`. O modo consulta o
+  Supabase, identifica edicoes processadas pela anotacao `Liga ID` ou pelo
+  `edid` da URL e permite retomar a carga sem repetir edicoes concluidas.
+- Foi criado `scripts/start_liga_tcg_backfill.ps1`, que inicia um worker oculto
+  por TCG, evita processos duplicados e salva PID e logs em
+  `.cache/liga-tcg-backfill/`.
+- Os workers usam UTF-8 para aceitar nomes historicos de Magic e Yu-Gi-Oh que
+  nao podem ser impressos pelo console Windows CP-1252.
+- A carga foi iniciada para Pokemon, Digimon, Magic e Yu-Gi-Oh com intervalo de
+  30 segundos entre edicoes de cada dominio. Os quatro processos estavam
+  ativos e sem erros apos as primeiras gravacoes. A estimativa inicial e de
+  aproximadamente 11 horas, limitada pelas 1.314 edicoes pendentes de Magic.
+- Primeira verificacao de progresso: 6 edicoes tentadas de Pokemon (todas sem
+  cartas publicadas), 386 cartas de Digimon, 64 de Magic e 907 de Yu-Gi-Oh.
+- A agenda existente das 00:00, 08:00 e 16:00 continua ativa e serve como
+  recuperacao gradual caso a carga local seja interrompida. O computador deve
+  permanecer ligado ate os workers terminarem.
+- Validacoes aprovadas: quality gate completo, 123 testes Flutter, 16 testes
+  Python, 15 testes Node, analise estatica e teste real de gravacao no
+  Supabase.
+- Commits funcionais `1385fee` e `b6632da`, enviados para `origin/main`.
+- Esta etapa permanece em andamento ate a auditoria final confirmar todos os
+  IDs processaveis e registrar separadamente as edicoes vazias da Liga.
