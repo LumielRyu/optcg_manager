@@ -1610,3 +1610,34 @@ git diff --stat
 - Commits funcionais `7243c8b` e `6fb18ac`, enviados para `origin/main`.
 - Deploy Vercel `dpl_4URp693ob6oJ7Hnur2mE7NJu5L1c`, status READY e publicado
   em `https://tcgbh.vercel.app`.
+
+### 31/07/2026 - Pastas e simplificacao da colecao One Piece
+
+- Foram removidas as acoes duplicadas de adicionar cartas no topo da colecao;
+  a unica entrada permanece no botao flutuante inferior `Adicionar cartas`.
+- O menu inferior foi reorganizado em tres fluxos:
+  - `Importar carta pela biblioteca`, com busca automatica pelo codigo, imagem
+    de referencia e escolha da variante;
+  - `Adicionar por codigo`, para um ou mais codigos ou listas;
+  - `Escanear com camera - Beta`, com aviso de que o resultado pode exigir
+    revisao.
+- A colecao agora possui pastas. O usuario pode criar, renomear, excluir,
+  filtrar e mover cartas pelos detalhes da carta.
+- Existem as visoes fixas `Todas as cartas` e `Sem pasta`. Cartas anteriores a
+  migracao permanecem em `Sem pasta`.
+- Cada pasta mostra cartas diferentes, quantidade total e valor calculado
+  pelos menores precos encontrados na Liga.
+- Excluir uma pasta nao exclui cartas: a chave estrangeira usa
+  `on delete set null`, devolvendo-as para `Sem pasta`.
+- Foi adicionada a tabela `collection_folders` e a coluna
+  `collection_items.folder_id`, com RLS, indices, nome unico por usuario/TCG e
+  validacao que impede associar uma carta a pasta de outro usuario ou TCG.
+- A migracao `sql/collection_folders.sql` foi executada e validada no
+  Supabase antes da publicacao.
+- Validacoes aprovadas: quality gate local, 128 testes Flutter antes do teste
+  final de interface, testes direcionados de pastas/valor/mobile, 16 testes
+  Python, 15 testes Node, analise estatica, build web, E2E publico, verificacao
+  do bundle de producao e varredura de runtime da Vercel sem erros.
+- Commit funcional `74fafab`, enviado para `origin/main`.
+- Deploy Vercel `dpl_9p2zDNQ3W5d1krswMJbpkjcBKh4j`, status READY e publicado
+  em `https://tcgbh.vercel.app`.
