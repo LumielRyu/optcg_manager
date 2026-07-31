@@ -216,6 +216,59 @@ class LigaCollectionValueCard extends ConsumerWidget {
   }
 }
 
+class LigaCollectionValueText extends ConsumerWidget {
+  final List<LigaPriceCollectionItemReference> items;
+
+  const LigaCollectionValueText({super.key, required this.items});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final data = _LigaPriceData.maybeOf(context);
+    final theme = Theme.of(context);
+    if (data == null || data.loading) {
+      return Text(
+        'Valor: calculando...',
+        style: theme.textTheme.labelMedium?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      );
+    }
+
+    final service = ref.read(ligaOnePieceServiceProvider);
+    final prices = data.snapshots.map(
+      (code, snapshot) => MapEntry(
+        code,
+        snapshot.minimumPrice ?? snapshot.lowestListing?.price,
+      ),
+    );
+    final valuation = calculateLigaCollectionValuation(
+      items: items,
+      prices: prices,
+      priceReferenceKeyForCard: (cardName, cardCode, imageUrl) =>
+          service.priceReferenceKeyForCard(
+            cardName: cardName,
+            cardCode: cardCode,
+            imageUrl: imageUrl,
+          ),
+    );
+
+    return Tooltip(
+      message:
+          '${valuation.pricedUniqueCards}/${valuation.totalUniqueCards} '
+          'cartas diferentes possuem preço da Liga.',
+      child: Text(
+        'Valor: ${formatLigaPrice(valuation.totalValue)}',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: theme.textTheme.labelLarge?.copyWith(
+          color: theme.colorScheme.primary,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
 class LigaDeckValueCard extends ConsumerWidget {
   final List<LigaPriceCollectionItemReference> items;
 

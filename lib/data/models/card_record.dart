@@ -31,6 +31,8 @@ class CardRecord extends HiveObject {
 
   final bool isFavorite;
 
+  final String? folderId;
+
   CardRecord({
     required this.id,
     required this.cardCode,
@@ -47,6 +49,7 @@ class CardRecord extends HiveObject {
     required this.collectionType,
     this.deckName,
     this.isFavorite = false,
+    this.folderId,
   });
 
   CardRecord copyWith({
@@ -65,6 +68,8 @@ class CardRecord extends HiveObject {
     String? collectionType,
     String? deckName,
     bool? isFavorite,
+    String? folderId,
+    bool clearFolder = false,
   }) {
     return CardRecord(
       id: id ?? this.id,
@@ -82,6 +87,7 @@ class CardRecord extends HiveObject {
       collectionType: collectionType ?? this.collectionType,
       deckName: deckName ?? this.deckName,
       isFavorite: isFavorite ?? this.isFavorite,
+      folderId: clearFolder ? null : (folderId ?? this.folderId),
     );
   }
 }
@@ -113,13 +119,14 @@ class CardRecordAdapter extends TypeAdapter<CardRecord> {
       collectionType: (fields[12] as String?) ?? 'owned',
       deckName: fields[13] as String?,
       isFavorite: (fields[14] as bool?) ?? false,
+      folderId: fields[15] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, CardRecord obj) {
     writer
-      ..writeByte(15)
+      ..writeByte(16)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -149,7 +156,9 @@ class CardRecordAdapter extends TypeAdapter<CardRecord> {
       ..writeByte(13)
       ..write(obj.deckName)
       ..writeByte(14)
-      ..write(obj.isFavorite);
+      ..write(obj.isFavorite)
+      ..writeByte(15)
+      ..write(obj.folderId);
   }
 
   @override

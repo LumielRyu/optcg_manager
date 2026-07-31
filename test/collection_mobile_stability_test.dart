@@ -30,4 +30,20 @@ void main() {
       );
     },
   );
+
+  test('collection exposes one add action with the simplified methods', () {
+    final source = File(
+      'lib/features/collection/collection_screen.dart',
+    ).readAsStringSync();
+
+    expect(
+      RegExp(r"label: const Text\('Adicionar cartas'\)").allMatches(source),
+      hasLength(1),
+    );
+    expect(source, contains('Importar carta pela biblioteca'));
+    expect(source, contains('Adicionar por código'));
+    expect(source, contains('Escanear com câmera • Beta'));
+    expect(source, contains('Pastas da coleção'));
+    expect(source, contains('LigaCollectionValueText('));
+  });
 }

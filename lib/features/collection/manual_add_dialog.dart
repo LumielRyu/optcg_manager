@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/collection_types.dart';
 import '../../data/models/card_record.dart';
+import '../../data/models/collection_folder.dart';
 import '../../data/models/op_card.dart';
 import '../../data/repositories/collection_repository.dart';
 import '../../data/services/op_api_service.dart';
@@ -12,10 +14,14 @@ import 'collection_controller.dart';
 
 class ManualAddDialog extends ConsumerStatefulWidget {
   final String initialDestination;
+  final String? initialFolderId;
+  final List<CollectionFolder> folders;
 
   const ManualAddDialog({
     super.key,
     this.initialDestination = CollectionTypes.owned,
+    this.initialFolderId,
+    this.folders = const [],
   });
 
   @override
@@ -39,10 +45,16 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
   late String _destination;
   String? _deckName;
   String? _manualColor;
+  String? _folderId;
 
   bool _isLoading = false;
+  bool _isLookingUp = false;
   bool _manualFallbackEnabled = false;
   String? _error;
+  String? _lookupMessage;
+  List<OpCard> _lookupVariants = const [];
+  OpCard? _selectedCard;
+  Timer? _lookupDebounce;
 
   @override
   void initState() {
@@ -50,14 +62,66 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
     _destination = CollectionTypes.all.contains(widget.initialDestination)
         ? widget.initialDestination
         : CollectionTypes.owned;
+    _folderId = widget.initialFolderId;
+    _codeController.addListener(_scheduleLookup);
   }
 
   @override
   void dispose() {
+    _lookupDebounce?.cancel();
     _codeController.dispose();
     _quantityController.dispose();
     _manualNameController.dispose();
     super.dispose();
+  }
+
+  void _scheduleLookup() {
+    _lookupDebounce?.cancel();
+    _lookupDebounce = Timer(const Duration(milliseconds: 550), _lookupCard);
+  }
+
+  Future<void> _lookupCard() async {
+    final api = ref.read(opApiServiceProvider);
+    final code = api.normalizeCode(_codeController.text);
+    if (code.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _lookupVariants = const [];
+        _selectedCard = null;
+        _lookupMessage = null;
+        _isLookingUp = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLookingUp = true;
+      _lookupMessage = null;
+      _manualFallbackEnabled = false;
+    });
+    try {
+      await api.preload();
+      final variants = await api.findAllByCode(code);
+      if (!mounted || api.normalizeCode(_codeController.text) != code) return;
+      setState(() {
+        _lookupVariants = variants;
+        _selectedCard = variants.length == 1 ? variants.first : null;
+        _lookupMessage = variants.isEmpty
+            ? 'Nenhuma carta encontrada na biblioteca.'
+            : variants.length == 1
+            ? 'Carta encontrada. Confira a imagem antes de adicionar.'
+            : '${variants.length} versões encontradas. Escolha a imagem correta.';
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _lookupVariants = const [];
+        _selectedCard = null;
+        _lookupMessage = 'Não foi possível consultar a biblioteca agora.';
+      });
+    } finally {
+      if (mounted) setState(() => _isLookingUp = false);
+    }
   }
 
   Future<void> _save() async {
@@ -101,7 +165,12 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
 
     try {
       await api.preload();
-      final variants = await api.findAllByCode(code);
+      final cachedVariants = _lookupVariants
+          .where((card) => api.normalizeCode(card.code) == code)
+          .toList(growable: false);
+      final variants = cachedVariants.isNotEmpty
+          ? cachedVariants
+          : await api.findAllByCode(code);
 
       if (variants.isEmpty) {
         if (!_manualFallbackEnabled) {
@@ -121,9 +190,15 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
         return;
       }
 
-      OpCard? selectedCard;
+      OpCard? selectedCard =
+          _selectedCard != null &&
+              api.normalizeCode(_selectedCard!.code) == code
+          ? _selectedCard
+          : null;
 
-      if (variants.length == 1) {
+      if (selectedCard != null) {
+        // A versão já foi conferida na prévia da biblioteca.
+      } else if (variants.length == 1) {
         selectedCard = variants.first;
       } else {
         selectedCard = await _showVariantSelector(variants);
@@ -141,6 +216,8 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
         collectionType: _destination,
         deckName: _destination == CollectionTypes.deck ? _deckName : null,
         imageUrl: selectedCard.image,
+        folderId: _folderId,
+        matchFolder: _destination == CollectionTypes.owned,
       );
 
       if (existing != null) {
@@ -173,6 +250,7 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
           quantity: quantity,
           collectionType: _destination,
           deckName: _destination == CollectionTypes.deck ? _deckName : null,
+          folderId: _destination == CollectionTypes.owned ? _folderId : null,
         );
 
         await repo.upsert(newRecord);
@@ -207,6 +285,8 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
       collectionType: _destination,
       deckName: _destination == CollectionTypes.deck ? _deckName : null,
       imageUrl: '',
+      folderId: _folderId,
+      matchFolder: _destination == CollectionTypes.owned,
     );
 
     if (existing != null) {
@@ -236,6 +316,7 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
         quantity: quantity,
         collectionType: _destination,
         deckName: _destination == CollectionTypes.deck ? _deckName : null,
+        folderId: _destination == CollectionTypes.owned ? _folderId : null,
       ),
     );
   }
@@ -338,15 +419,104 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Adicionar carta manualmente'),
+      title: const Text('Importar carta pela biblioteca'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: _codeController,
-              decoration: const InputDecoration(labelText: 'Código da carta'),
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(
+                labelText: 'Código da carta',
+                hintText: 'Ex.: OP02-001',
+                helperText:
+                    'A biblioteca será consultada automaticamente enquanto você digita.',
+              ),
             ),
+            if (_isLookingUp) ...[
+              const SizedBox(height: 12),
+              const LinearProgressIndicator(),
+            ],
+            if (_lookupMessage != null) ...[
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(_lookupMessage!),
+              ),
+            ],
+            if (_lookupVariants.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 238,
+                width: 520,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _lookupVariants.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 10),
+                  itemBuilder: (context, index) {
+                    final card = _lookupVariants[index];
+                    final selected = identical(card, _selectedCard);
+                    return SizedBox(
+                      width: 142,
+                      child: Card(
+                        clipBehavior: Clip.antiAlias,
+                        color: selected
+                            ? Theme.of(context).colorScheme.primaryContainer
+                            : null,
+                        child: InkWell(
+                          onTap: () => setState(() => _selectedCard = card),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Expanded(
+                                  child: _VariantPreviewImage(
+                                    imageUrl: card.image,
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  card.name,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                                Text(
+                                  _variantLabel(card),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 10),
+                                ),
+                                if (selected)
+                                  const Padding(
+                                    padding: EdgeInsets.only(top: 4),
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.check_circle, size: 14),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          'Selecionada',
+                                          style: TextStyle(fontSize: 10),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             TextField(
               controller: _quantityController,
@@ -369,6 +539,26 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
               },
               decoration: const InputDecoration(labelText: 'Destino'),
             ),
+            if (_destination == CollectionTypes.owned) ...[
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: _folderId ?? '',
+                decoration: const InputDecoration(labelText: 'Pasta'),
+                items: [
+                  const DropdownMenuItem(value: '', child: Text('Sem pasta')),
+                  for (final folder in widget.folders)
+                    DropdownMenuItem(
+                      value: folder.id,
+                      child: Text(folder.name),
+                    ),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _folderId = (value ?? '').isEmpty ? null : value;
+                  });
+                },
+              ),
+            ],
             if (_destination == CollectionTypes.forSale) ...[
               const SizedBox(height: 12),
               Container(
@@ -467,7 +657,11 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
                   height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : Text(_manualFallbackEnabled ? 'Salvar manualmente' : 'Salvar'),
+              : Text(
+                  _manualFallbackEnabled
+                      ? 'Salvar manualmente'
+                      : 'Adicionar à coleção',
+                ),
         ),
       ],
     );

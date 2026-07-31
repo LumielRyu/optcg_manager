@@ -5,6 +5,7 @@ import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/constants/collection_types.dart';
+import '../models/collection_folder.dart';
 import '../local/hive_boxes.dart';
 import '../models/card_record.dart';
 import '../models/op_card.dart';
@@ -57,7 +58,7 @@ class CollectionRepository {
       'id, card_code, quantity, is_favorite, collection_type, created_at, '
       'image_url, name, set_name, rarity, color, type, text, attribute, '
       'is_public, share_code, sale_price_cents, sale_contact_info, sale_notes, '
-      'sale_status, card_condition';
+      'sale_status, card_condition, folder_id';
   static const String _deckItemColumns =
       'id, card_code, quantity, is_favorite, created_at, image_url, name, '
       'set_name, rarity, color, type, text, attribute';
@@ -178,6 +179,7 @@ class CollectionRepository {
               .toString(),
           deckName: null,
           isFavorite: (map['is_favorite'] as bool?) ?? false,
+          folderId: map['folder_id']?.toString(),
         ),
       );
     }
@@ -422,6 +424,96 @@ class CollectionRepository {
       await _cleanupEmptyDeck(deckName);
     }
 
+    await refreshAll();
+  }
+
+  Future<List<CollectionFolder>> listFolders({
+    String gameSlug = 'one-piece',
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return const [];
+
+    final rows = await _client
+        .from('collection_folders')
+        .select('id, user_id, game_slug, name, created_at')
+        .eq('user_id', user.id)
+        .eq('game_slug', gameSlug)
+        .order('name');
+
+    return rows
+        .map((row) => CollectionFolder.fromJson(Map<String, dynamic>.from(row)))
+        .toList(growable: false);
+  }
+
+  Future<CollectionFolder> createFolder(
+    String name, {
+    String gameSlug = 'one-piece',
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw Exception('Usuario nao autenticado.');
+    }
+    final normalizedName = name.trim();
+    if (normalizedName.isEmpty || normalizedName.length > 60) {
+      throw Exception('Informe um nome de pasta entre 1 e 60 caracteres.');
+    }
+
+    final row = await _client
+        .from('collection_folders')
+        .insert({
+          'user_id': user.id,
+          'game_slug': gameSlug,
+          'name': normalizedName,
+        })
+        .select('id, user_id, game_slug, name, created_at')
+        .single();
+
+    return CollectionFolder.fromJson(Map<String, dynamic>.from(row));
+  }
+
+  Future<void> renameFolder(String folderId, String name) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw Exception('Usuario nao autenticado.');
+    }
+    final normalizedName = name.trim();
+    if (normalizedName.isEmpty || normalizedName.length > 60) {
+      throw Exception('Informe um nome de pasta entre 1 e 60 caracteres.');
+    }
+
+    await _client
+        .from('collection_folders')
+        .update({'name': normalizedName})
+        .eq('id', folderId)
+        .eq('user_id', user.id);
+  }
+
+  Future<void> deleteFolder(String folderId) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw Exception('Usuario nao autenticado.');
+    }
+
+    await _client
+        .from('collection_folders')
+        .delete()
+        .eq('id', folderId)
+        .eq('user_id', user.id);
+    await refreshAll();
+  }
+
+  Future<void> moveItemToFolder(String itemId, String? folderId) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw Exception('Usuario nao autenticado.');
+    }
+
+    await _client
+        .from('collection_items')
+        .update({'folder_id': folderId})
+        .eq('id', itemId)
+        .eq('user_id', user.id)
+        .eq('collection_type', CollectionTypes.owned);
     await refreshAll();
   }
 
@@ -825,6 +917,8 @@ class CollectionRepository {
     required String collectionType,
     String? deckName,
     String? imageUrl,
+    String? folderId,
+    bool matchFolder = false,
   }) {
     try {
       return _cache.firstWhere(
@@ -832,6 +926,7 @@ class CollectionRepository {
             item.cardCode.toUpperCase() == cardCode.toUpperCase() &&
             item.collectionType == collectionType &&
             (item.deckName ?? '') == (deckName ?? '') &&
+            (!matchFolder || (item.folderId ?? '') == (folderId ?? '')) &&
             ((imageUrl == null || imageUrl.trim().isEmpty)
                 ? true
                 : item.imageUrl.trim() == imageUrl.trim()),
@@ -1104,6 +1199,7 @@ class CollectionRepository {
       'type': record.type,
       'text': record.text,
       'attribute': record.attribute,
+      'folder_id': record.folderId,
     };
   }
 

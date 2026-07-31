@@ -14,6 +14,7 @@ import '../../core/widgets/liga_price_display.dart';
 import '../../core/widgets/dashboard_header_panel.dart';
 import '../../core/widgets/summary_stat_card.dart';
 import '../../data/models/card_record.dart';
+import '../../data/models/collection_folder.dart';
 import '../../data/repositories/collection_repository.dart';
 import '../../data/services/translation_service.dart';
 import '../../core/widgets/primary_bottom_navigation.dart';
@@ -42,6 +43,12 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
   String _selectedSort = 'C\u00F3digo';
   bool _favoritesOnly = false;
   String? _selectedDeckFilter;
+  List<CollectionFolder> _folders = const [];
+  String _selectedFolder = _allFolders;
+  bool _foldersLoading = true;
+
+  static const String _allFolders = '__all__';
+  static const String _unfiledFolder = '__unfiled__';
 
   static const List<String> _collectionLibraries = [
     CollectionTypes.owned,
@@ -51,6 +58,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
   @override
   void initState() {
     super.initState();
+    Future<void>.microtask(_loadFolders);
     _searchController.addListener(() {
       setState(() {
         _query = _searchController.text.trim().toLowerCase();
@@ -70,8 +78,18 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
     final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
     final viewMode = ref.watch(collectionViewModeProvider);
 
-    final libraryItems = allItems.where((card) {
+    final unfilteredLibraryItems = allItems.where((card) {
       return card.collectionType == _selectedLibrary;
+    }).toList();
+    final libraryItems = unfilteredLibraryItems.where((card) {
+      if (_selectedLibrary != CollectionTypes.owned ||
+          _selectedFolder == _allFolders) {
+        return true;
+      }
+      if (_selectedFolder == _unfiledFolder) {
+        return (card.folderId ?? '').isEmpty;
+      }
+      return card.folderId == _selectedFolder;
     }).toList();
 
     final filteredItems = libraryItems.where((card) {
@@ -155,14 +173,25 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
       onOpenFilters: () {
         _openFiltersPanel(context, libraryItems);
       },
-      onScanWithCamera: () => _openCameraImport(destination),
-      onImportImage: () => _openImageImport(destination),
-      onImportCode: () => _openCodeImport(destination),
-      onManualAdd: _openManualAddDialog,
     );
     final collectionContent = CustomScrollView(
       slivers: [
         SliverToBoxAdapter(child: header),
+        if (_selectedLibrary == CollectionTypes.owned)
+          SliverToBoxAdapter(
+            child: _CollectionFoldersSection(
+              folders: _folders,
+              items: unfilteredLibraryItems,
+              selectedFolder: _selectedFolder,
+              loading: _foldersLoading,
+              onSelected: (value) {
+                setState(() => _selectedFolder = value);
+              },
+              onCreate: _createFolder,
+              onRename: _renameFolder,
+              onDelete: _deleteFolder,
+            ),
+          ),
         if (_selectedLibrary == CollectionTypes.deck)
           _VirtualizedDeckLibraryView(
             items: filteredItems,
@@ -178,6 +207,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
           _VirtualizedStandardLibraryView(
             items: filteredItems,
             viewMode: viewMode,
+            folders: _folders,
           ),
       ],
     );
@@ -204,31 +234,16 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
             ),
           ),
           IconButton(
-            tooltip: 'Escanear com camera',
-            onPressed: () => _openCameraImport(destination),
-            icon: const Icon(Icons.center_focus_strong_outlined),
-          ),
-          IconButton(
             tooltip: 'Ajuda',
             onPressed: () => context.go('/help'),
             icon: const Icon(Icons.help_outline),
-          ),
-          IconButton(
-            tooltip: 'Importar por c\u00F3digo',
-            onPressed: () => _openCodeImport(destination),
-            icon: const Icon(Icons.content_paste_outlined),
-          ),
-          IconButton(
-            tooltip: 'Adicionar carta',
-            onPressed: _openManualAddDialog,
-            icon: const Icon(Icons.add),
           ),
         ],
       ),
       body: _selectedLibrary == CollectionTypes.deck
           ? collectionContent
           : LigaPriceScope(
-              cards: libraryItems
+              cards: unfilteredLibraryItems
                   .map(
                     (card) => LigaPriceCardReference(
                       cardName: card.name,
@@ -258,14 +273,6 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
     context.push('/camera-import?destination=$destination');
   }
 
-  void _openImageImport(String destination) {
-    if (!requireSignedIn(context)) {
-      return;
-    }
-
-    context.push('/image-import?destination=$destination');
-  }
-
   void _openCodeImport(String destination) {
     if (!requireSignedIn(context)) {
       return;
@@ -279,7 +286,15 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
       return;
     }
 
-    await showDialog(context: context, builder: (_) => const ManualAddDialog());
+    final initialFolderId =
+        _selectedFolder != _allFolders && _selectedFolder != _unfiledFolder
+        ? _selectedFolder
+        : null;
+    await showDialog(
+      context: context,
+      builder: (_) =>
+          ManualAddDialog(folders: _folders, initialFolderId: initialFolderId),
+    );
   }
 
   Future<void> _openAddCardsSheet(String destination) async {
@@ -310,30 +325,21 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
               ),
               const SizedBox(height: 16),
               _AddMethodTile(
-                icon: Icons.center_focus_strong_outlined,
-                title: 'Escanear com câmera',
-                subtitle: 'Use a câmera do celular para reconhecer a carta.',
+                icon: Icons.local_library_outlined,
+                title: 'Importar carta pela biblioteca',
+                subtitle:
+                    'Digite o código, confira a imagem e escolha a versão da carta.',
                 highlighted: true,
                 onTap: () {
                   Navigator.of(context).pop();
-                  _openCameraImport(destination);
-                },
-              ),
-              const SizedBox(height: 10),
-              _AddMethodTile(
-                icon: Icons.image_search_outlined,
-                title: 'Importar imagem',
-                subtitle: 'Envie uma foto já salva na galeria.',
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _openImageImport(destination);
+                  _openManualAddDialog();
                 },
               ),
               const SizedBox(height: 10),
               _AddMethodTile(
                 icon: Icons.content_paste_outlined,
-                title: 'Importar por código',
-                subtitle: 'Cole códigos ou listas de deck.',
+                title: 'Adicionar por código',
+                subtitle: 'Cole um ou mais códigos ou uma lista completa.',
                 onTap: () {
                   Navigator.of(context).pop();
                   _openCodeImport(destination);
@@ -341,12 +347,13 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
               ),
               const SizedBox(height: 10),
               _AddMethodTile(
-                icon: Icons.add_circle_outline,
-                title: 'Adicionar manualmente',
-                subtitle: 'Pesquise e registre uma carta sem foto.',
+                icon: Icons.center_focus_strong_outlined,
+                title: 'Escanear com câmera • Beta',
+                subtitle:
+                    'Reconheça cartas com a câmera. O resultado ainda pode exigir revisão.',
                 onTap: () {
                   Navigator.of(context).pop();
-                  _openManualAddDialog();
+                  _openCameraImport(destination);
                 },
               ),
             ],
@@ -354,6 +361,141 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
         );
       },
     );
+  }
+
+  Future<void> _loadFolders() async {
+    try {
+      final folders = await ref
+          .read(collectionRepositoryProvider)
+          .listFolders();
+      if (!mounted) return;
+      setState(() {
+        _folders = folders;
+        _foldersLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _foldersLoading = false);
+    }
+  }
+
+  Future<String?> _askFolderName({
+    required String title,
+    String initialValue = '',
+  }) async {
+    final controller = TextEditingController(text: initialValue);
+    final value = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 60,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(
+            labelText: 'Nome da pasta',
+            hintText: 'Ex.: Coleção principal',
+          ),
+          onSubmitted: (value) {
+            if (value.trim().isNotEmpty) {
+              Navigator.of(dialogContext).pop(value.trim());
+            }
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = controller.text.trim();
+              if (value.isNotEmpty) {
+                Navigator.of(dialogContext).pop(value);
+              }
+            },
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return value;
+  }
+
+  Future<void> _createFolder() async {
+    final name = await _askFolderName(title: 'Nova pasta');
+    if (name == null || !mounted) return;
+    try {
+      final folder = await ref
+          .read(collectionRepositoryProvider)
+          .createFolder(name);
+      await _loadFolders();
+      if (!mounted) return;
+      setState(() => _selectedFolder = folder.id);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Não foi possível criar a pasta. Verifique se o nome já existe.',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _renameFolder(CollectionFolder folder) async {
+    final name = await _askFolderName(
+      title: 'Renomear pasta',
+      initialValue: folder.name,
+    );
+    if (name == null || !mounted) return;
+    try {
+      await ref
+          .read(collectionRepositoryProvider)
+          .renameFolder(folder.id, name);
+      await _loadFolders();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Não foi possível renomear a pasta.')),
+      );
+    }
+  }
+
+  Future<void> _deleteFolder(CollectionFolder folder) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Excluir pasta?'),
+        content: Text(
+          'As cartas de “${folder.name}” não serão excluídas. '
+          'Elas voltarão para “Sem pasta”.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.tonal(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Excluir pasta'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await ref.read(collectionRepositoryProvider).deleteFolder(folder.id);
+    await ref.read(collectionControllerProvider.notifier).load();
+    if (!mounted) return;
+    setState(() {
+      if (_selectedFolder == folder.id) {
+        _selectedFolder = _unfiledFolder;
+      }
+    });
+    await _loadFolders();
   }
 
   int _countUniqueCards(List<CardRecord> items) {
@@ -617,10 +759,6 @@ class _HeaderSection extends StatelessWidget {
   final VoidCallback onToggleCollapsed;
   final VoidCallback onFavoritesOnlyChanged;
   final VoidCallback onOpenFilters;
-  final VoidCallback onScanWithCamera;
-  final VoidCallback onImportImage;
-  final VoidCallback onImportCode;
-  final VoidCallback onManualAdd;
 
   const _HeaderSection({
     required this.selectedLibrary,
@@ -638,10 +776,6 @@ class _HeaderSection extends StatelessWidget {
     required this.onToggleCollapsed,
     required this.onFavoritesOnlyChanged,
     required this.onOpenFilters,
-    required this.onScanWithCamera,
-    required this.onImportImage,
-    required this.onImportCode,
-    required this.onManualAdd,
   });
 
   @override
@@ -669,66 +803,23 @@ class _HeaderSection extends StatelessWidget {
       top: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final compact = constraints.maxWidth < 720;
-              final title = Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Minha coleção One Piece',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Gerencie cartas, decks e importações por câmera em um só painel.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              );
-              final actions = Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                alignment: compact ? WrapAlignment.start : WrapAlignment.end,
-                children: [
-                  FilledButton.icon(
-                    onPressed: onScanWithCamera,
-                    icon: const Icon(Icons.center_focus_strong_outlined),
-                    label: const Text('Escanear'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: onImportCode,
-                    icon: const Icon(Icons.content_paste_outlined),
-                    label: const Text('Código'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: onManualAdd,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Manual'),
-                  ),
-                ],
-              );
-
-              if (compact) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [title, const SizedBox(height: 12), actions],
-                );
-              }
-
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: title),
-                  const SizedBox(width: 16),
-                  actions,
-                ],
-              );
-            },
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Minha coleção One Piece',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Gerencie cartas, decks e pastas em um só painel.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 14),
           Wrap(
@@ -821,13 +912,194 @@ class _HeaderSection extends StatelessWidget {
                 ),
                 onPressed: onOpenFilters,
               ),
-              ActionChip(
-                avatar: const Icon(Icons.image_search_outlined, size: 18),
-                label: const Text('Imagem'),
-                onPressed: onImportImage,
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CollectionFoldersSection extends StatelessWidget {
+  final List<CollectionFolder> folders;
+  final List<CardRecord> items;
+  final String selectedFolder;
+  final bool loading;
+  final ValueChanged<String> onSelected;
+  final VoidCallback onCreate;
+  final ValueChanged<CollectionFolder> onRename;
+  final ValueChanged<CollectionFolder> onDelete;
+
+  const _CollectionFoldersSection({
+    required this.folders,
+    required this.items,
+    required this.selectedFolder,
+    required this.loading,
+    required this.onSelected,
+    required this.onCreate,
+    required this.onRename,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final unfiled = items
+        .where((item) => (item.folderId ?? '').isEmpty)
+        .toList(growable: false);
+    final entries = <({String id, String name, List<CardRecord> items})>[
+      (id: '__all__', name: 'Todas as cartas', items: items),
+      (id: '__unfiled__', name: 'Sem pasta', items: unfiled),
+      for (final folder in folders)
+        (
+          id: folder.id,
+          name: folder.name,
+          items: items
+              .where((item) => item.folderId == folder.id)
+              .toList(growable: false),
+        ),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Pastas da coleção',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    Text(
+                      'Separe suas cartas e acompanhe o valor de cada pasta.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              FilledButton.tonalIcon(
+                onPressed: onCreate,
+                icon: const Icon(Icons.create_new_folder_outlined),
+                label: const Text('Nova pasta'),
               ),
             ],
           ),
+          const SizedBox(height: 10),
+          if (loading)
+            const LinearProgressIndicator()
+          else
+            SizedBox(
+              height: 154,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: entries.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 10),
+                itemBuilder: (context, index) {
+                  final entry = entries[index];
+                  final folder = folders.cast<CollectionFolder?>().firstWhere(
+                    (candidate) => candidate?.id == entry.id,
+                    orElse: () => null,
+                  );
+                  final total = entry.items.fold<int>(
+                    0,
+                    (sum, item) => sum + item.quantity,
+                  );
+                  final selected = selectedFolder == entry.id;
+                  return SizedBox(
+                    width: 246,
+                    child: Card(
+                      color: selected
+                          ? Theme.of(context).colorScheme.primaryContainer
+                          : null,
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        onTap: () => onSelected(entry.id),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    entry.id == '__all__'
+                                        ? Icons.collections_bookmark_outlined
+                                        : entry.id == '__unfiled__'
+                                        ? Icons.folder_off_outlined
+                                        : Icons.folder_outlined,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      entry.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
+                                  if (folder != null)
+                                    PopupMenuButton<String>(
+                                      tooltip: 'Opções da pasta',
+                                      onSelected: (action) {
+                                        if (action == 'rename') {
+                                          onRename(folder);
+                                        } else if (action == 'delete') {
+                                          onDelete(folder);
+                                        }
+                                      },
+                                      itemBuilder: (_) => const [
+                                        PopupMenuItem(
+                                          value: 'rename',
+                                          child: Text('Renomear'),
+                                        ),
+                                        PopupMenuItem(
+                                          value: 'delete',
+                                          child: Text('Excluir'),
+                                        ),
+                                      ],
+                                    ),
+                                ],
+                              ),
+                              const Spacer(),
+                              Text(
+                                '${entry.items.length} cartas diferentes • '
+                                '$total no total',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 6),
+                              LigaCollectionValueText(
+                                items: entry.items
+                                    .map(
+                                      (card) =>
+                                          LigaPriceCollectionItemReference(
+                                            cardName: card.name,
+                                            cardCode: card.cardCode,
+                                            imageUrl: card.imageUrl,
+                                            quantity: card.quantity,
+                                          ),
+                                    )
+                                    .toList(growable: false),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
         ],
       ),
     );
@@ -1090,10 +1362,12 @@ Future<bool> _importCardToSales(
 class _VirtualizedStandardLibraryView extends ConsumerWidget {
   final List<CardRecord> items;
   final CollectionViewMode viewMode;
+  final List<CollectionFolder> folders;
 
   const _VirtualizedStandardLibraryView({
     required this.items,
     required this.viewMode,
+    required this.folders,
   });
 
   static const double _cardMaxWidth = 220;
@@ -1150,6 +1424,7 @@ class _VirtualizedStandardLibraryView extends ConsumerWidget {
       metadata: [
         'Set: ${item.setName.isEmpty ? '-' : item.setName}',
         'Quantidade: ${item.quantity}x',
+        'Pasta: ${_folderName(item)}',
       ],
       trailing: SizedBox(
         width: 155,
@@ -1186,7 +1461,10 @@ class _VirtualizedStandardLibraryView extends ConsumerWidget {
       key: ValueKey('grid-card-${item.id}-${item.cardCode}'),
       code: item.cardCode,
       title: item.name,
-      metadata: ['Quantidade: ${item.quantity}x'],
+      metadata: [
+        'Quantidade: ${item.quantity}x',
+        'Pasta: ${_folderName(item)}',
+      ],
       trailingActions: [
         IconButton(
           tooltip: 'Adicionar \u00e0s vendas',
@@ -1214,8 +1492,21 @@ class _VirtualizedStandardLibraryView extends ConsumerWidget {
   void _openCardDetails(BuildContext context, CardRecord item) {
     showDialog(
       context: context,
-      builder: (_) => _CardDetailsDialog(card: item, sourceRecords: [item]),
+      builder: (_) => _CardDetailsDialog(
+        card: item,
+        sourceRecords: [item],
+        folders: folders,
+      ),
     );
+  }
+
+  String _folderName(CardRecord item) {
+    final folderId = item.folderId;
+    if (folderId == null || folderId.isEmpty) return 'Sem pasta';
+    for (final folder in folders) {
+      if (folder.id == folderId) return folder.name;
+    }
+    return 'Sem pasta';
   }
 }
 
@@ -1374,8 +1665,13 @@ class _EmptyState extends StatelessWidget {
 class _CardDetailsDialog extends ConsumerStatefulWidget {
   final CardRecord card;
   final List<CardRecord> sourceRecords;
+  final List<CollectionFolder> folders;
 
-  const _CardDetailsDialog({required this.card, required this.sourceRecords});
+  const _CardDetailsDialog({
+    required this.card,
+    required this.sourceRecords,
+    this.folders = const [],
+  });
 
   @override
   ConsumerState<_CardDetailsDialog> createState() => _CardDetailsDialogState();
@@ -1388,6 +1684,7 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
   String? _translatedText;
   bool _showTranslated = false;
   bool _isAddingToSales = false;
+  bool _isMovingToFolder = false;
 
   Future<void> _translateText() async {
     if (widget.card.text.trim().isEmpty) return;
@@ -1549,6 +1846,56 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
     }
   }
 
+  Future<void> _moveToFolder() async {
+    const unfiled = '__unfiled__';
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => SimpleDialog(
+        title: const Text('Mover para pasta'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.of(dialogContext).pop(unfiled),
+            child: const ListTile(
+              leading: Icon(Icons.folder_off_outlined),
+              title: Text('Sem pasta'),
+            ),
+          ),
+          for (final folder in widget.folders)
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(dialogContext).pop(folder.id),
+              child: ListTile(
+                leading: const Icon(Icons.folder_outlined),
+                title: Text(folder.name),
+              ),
+            ),
+        ],
+      ),
+    );
+    if (selected == null || !mounted) return;
+
+    setState(() => _isMovingToFolder = true);
+    try {
+      final repository = ref.read(collectionRepositoryProvider);
+      final folderId = selected == unfiled ? null : selected;
+      for (final item in widget.sourceRecords) {
+        await repository.moveItemToFolder(item.id, folderId);
+      }
+      await ref.read(collectionControllerProvider.notifier).load();
+      if (mounted) Navigator.of(context).pop();
+    } finally {
+      if (mounted) setState(() => _isMovingToFolder = false);
+    }
+  }
+
+  String _currentFolderName() {
+    final folderId = widget.card.folderId;
+    if (folderId == null || folderId.isEmpty) return 'Sem pasta';
+    for (final folder in widget.folders) {
+      if (folder.id == folderId) return folder.name;
+    }
+    return 'Sem pasta';
+  }
+
   @override
   Widget build(BuildContext context) {
     final card = widget.card;
@@ -1636,6 +1983,8 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
                       'Biblioteca',
                       CollectionTypes.label(card.collectionType),
                     ),
+                    if (card.collectionType == CollectionTypes.owned)
+                      _infoRow('Pasta', _currentFolderName()),
                     if (card.deckName != null &&
                         card.deckName!.trim().isNotEmpty)
                       _infoRow('Deck', card.deckName!),
@@ -1646,6 +1995,22 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
                       imageUrl: card.imageUrl,
                     ),
                     const SizedBox(height: 16),
+                    if (card.collectionType == CollectionTypes.owned) ...[
+                      OutlinedButton.icon(
+                        onPressed: _isMovingToFolder ? null : _moveToFolder,
+                        icon: _isMovingToFolder
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.drive_file_move_outline),
+                        label: const Text('Mover para pasta'),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
                     FilledButton.icon(
                       onPressed: _isAddingToSales ? null : _addToSales,
                       icon: _isAddingToSales
