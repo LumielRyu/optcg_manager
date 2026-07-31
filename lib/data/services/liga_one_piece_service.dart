@@ -95,8 +95,8 @@ class LigaOnePieceService {
   static const String _priceCacheAssetPath =
       'assets/liga_one_piece_price_cache.json';
   static const String _remoteCacheTable = 'liga_card_price_cache';
-  static const String _snapshotCachePrefix = 'liga_snapshot_v1_';
-  static const String _snapshotCachedAtPrefix = 'liga_snapshot_v1_cached_at_';
+  static const String _snapshotCachePrefix = 'liga_snapshot_v2_';
+  static const String _snapshotCachedAtPrefix = 'liga_snapshot_v2_cached_at_';
   static const Duration _snapshotCacheMaxAge = Duration(hours: 12);
   static const String defaultCardUrl =
       'https://www.ligaonepiece.com.br/?view=cards/card&card=Porche+%28OP07-072%29&ed=OP-07&num=OP07-072';
