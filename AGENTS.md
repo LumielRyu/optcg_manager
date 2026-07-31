@@ -1577,3 +1577,36 @@ git diff --stat
 - Commits funcionais `1385fee` e `b6632da`, enviados para `origin/main`.
 - Esta etapa permanece em andamento ate a auditoria final confirmar todos os
   IDs processaveis e registrar separadamente as edicoes vazias da Liga.
+
+### 31/07/2026 - Precos distintos por impressao dos lideres One Piece
+
+- Foi corrigido o caso em que lideres comuns, Parallel e Alternate Art
+  exibiam o mesmo preco.
+- A causa era dupla: a Liga usa sufixos historicos diferentes conforme a
+  edicao (`-AA`, `-PA`, `-PAR`, `-E`, `-A` e `-P`) e o cache remoto mantinha
+  apenas uma linha canonica para codigos reutilizados por reimpressoes.
+- O aplicativo agora consulta todos os sufixos conhecidos e seleciona a
+  impressao pelo tipo pedido, imagem, nome e edicao original.
+- O coletor passou a preservar tambem uma chave por edicao no formato
+  `CODIGO@EDICAO`, sem remover a chave canonica usada pelas integracoes
+  existentes.
+- O cache persistido no navegador foi versionado de `v1` para `v2`, fazendo a
+  interface descartar imediatamente os precos antigos sem afetar colecoes,
+  decks ou dados do usuario.
+- O Supabase foi atualizado imediatamente para `EB02`, `OP-09`, `OP-07`,
+  `EB01`, `OP-05`, `OP-04`, `OP-02` e `OP-01`, totalizando 2.217 linhas.
+- Validacao real no banco:
+  - `OP02-001@OP-02` comum: R$ 9,99;
+  - `OP02-001-E@OP-02` alternativa: R$ 698,75;
+  - `OP01-001@OP-01` comum: R$ 84,92;
+  - `OP01-001-PAR@OP-01` paralelo: R$ 4.990,00;
+  - `EB01-001@EB01` comum: R$ 0,20;
+  - `EB01-001-AA@EB01` alternativa: R$ 250,00.
+- Validacoes aprovadas: quality gate completo com 126 testes Flutter antes da
+  publicacao, analise estatica limpa, testes direcionados de variantes e
+  avaliacao (14 testes), build web, quality gate do GitHub, E2E de home e
+  biblioteca em producao, API e protecao de origem, e varredura de runtime da
+  Vercel sem erros.
+- Commits funcionais `7243c8b` e `6fb18ac`, enviados para `origin/main`.
+- Deploy Vercel `dpl_4URp693ob6oJ7Hnur2mE7NJu5L1c`, status READY e publicado
+  em `https://tcgbh.vercel.app`.
