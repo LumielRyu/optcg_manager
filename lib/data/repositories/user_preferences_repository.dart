@@ -17,12 +17,14 @@ class UserPreferences {
   final String collectionViewMode;
   final String whatsAppPhone;
   final String displayName;
+  final String avatarUrl;
 
   const UserPreferences({
     required this.themeMode,
     required this.collectionViewMode,
     required this.whatsAppPhone,
     required this.displayName,
+    required this.avatarUrl,
   });
 }
 
@@ -33,6 +35,7 @@ class UserPreferencesRepository {
   static const _profileUserIdKey = 'profile_user_id';
   static const _profileNameKey = 'profile_name';
   static const _profileWhatsAppKey = 'profile_whatsapp_phone';
+  static const _profileAvatarUrlKey = 'profile_avatar_url';
 
   UserPreferencesRepository(this._client);
 
@@ -79,6 +82,12 @@ class UserPreferencesRepository {
     return value is String ? value.trim() : '';
   }
 
+  String getCachedAvatarUrl() {
+    if (!_hasCachedProfileForCurrentUser()) return '';
+    final value = _appPrefsBox.get(_profileAvatarUrlKey);
+    return value is String ? value.trim() : '';
+  }
+
   bool? getCachedProfileCompletionStatus() {
     if (!_hasCachedProfileForCurrentUser()) return null;
     final name = getCachedDisplayName();
@@ -90,6 +99,7 @@ class UserPreferencesRepository {
     required String userId,
     String? name,
     String? whatsAppPhone,
+    String? avatarUrl,
   }) {
     _appPrefsBox.put(_profileUserIdKey, userId);
     if (name != null) {
@@ -97,6 +107,9 @@ class UserPreferencesRepository {
     }
     if (whatsAppPhone != null) {
       _appPrefsBox.put(_profileWhatsAppKey, whatsAppPhone.trim());
+    }
+    if (avatarUrl != null) {
+      _appPrefsBox.put(_profileAvatarUrlKey, avatarUrl.trim());
     }
   }
 
@@ -108,12 +121,15 @@ class UserPreferencesRepository {
         collectionViewMode: getSavedCollectionViewMode(),
         whatsAppPhone: '',
         displayName: '',
+        avatarUrl: '',
       );
     }
 
     final row = await _client
         .from('profiles')
-        .select('theme_mode, collection_view_mode, whatsapp_phone, name')
+        .select(
+          'theme_mode, collection_view_mode, whatsapp_phone, name, avatar_url',
+        )
         .eq('id', user.id)
         .maybeSingle();
 
@@ -123,6 +139,7 @@ class UserPreferencesRepository {
         collectionViewMode: getSavedCollectionViewMode(),
         whatsAppPhone: '',
         displayName: '',
+        avatarUrl: '',
       );
     }
 
@@ -143,6 +160,7 @@ class UserPreferencesRepository {
       userId: user.id,
       name: (row['name'] ?? '').toString(),
       whatsAppPhone: (row['whatsapp_phone'] ?? '').toString(),
+      avatarUrl: (row['avatar_url'] ?? '').toString(),
     );
 
     return UserPreferences(
@@ -152,6 +170,7 @@ class UserPreferencesRepository {
           : getSavedCollectionViewMode(),
       whatsAppPhone: (row['whatsapp_phone'] ?? '').toString(),
       displayName: (row['name'] ?? '').toString(),
+      avatarUrl: (row['avatar_url'] ?? '').toString(),
     );
   }
 
@@ -240,6 +259,7 @@ class UserPreferencesRepository {
   Future<void> saveProfileDetails({
     required String name,
     required String whatsAppPhone,
+    String? avatarUrl,
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) return;
@@ -249,12 +269,14 @@ class UserPreferencesRepository {
       'email': user.email,
       'name': name.trim(),
       'whatsapp_phone': whatsAppPhone.trim(),
+      if (avatarUrl != null) 'avatar_url': avatarUrl.trim(),
     });
 
     _cacheProfileSnapshot(
       userId: user.id,
       name: name,
       whatsAppPhone: whatsAppPhone,
+      avatarUrl: avatarUrl ?? getCachedAvatarUrl(),
     );
   }
 

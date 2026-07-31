@@ -36,6 +36,7 @@ import '../features/marketplace/tcg_marketplace_screen.dart';
 import '../features/magic/magic_library_screen.dart';
 import '../features/pokemon/pokemon_library_screen.dart';
 import '../features/products/products_screen.dart';
+import '../features/profile/profile_screen.dart';
 import '../features/riftbound/riftbound_library_screen.dart';
 import '../features/sales/sales_screen.dart';
 import '../features/sales/tcg_sales_screen.dart';
@@ -81,6 +82,7 @@ final GoRouter appRouter = GoRouter(
     final isLoginRoute = location == '/login';
     final isRegisterRoute = location == '/register';
     final isCompleteProfileRoute = location == '/complete-profile';
+    final isProfileRoute = location == '/profile';
     final isRootRoute = location == '/';
     final isSharedDeckRoute = location.startsWith('/shared/deck/');
     final isSharedSaleRoute = location.startsWith('/shared/sale/');
@@ -103,6 +105,10 @@ final GoRouter appRouter = GoRouter(
     }
 
     if (!loggedIn) {
+      if (isProfileRoute) {
+        return '/login';
+      }
+
       if (isRootRoute) {
         return '/home';
       }
@@ -187,6 +193,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/home',
       builder: (context, state) => const TcgSelectorScreen(),
+    ),
+    GoRoute(
+      path: '/profile',
+      builder: (context, state) => const ProfileScreen(),
     ),
     GoRoute(
       path: '/home/one-piece',

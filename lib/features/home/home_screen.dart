@@ -41,15 +41,20 @@ class HomeScreen extends ConsumerWidget {
             onPressed: () => context.go('/help'),
             icon: const Icon(Icons.help_outline),
           ),
-          if (isLoggedIn)
+          if (isLoggedIn) ...[
+            IconButton(
+              tooltip: 'Perfil',
+              onPressed: () => context.push('/profile'),
+              icon: const Icon(Icons.account_circle_outlined),
+            ),
             IconButton(
               tooltip: 'Sair',
               onPressed: () async {
                 await ref.read(authRepositoryProvider).signOut();
               },
               icon: const Icon(Icons.logout),
-            )
-          else ...[
+            ),
+          ] else ...[
             TextButton(
               onPressed: () => context.go('/login'),
               child: const Text('Entrar'),

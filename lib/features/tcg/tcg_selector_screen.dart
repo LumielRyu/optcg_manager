@@ -29,15 +29,20 @@ class TcgSelectorScreen extends ConsumerWidget {
               isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
             ),
           ),
-          if (isLoggedIn)
+          if (isLoggedIn) ...[
+            IconButton(
+              tooltip: 'Perfil',
+              onPressed: () => context.push('/profile'),
+              icon: const Icon(Icons.account_circle_outlined),
+            ),
             IconButton(
               tooltip: 'Sair',
               onPressed: () async {
                 await ref.read(authRepositoryProvider).signOut();
               },
               icon: const Icon(Icons.logout),
-            )
-          else ...[
+            ),
+          ] else ...[
             TextButton(
               onPressed: () => context.go('/login'),
               child: const Text('Entrar'),

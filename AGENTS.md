@@ -1641,3 +1641,28 @@ git diff --stat
 - Commit funcional `74fafab`, enviado para `origin/main`.
 - Deploy Vercel `dpl_9p2zDNQ3W5d1krswMJbpkjcBKh4j`, status READY e publicado
   em `https://tcgbh.vercel.app`.
+
+### 31/07/2026 - Perfil do usuario
+
+- Foi criada a rota autenticada `/profile`, acessivel pelo botao `Perfil`
+  imediatamente antes de `Sair` tanto no seletor de TCGs quanto no hub One
+  Piece.
+- A tela permite editar nick/nome publico, telefone/WhatsApp e e-mail da
+  conta, com confirmacao de troca de e-mail pelo Supabase.
+- O usuario pode selecionar uma foto JPG, PNG ou WebP de ate 5 MB. O arquivo
+  e enviado ao bucket publico `profile-avatars`, sempre dentro da pasta do
+  proprio `auth.uid()`.
+- A area de seguranca permite alterar a senha na sessao atual e solicitar
+  recuperacao pelo e-mail autenticado.
+- Recuperacao por telefone nao foi simulada com o WhatsApp informado no
+  perfil: ela permanece identificada como indisponivel ate que um provedor
+  SMS seja ativado e o telefone passe a ser verificado pelo Supabase Auth.
+- A migracao `sql/profile_avatar_storage.sql` adiciona `profiles.avatar_url`,
+  cria/configura o bucket e instala politicas de leitura, upload, alteracao e
+  exclusao limitadas a pasta do usuario.
+- A migracao `sql/profile_avatar_storage.sql` foi executada no Supabase. A
+  coluna e o bucket foram validados pela API real, incluindo limite de 5 MB e
+  os MIME types JPG, PNG e WebP.
+- Validacoes aprovadas: quality gate completo, 132 testes Flutter, 16 testes
+  Python, 15 testes Node, cobertura de 30,62%, analise estatica limpa e build
+  web de producao.
