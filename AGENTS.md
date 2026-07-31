@@ -1666,3 +1666,12 @@ git diff --stat
 - Validacoes aprovadas: quality gate completo, 132 testes Flutter, 16 testes
   Python, 15 testes Node, cobertura de 30,62%, analise estatica limpa e build
   web de producao.
+- O teste autenticado real confirmou leitura e edicao do perfil sob RLS,
+  upload e leitura publica da foto e troca de senha. A conta, o perfil e a
+  imagem temporarios foram removidos ao final.
+- Commit funcional `d3afebb`, enviado para `origin/main`.
+- Deploy Vercel `dpl_YdeA2fLGFfpPGpy1ake6QaAUAXkS`, status READY e publicado
+  em `https://tcgbh.vercel.app`.
+- Pos-publicacao: bundle com a rota `/profile`, 49 fluxos publicos E2E
+  aprovados e nenhuma ocorrencia nos erros de runtime da Vercel na ultima
+  hora.
