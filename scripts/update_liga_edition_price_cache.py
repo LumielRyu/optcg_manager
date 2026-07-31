@@ -294,8 +294,7 @@ def parse_edition_cards_page(
         maximum = _safe_price(item.get("precoMaior") or item.get("p1c"))
 
         seen.add(exact_code)
-        rows.append(
-            {
+        row = {
                 "lookup_code": storage_lookup_code(exact_code, edition),
                 "source_url": edition.source_url,
                 "card_name": _clean_card_name(
@@ -317,7 +316,10 @@ def parse_edition_cards_page(
                 ),
                 "resolved_at": resolved_at,
             }
-        )
+        rows.append(row)
+        scoped_lookup = edition_scoped_lookup_code(exact_code, edition)
+        if scoped_lookup != row["lookup_code"]:
+            rows.append({**row, "lookup_code": scoped_lookup})
     return rows
 
 
@@ -325,6 +327,11 @@ def storage_lookup_code(exact_code: str, edition: LigaEdition) -> str:
     normalized_code = liga.normalize_code(exact_code)
     if edition.group != "aux":
         return normalized_code
+    return f"{normalized_code}@{edition.acronym}"
+
+
+def edition_scoped_lookup_code(exact_code: str, edition: LigaEdition) -> str:
+    normalized_code = liga.normalize_code(exact_code)
     return f"{normalized_code}@{edition.acronym}"
 
 

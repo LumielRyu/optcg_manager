@@ -133,18 +133,23 @@ class LigaEditionPriceCacheTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            ["OP16-001", "OP16-001-AA"],
+            [
+                "OP16-001",
+                "OP16-001@OP-16",
+                "OP16-001-AA",
+                "OP16-001-AA@OP-16",
+            ],
             [row["lookup_code"] for row in rows],
         )
         self.assertEqual(0.19, rows[0]["minimum_price"])
-        self.assertEqual(168.99, rows[1]["minimum_price"])
+        self.assertEqual(168.99, rows[2]["minimum_price"])
         self.assertEqual(
             "https://example.test/alternate.jpg",
-            rows[1]["image_url"],
+            rows[2]["image_url"],
         )
         self.assertEqual(
             "Portgas.D.Ace (Alternate Art)",
-            rows[1]["card_name"],
+            rows[2]["card_name"],
         )
 
     def test_recognizes_known_variant_suffixes(self):
@@ -223,8 +228,9 @@ class LigaEditionPriceCacheTest(unittest.TestCase):
             resolved_at="2026-07-23T12:00:00Z",
         )
 
-        self.assertEqual(1, len(rows))
+        self.assertEqual(2, len(rows))
         self.assertEqual("OP16-099", rows[0]["lookup_code"])
+        self.assertEqual("OP16-099@OP-16", rows[1]["lookup_code"])
         self.assertIsNone(rows[0]["minimum_price"])
         self.assertEqual(
             "2026-07-23T12:00:00Z",

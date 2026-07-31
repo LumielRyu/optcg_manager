@@ -76,4 +76,74 @@ void main() {
       'P-096-RW',
     );
   });
+
+  test('consulta todos os sufixos históricos de arte alternativa', () {
+    expect(
+      inferLigaLookupCodes(
+        cardName: 'Edward.Newgate (001) (Alternate Art)',
+        cardCode: 'OP02-001',
+      ),
+      containsAll(<String>[
+        'OP02-001-AA',
+        'OP02-001-PA',
+        'OP02-001-PAR',
+        'OP02-001-E',
+        'OP02-001-A',
+        'OP02-001-P',
+        'OP02-001',
+      ]),
+    );
+  });
+
+  test('seleciona variante histórica -E para arte alternativa', () {
+    final base = <String, dynamic>{
+      'lookup_code': 'OP02-001@ST15',
+      'card_code': 'OP02-001',
+      'card_name': 'Edward.Newgate (001)',
+      'edition_code': 'ST15',
+      'minimum_price': 3.39,
+    };
+    final alternate = <String, dynamic>{
+      'lookup_code': 'OP02-001-E@OP-02',
+      'card_code': 'OP02-001-E',
+      'card_name': 'Edward.Newgate',
+      'edition_code': 'OP-02',
+      'minimum_price': 698.75,
+    };
+
+    final selected = LigaOnePieceService.selectBestRemoteRow(
+      [base, alternate],
+      cardName: 'Edward.Newgate (001) (Alternate Art)',
+      lookupCode: 'OP02-001-AA',
+      imageUrl: '',
+    );
+
+    expect(selected?['card_code'], 'OP02-001-E');
+  });
+
+  test('seleciona edição original para a arte comum', () {
+    final reprint = <String, dynamic>{
+      'lookup_code': 'OP02-001@ST15',
+      'card_code': 'OP02-001',
+      'card_name': 'Edward.Newgate (001)',
+      'edition_code': 'ST15',
+      'minimum_price': 3.39,
+    };
+    final original = <String, dynamic>{
+      'lookup_code': 'OP02-001@OP-02',
+      'card_code': 'OP02-001',
+      'card_name': 'Edward.Newgate (001)',
+      'edition_code': 'OP-02',
+      'minimum_price': 9.9,
+    };
+
+    final selected = LigaOnePieceService.selectBestRemoteRow(
+      [reprint, original],
+      cardName: 'Edward.Newgate (001)',
+      lookupCode: 'OP02-001',
+      imageUrl: '',
+    );
+
+    expect(selected?['edition_code'], 'OP-02');
+  });
 }

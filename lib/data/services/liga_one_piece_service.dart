@@ -53,6 +53,41 @@ String inferLigaLookupCode({
   return normalizedCode;
 }
 
+@visibleForTesting
+List<String> inferLigaLookupCodes({
+  required String cardName,
+  required String cardCode,
+}) {
+  final normalizedCode = cardCode.trim().toUpperCase();
+  if (normalizedCode.isEmpty) return const [];
+  final primary = inferLigaLookupCode(
+    cardName: cardName,
+    cardCode: normalizedCode,
+  );
+  final normalizedName = cardName
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+      .trim();
+  final wantsAlternative =
+      normalizedName.contains('alternate art') ||
+      normalizedName.contains('alt art') ||
+      normalizedName.contains('parallel');
+  if (!wantsAlternative || primary == normalizedCode) {
+    return <String>{primary, normalizedCode}.toList(growable: false);
+  }
+
+  return <String>{
+    primary,
+    '$normalizedCode-AA',
+    '$normalizedCode-PA',
+    '$normalizedCode-PAR',
+    '$normalizedCode-E',
+    '$normalizedCode-A',
+    '$normalizedCode-P',
+    normalizedCode,
+  }.toList(growable: false);
+}
+
 class LigaOnePieceService {
   static const String _baseCardPageUrl = 'https://www.ligaonepiece.com.br/';
   static const String _autocompleteBaseUrl =
@@ -78,6 +113,13 @@ class LigaOnePieceService {
     required String cardCode,
   }) {
     return inferLigaLookupCode(cardName: cardName, cardCode: cardCode);
+  }
+
+  List<String> lookupCodesForCard({
+    required String cardName,
+    required String cardCode,
+  }) {
+    return inferLigaLookupCodes(cardName: cardName, cardCode: cardCode);
   }
 
   String priceReferenceKeyForCard({
@@ -380,10 +422,10 @@ class LigaOnePieceService {
     const chunkSize = 80;
     final queryCodes = missingReferences
         .expand(
-          (card) => <String>{
-            _normalizeLookupCode(card.cardCode),
-            lookupCodeForCard(cardName: card.cardName, cardCode: card.cardCode),
-          },
+          (card) => lookupCodesForCard(
+            cardName: card.cardName,
+            cardCode: card.cardCode,
+          ),
         )
         .where((code) => code.isNotEmpty)
         .toSet()
@@ -425,9 +467,12 @@ class LigaOnePieceService {
           cardName: card.cardName,
           cardCode: card.cardCode,
         );
+        final candidateCodes = lookupCodesForCard(
+          cardName: card.cardName,
+          cardCode: card.cardCode,
+        );
         final candidates = <Map<String, dynamic>>{
-          ...?rowsByCode[normalizedCode],
-          ...?rowsByCode[lookupCode],
+          for (final code in candidateCodes) ...?rowsByCode[code],
         };
         final row = selectBestRemoteRow(
           candidates,
@@ -491,7 +536,9 @@ class LigaOnePieceService {
   }) {
     snapshots[referenceKey] = snapshot;
     snapshots.putIfAbsent(lookupCode, () => snapshot);
-    snapshots.putIfAbsent(normalizedCode, () => snapshot);
+    if (lookupCode == normalizedCode) {
+      snapshots.putIfAbsent(normalizedCode, () => snapshot);
+    }
     _saveSnapshotForCardCode(referenceKey, snapshot);
     _saveSnapshotForCardCode(lookupCode, snapshot);
   }
@@ -682,15 +729,14 @@ class LigaOnePieceService {
     required String imageUrl,
   }) async {
     try {
-      final normalizedCode = _normalizeLookupCode(cardCode);
       final lookupCode = lookupCodeForCard(
         cardName: cardName,
         cardCode: cardCode,
       );
-      final queryCodes = <String>{
-        normalizedCode,
-        lookupCode,
-      }.where((code) => code.isNotEmpty).toList(growable: false);
+      final queryCodes = lookupCodesForCard(
+        cardName: cardName,
+        cardCode: cardCode,
+      );
       if (queryCodes.isEmpty) return null;
 
       final rows = await _supabase
@@ -739,8 +785,15 @@ class LigaOnePieceService {
         normalizedName.contains('release event') ||
         normalizedName.contains('release version');
     final wantsReprint = normalizedName.contains('reprint');
+    final wantsAlternateArt =
+        normalizedName.contains('alternate art') ||
+        normalizedName.contains('alt art');
+    final wantsParallel = normalizedName.contains('parallel');
+    final wantsSpr = normalizedName.split(' ').contains('spr');
     final requestedImage = imageUrl.trim();
     final requestedImageIdentity = _imageIdentity(requestedImage);
+    final requestedBaseCode = _baseLookupCode(lookupCode);
+    final expectedEdition = _expectedOriginalEdition(requestedBaseCode);
 
     for (final row in rows) {
       var score = 0;
@@ -752,6 +805,20 @@ class LigaOnePieceService {
           .toUpperCase();
       final rowImage = row['image_url']?.toString().trim() ?? '';
       final rowImageIdentity = _imageIdentity(rowImage);
+      final rowCode = (row['card_code']?.toString() ?? rowLookup)
+          .trim()
+          .toUpperCase();
+      final rowName = (row['card_name']?.toString() ?? '')
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+          .trim();
+      final rowSuffix = rowCode.startsWith('$requestedBaseCode-')
+          ? rowCode.substring(requestedBaseCode.length + 1)
+          : '';
+      final isAlternatePrinting =
+          const {'AA', 'PA', 'PAR', 'E', 'A', 'P'}.contains(rowSuffix) ||
+          rowName.contains('alternate art') ||
+          rowName.contains('parallel');
       final isAuxiliary =
           rowLookup.contains('@') || RegExp(r'-(?:PR|RE)$').hasMatch(edition);
 
@@ -761,6 +828,25 @@ class LigaOnePieceService {
       } else if (requestedImageIdentity.isNotEmpty &&
           rowImageIdentity == requestedImageIdentity) {
         score += 900;
+      }
+
+      if (wantsAlternateArt || wantsParallel) {
+        score += isAlternatePrinting ? 700 : -700;
+        if (wantsAlternateArt && rowName.contains('alternate art')) {
+          score += 180;
+        }
+        if (wantsParallel && rowName.contains('parallel')) {
+          score += 180;
+        }
+      } else if (wantsSpr) {
+        score += rowName.split(' ').contains('spr') ? 700 : -300;
+      } else {
+        if (isAlternatePrinting) score -= 700;
+        if (rowName.split(' ').contains('spr')) score -= 450;
+        if (rowCode == requestedBaseCode) score += 100;
+        if (expectedEdition.isNotEmpty && edition == expectedEdition) {
+          score += 380;
+        }
       }
 
       if (wantsPreRelease) {
@@ -786,6 +872,22 @@ class LigaOnePieceService {
     }
 
     return best;
+  }
+
+  static String _baseLookupCode(String lookupCode) {
+    final normalized = lookupCode.trim().toUpperCase().split('@').first;
+    return normalized.replaceFirst(RegExp(r'-(?:AA|PA|PAR|E|A|P)$'), '');
+  }
+
+  static String _expectedOriginalEdition(String cardCode) {
+    final match = RegExp(r'^(OP|EB|ST)(\d{2})-').firstMatch(cardCode);
+    if (match == null) return '';
+    return switch (match.group(1)) {
+      'OP' => 'OP-${match.group(2)}',
+      'EB' => 'EB${match.group(2)}',
+      'ST' => 'ST${match.group(2)}',
+      _ => '',
+    };
   }
 
   static String _imageIdentity(String imageUrl) {
