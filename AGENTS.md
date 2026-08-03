@@ -1695,3 +1695,9 @@ git diff --stat
 - Validacoes aprovadas: quality gate completo, 135 testes Flutter, 16 testes
   Python, 15 testes Node, cobertura de 30,96%, analise estatica limpa e build
   web de producao.
+- Commit funcional `a58be5f`, enviado para `origin/main`.
+- Deploy Vercel `dpl_9HXz96SvFKLSJcCVBGkDUaojmUbA`, status READY e publicado
+  em `https://tcgbh.vercel.app`.
+- Pos-publicacao: pagina Pokemon semanal e health check responderam 200, o
+  bundle contem os quatro circuitos e o aviso de separacao dos domingos, e a
+  Vercel nao registrou erros de runtime nos 30 minutos verificados.
