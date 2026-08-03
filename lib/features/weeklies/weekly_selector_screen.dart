@@ -82,7 +82,7 @@ class WeeklySelectorScreen extends StatelessWidget {
                       child: _WeeklyGameCard(
                         title: 'Pokemon TCG',
                         subtitle:
-                            'Relatorios oficiais importados do TDF, com classificacao, rodadas, partidas e desempenho.',
+                            'Relatórios TDF e rankings independentes de quinta, sábado, MetaNãoPode e GLC.',
                         eyebrow: 'Liga Pokemon',
                         accent: const Color(0xFFFFCB05),
                         secondary: const Color(0xFF2A75BB),

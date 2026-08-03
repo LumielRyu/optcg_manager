@@ -1675,3 +1675,23 @@ git diff --stat
 - Pos-publicacao: bundle com a rota `/profile`, 49 fluxos publicos E2E
   aprovados e nenhuma ocorrencia nos erros de runtime da Vercel na ultima
   hora.
+
+### 03/08/2026 - Novos circuitos semanais de Pokemon
+
+- O semanal de Pokemon passou de dois para quatro rankings independentes:
+  quinta-feira, sabado, MetaNaoPode e GLC (Gym Leader Challenge).
+- MetaNaoPode e GLC acontecem no domingo, mas seus torneios, pontos,
+  historicos, classificacoes e exportacoes CSV nunca se misturam.
+- A importacao TDF agora pede que o administrador confirme o ranking do
+  evento. Nomes contendo `MetaNaoPode`, `GLC` ou `Gym Leader Challenge` sao
+  pre-identificados; um TDF generico de domingo exige escolha explicita.
+- O circuito escolhido fica salvo em `report_data.weekly_circuit`, portanto
+  nao foi necessaria migracao SQL. Relatorios antigos continuam compativeis e
+  podem ser reimportados para receber a classificacao explicita.
+- A pagina ganhou cards proprios para os quatro circuitos, com dia/formato,
+  quantidade de torneios e identidade visual separada.
+- Os arquivos de ranking usam os nomes
+  `ranking_pokemon_meta-nao-pode.csv` e `ranking_pokemon_glc.csv`.
+- Validacoes aprovadas: quality gate completo, 135 testes Flutter, 16 testes
+  Python, 15 testes Node, cobertura de 30,96%, analise estatica limpa e build
+  web de producao.

@@ -24,12 +24,16 @@ const _pokemonCream = Color(0xFFFFF7D6);
 Color _circuitAccent(PokemonWeeklyCircuit circuit) => switch (circuit) {
   PokemonWeeklyCircuit.thursday => const Color(0xFF35A7FF),
   PokemonWeeklyCircuit.saturday => _pokemonRed,
+  PokemonWeeklyCircuit.metaNaoPode => const Color(0xFF77C043),
+  PokemonWeeklyCircuit.glc => const Color(0xFFFF9F1C),
   PokemonWeeklyCircuit.other => const Color(0xFF9B7EDE),
 };
 
 IconData _circuitIcon(PokemonWeeklyCircuit circuit) => switch (circuit) {
   PokemonWeeklyCircuit.thursday => Icons.calendar_view_week,
   PokemonWeeklyCircuit.saturday => Icons.weekend_outlined,
+  PokemonWeeklyCircuit.metaNaoPode => Icons.block_outlined,
+  PokemonWeeklyCircuit.glc => Icons.shield_outlined,
   PokemonWeeklyCircuit.other => Icons.event_repeat_outlined,
 };
 
@@ -149,7 +153,7 @@ class _PokemonWeeklyReportScreenState
       final validation = _validator.validate(report);
       final existing = await _repository.findBySourceKey(report.sourceKey);
       if (!mounted) return;
-      final confirmed = await showDialog<bool>(
+      final selectedCircuit = await showDialog<PokemonWeeklyCircuit>(
         context: context,
         builder: (context) => _ImportConfirmationDialog(
           report: report,
@@ -157,16 +161,16 @@ class _PokemonWeeklyReportScreenState
           existing: existing,
         ),
       );
-      if (confirmed != true) return;
+      if (selectedCircuit == null) return;
       setState(
         () => _importStatus = existing == null
             ? 'Salvando relatorio...'
             : 'Substituindo relatorio...',
       );
-      await _repository.saveReport(report);
+      await _repository.saveReport(report, circuit: selectedCircuit);
       if (!mounted) return;
       setState(() {
-        _selectedCircuit = pokemonCircuitForDate(report.eventDate);
+        _selectedCircuit = selectedCircuit;
         _future = _loadReports();
       });
       _showMessage(
@@ -174,7 +178,7 @@ class _PokemonWeeklyReportScreenState
             ? 'Relatorio importado com sucesso.'
             : 'Relatorio existente substituido com sucesso.',
       );
-      _openReport(report, circuit: pokemonCircuitForDate(report.eventDate));
+      _openReport(report, circuit: selectedCircuit);
     } on FormatException catch (error) {
       _showMessage(error.message);
     } catch (error, stackTrace) {
@@ -422,16 +426,18 @@ class _PokemonWeeklyReportScreenState
               final reportsByCircuit = {
                 for (final value in PokemonWeeklyCircuit.values)
                   value: storedReports
-                      .where(
-                        (item) =>
-                            pokemonReportBelongsToCircuit(item.report, value),
-                      )
+                      .where((item) => item.circuit == value)
                       .toList(growable: false),
               };
               final hasThursday =
                   reportsByCircuit[PokemonWeeklyCircuit.thursday]!.isNotEmpty;
               final hasSaturday =
                   reportsByCircuit[PokemonWeeklyCircuit.saturday]!.isNotEmpty;
+              final hasMetaNaoPode =
+                  reportsByCircuit[PokemonWeeklyCircuit.metaNaoPode]!
+                      .isNotEmpty;
+              final hasGlc =
+                  reportsByCircuit[PokemonWeeklyCircuit.glc]!.isNotEmpty;
               final hasOther =
                   reportsByCircuit[PokemonWeeklyCircuit.other]!.isNotEmpty;
               final circuit =
@@ -440,6 +446,10 @@ class _PokemonWeeklyReportScreenState
                       ? PokemonWeeklyCircuit.thursday
                       : hasSaturday
                       ? PokemonWeeklyCircuit.saturday
+                      : hasMetaNaoPode
+                      ? PokemonWeeklyCircuit.metaNaoPode
+                      : hasGlc
+                      ? PokemonWeeklyCircuit.glc
                       : hasOther
                       ? PokemonWeeklyCircuit.other
                       : PokemonWeeklyCircuit.thursday);
@@ -467,17 +477,10 @@ class _PokemonWeeklyReportScreenState
                             _CircuitSelector(
                               selected: circuit,
                               showOther: hasOther,
-                              thursdayCount:
-                                  reportsByCircuit[PokemonWeeklyCircuit
-                                          .thursday]!
-                                      .length,
-                              saturdayCount:
-                                  reportsByCircuit[PokemonWeeklyCircuit
-                                          .saturday]!
-                                      .length,
-                              otherCount:
-                                  reportsByCircuit[PokemonWeeklyCircuit.other]!
-                                      .length,
+                              counts: {
+                                for (final entry in reportsByCircuit.entries)
+                                  entry.key: entry.value.length,
+                              },
                               onSelected: (value) => setState(() {
                                 _selectedCircuit = value;
                               }),
@@ -695,17 +698,13 @@ class _PokemonHero extends StatelessWidget {
 class _CircuitSelector extends StatelessWidget {
   final PokemonWeeklyCircuit selected;
   final bool showOther;
-  final int thursdayCount;
-  final int saturdayCount;
-  final int otherCount;
+  final Map<PokemonWeeklyCircuit, int> counts;
   final ValueChanged<PokemonWeeklyCircuit> onSelected;
 
   const _CircuitSelector({
     required this.selected,
     required this.showOther,
-    required this.thursdayCount,
-    required this.saturdayCount,
-    required this.otherCount,
+    required this.counts,
     required this.onSelected,
   });
 
@@ -718,7 +717,7 @@ class _CircuitSelector extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Dois semanais, duas ligas separadas',
+              'Quatro semanais, quatro ligas separadas',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 color: _pokemonYellow,
                 fontWeight: FontWeight.w900,
@@ -726,7 +725,7 @@ class _CircuitSelector extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             const Text(
-              'Funciona como se cada semanal acontecesse em uma loja diferente. Resultados e pontos nunca se misturam.',
+              'Quinta, sábado, MetaNãoPode e GLC possuem rankings próprios. Mesmo os dois eventos de domingo nunca misturam resultados ou pontos.',
             ),
             const SizedBox(height: 16),
             LayoutBuilder(
@@ -738,28 +737,27 @@ class _CircuitSelector extends StatelessWidget {
                   spacing: 12,
                   runSpacing: 12,
                   children: [
-                    SizedBox(
-                      width: cardWidth,
-                      child: _CircuitLeagueCard(
-                        circuit: PokemonWeeklyCircuit.thursday,
-                        tournamentCount: thursdayCount,
-                        selected: selected == PokemonWeeklyCircuit.thursday,
-                        onTap: () => onSelected(PokemonWeeklyCircuit.thursday),
+                    for (final circuit in const [
+                      PokemonWeeklyCircuit.thursday,
+                      PokemonWeeklyCircuit.saturday,
+                      PokemonWeeklyCircuit.metaNaoPode,
+                      PokemonWeeklyCircuit.glc,
+                    ])
+                      SizedBox(
+                        width: cardWidth,
+                        child: _CircuitLeagueCard(
+                          circuit: circuit,
+                          tournamentCount: counts[circuit] ?? 0,
+                          selected: selected == circuit,
+                          onTap: () => onSelected(circuit),
+                        ),
                       ),
-                    ),
-                    SizedBox(
-                      width: cardWidth,
-                      child: _CircuitLeagueCard(
-                        circuit: PokemonWeeklyCircuit.saturday,
-                        tournamentCount: saturdayCount,
-                        selected: selected == PokemonWeeklyCircuit.saturday,
-                        onTap: () => onSelected(PokemonWeeklyCircuit.saturday),
-                      ),
-                    ),
                     if (showOther)
                       ActionChip(
                         avatar: Icon(_circuitIcon(PokemonWeeklyCircuit.other)),
-                        label: Text('Eventos especiais • $otherCount torneios'),
+                        label: Text(
+                          'Eventos especiais • ${counts[PokemonWeeklyCircuit.other] ?? 0} torneios',
+                        ),
                         onPressed: () => onSelected(PokemonWeeklyCircuit.other),
                       ),
                   ],
@@ -848,6 +846,8 @@ class _CircuitLeagueCard extends StatelessWidget {
                         fontWeight: FontWeight.w900,
                       ),
                     ),
+                    const SizedBox(height: 4),
+                    Text(circuit.schedule),
                     const SizedBox(height: 4),
                     const Text('Ranking • classificacao • exportacao proprios'),
                   ],
@@ -1932,7 +1932,7 @@ class _EmptyReport extends StatelessWidget {
   }
 }
 
-class _ImportConfirmationDialog extends StatelessWidget {
+class _ImportConfirmationDialog extends StatefulWidget {
   final PokemonTournamentReport report;
   final PokemonTdfValidationResult validation;
   final StoredPokemonTournamentReport? existing;
@@ -1942,6 +1942,30 @@ class _ImportConfirmationDialog extends StatelessWidget {
     required this.validation,
     required this.existing,
   });
+
+  @override
+  State<_ImportConfirmationDialog> createState() =>
+      _ImportConfirmationDialogState();
+}
+
+class _ImportConfirmationDialogState extends State<_ImportConfirmationDialog> {
+  PokemonWeeklyCircuit? _circuit;
+
+  PokemonTournamentReport get report => widget.report;
+  PokemonTdfValidationResult get validation => widget.validation;
+  StoredPokemonTournamentReport? get existing => widget.existing;
+
+  @override
+  void initState() {
+    super.initState();
+    final inferred = pokemonCircuitForReport(report);
+    _circuit =
+        existing?.circuit ??
+        (report.eventDate.weekday == DateTime.sunday &&
+                inferred == PokemonWeeklyCircuit.other
+            ? null
+            : inferred);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1969,6 +1993,27 @@ class _ImportConfirmationDialog extends StatelessWidget {
               const SizedBox(height: 10),
               Text('Arquivo: ${report.sourceFileName}'),
               Text('Data: ${_date(report.eventDate)}'),
+              const SizedBox(height: 14),
+              DropdownButtonFormField<PokemonWeeklyCircuit>(
+                initialValue: _circuit,
+                decoration: const InputDecoration(
+                  labelText: 'Ranking deste evento',
+                  helperText:
+                      'Confirme com atenção: MetaNãoPode e GLC acontecem no domingo.',
+                  border: OutlineInputBorder(),
+                ),
+                items: PokemonWeeklyCircuit.values
+                    .map(
+                      (circuit) => DropdownMenuItem(
+                        value: circuit,
+                        child: Text('${circuit.label} • ${circuit.schedule}'),
+                      ),
+                    )
+                    .toList(growable: false),
+                onChanged: (value) {
+                  setState(() => _circuit = value);
+                },
+              ),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
@@ -2023,12 +2068,14 @@ class _ImportConfirmationDialog extends StatelessWidget {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context, false),
+          onPressed: () => Navigator.pop(context),
           child: const Text('Cancelar'),
         ),
         if (validation.canImport)
           FilledButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: _circuit == null
+                ? null
+                : () => Navigator.pop(context, _circuit),
             child: Text(existing == null ? 'Importar' : 'Substituir'),
           ),
       ],

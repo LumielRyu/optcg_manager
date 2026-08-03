@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:optcg_manager/data/models/pokemon_tdf_report.dart';
+import 'package:optcg_manager/data/repositories/pokemon_tournament_report_repository.dart';
 import 'package:optcg_manager/data/services/pokemon_report_csv.dart';
 import 'package:optcg_manager/data/services/pokemon_weekly_circuit.dart';
 
@@ -17,6 +18,55 @@ void main() {
       pokemonCircuitForDate(DateTime(2026, 7, 17)),
       PokemonWeeklyCircuit.other,
     );
+  });
+
+  test('classifies both Sunday formats by event identity', () {
+    expect(
+      pokemonCircuitForReport(
+        _report(
+          DateTime(2026, 8, 2),
+          name: 'MetaNãoPode - STOP TCG',
+          ashWins: 2,
+          mistyWins: 1,
+        ),
+      ),
+      PokemonWeeklyCircuit.metaNaoPode,
+    );
+    expect(
+      pokemonCircuitForReport(
+        _report(
+          DateTime(2026, 8, 2),
+          name: 'Gym Leader Challenge',
+          ashWins: 2,
+          mistyWins: 1,
+        ),
+      ),
+      PokemonWeeklyCircuit.glc,
+    );
+  });
+
+  test('stored circuit keeps generic Sunday reports separated', () {
+    final report = _report(DateTime(2026, 8, 2), ashWins: 2, mistyWins: 1);
+    expect(
+      pokemonCircuitForReport(report, storedSlug: 'meta-nao-pode'),
+      PokemonWeeklyCircuit.metaNaoPode,
+    );
+    expect(
+      pokemonCircuitForReport(report, storedSlug: 'glc'),
+      PokemonWeeklyCircuit.glc,
+    );
+  });
+
+  test('repository restores the selected Sunday circuit from report data', () {
+    final report = _report(DateTime(2026, 8, 2), ashWins: 2, mistyWins: 1);
+    final stored = StoredPokemonTournamentReport.fromJson({
+      'id': 'report-glc',
+      'created_at': '2026-08-02T18:00:00Z',
+      'updated_at': '2026-08-02T18:00:00Z',
+      'report_data': {...report.toJson(), 'weekly_circuit': 'glc'},
+    });
+
+    expect(stored.circuit, PokemonWeeklyCircuit.glc);
   });
 
   test('builds an independent accumulated ranking per report list', () {
@@ -72,17 +122,26 @@ void main() {
       pokemonCircuitRankingCsvFileName(PokemonWeeklyCircuit.saturday),
       'ranking_pokemon_sabado.csv',
     );
+    expect(
+      pokemonCircuitRankingCsvFileName(PokemonWeeklyCircuit.metaNaoPode),
+      'ranking_pokemon_meta-nao-pode.csv',
+    );
+    expect(
+      pokemonCircuitRankingCsvFileName(PokemonWeeklyCircuit.glc),
+      'ranking_pokemon_glc.csv',
+    );
   });
 }
 
 PokemonTournamentReport _report(
   DateTime date, {
+  String name = 'Semanal STOP TCG',
   required int ashWins,
   required int mistyWins,
 }) => PokemonTournamentReport(
   sourceKey: date.toIso8601String(),
   sourceFileName: 'semanal.tdf',
-  name: 'Semanal STOP TCG',
+  name: name,
   eventDate: date,
   city: 'Belo Horizonte',
   state: 'MG',

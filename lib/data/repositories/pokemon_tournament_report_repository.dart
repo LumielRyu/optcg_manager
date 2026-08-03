@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/pokemon_tdf_report.dart';
+import '../services/pokemon_weekly_circuit.dart';
 import '../services/supabase_client_provider.dart';
 
 final pokemonTournamentReportRepositoryProvider =
@@ -15,24 +16,30 @@ class StoredPokemonTournamentReport {
   final DateTime importedAt;
   final DateTime updatedAt;
   final PokemonTournamentReport report;
+  final PokemonWeeklyCircuit circuit;
 
   const StoredPokemonTournamentReport({
     required this.id,
     required this.importedAt,
     required this.updatedAt,
     required this.report,
+    required this.circuit,
   });
 
   factory StoredPokemonTournamentReport.fromJson(Map<String, dynamic> json) {
     final importedAt = DateTime.parse(json['created_at'].toString());
+    final reportData = Map<String, dynamic>.from(json['report_data'] as Map);
+    final report = PokemonTournamentReport.fromJson(reportData);
     return StoredPokemonTournamentReport(
       id: json['id'].toString(),
       importedAt: importedAt,
       updatedAt:
           DateTime.tryParse((json['updated_at'] ?? '').toString()) ??
           importedAt,
-      report: PokemonTournamentReport.fromJson(
-        Map<String, dynamic>.from(json['report_data'] as Map),
+      report: report,
+      circuit: pokemonCircuitForReport(
+        report,
+        storedSlug: reportData['weekly_circuit']?.toString(),
       ),
     );
   }
@@ -114,7 +121,10 @@ class PokemonTournamentReportRepository {
     return row == null ? null : StoredPokemonTournamentReport.fromJson(row);
   }
 
-  Future<void> saveReport(PokemonTournamentReport report) async {
+  Future<void> saveReport(
+    PokemonTournamentReport report, {
+    required PokemonWeeklyCircuit circuit,
+  }) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null || !isAdmin) {
       throw Exception(
@@ -129,7 +139,7 @@ class PokemonTournamentReportRepository {
       'participant_count': report.participantCount,
       'round_count': report.roundCount,
       'match_count': report.matchCount,
-      'report_data': report.toJson(),
+      'report_data': {...report.toJson(), 'weekly_circuit': circuit.slug},
       'created_by': userId,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     }, onConflict: 'source_key');

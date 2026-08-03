@@ -1,18 +1,39 @@
 import '../models/pokemon_tdf_report.dart';
 
-enum PokemonWeeklyCircuit { thursday, saturday, other }
+enum PokemonWeeklyCircuit { thursday, saturday, metaNaoPode, glc, other }
 
 extension PokemonWeeklyCircuitLabel on PokemonWeeklyCircuit {
   String get label => switch (this) {
     PokemonWeeklyCircuit.thursday => 'Quinta-feira',
     PokemonWeeklyCircuit.saturday => 'Sabado',
+    PokemonWeeklyCircuit.metaNaoPode => 'MetaNãoPode',
+    PokemonWeeklyCircuit.glc => 'GLC',
     PokemonWeeklyCircuit.other => 'Outras datas',
   };
 
   String get slug => switch (this) {
     PokemonWeeklyCircuit.thursday => 'quinta',
     PokemonWeeklyCircuit.saturday => 'sabado',
+    PokemonWeeklyCircuit.metaNaoPode => 'meta-nao-pode',
+    PokemonWeeklyCircuit.glc => 'glc',
     PokemonWeeklyCircuit.other => 'outras-datas',
+  };
+
+  String get schedule => switch (this) {
+    PokemonWeeklyCircuit.thursday => 'Quinta-feira',
+    PokemonWeeklyCircuit.saturday => 'Sábado',
+    PokemonWeeklyCircuit.metaNaoPode => 'Domingo • sem meta atual',
+    PokemonWeeklyCircuit.glc => 'Domingo • Gym Leader Challenge',
+    PokemonWeeklyCircuit.other => 'Eventos especiais',
+  };
+
+  static PokemonWeeklyCircuit? fromSlug(String? value) => switch (value) {
+    'quinta' => PokemonWeeklyCircuit.thursday,
+    'sabado' => PokemonWeeklyCircuit.saturday,
+    'meta-nao-pode' => PokemonWeeklyCircuit.metaNaoPode,
+    'glc' => PokemonWeeklyCircuit.glc,
+    'outras-datas' => PokemonWeeklyCircuit.other,
+    _ => null,
   };
 }
 
@@ -23,10 +44,42 @@ PokemonWeeklyCircuit pokemonCircuitForDate(DateTime date) =>
       _ => PokemonWeeklyCircuit.other,
     };
 
+PokemonWeeklyCircuit pokemonCircuitForReport(
+  PokemonTournamentReport report, {
+  String? storedSlug,
+}) {
+  final stored = PokemonWeeklyCircuitLabel.fromSlug(storedSlug);
+  if (stored != null) return stored;
+
+  final searchable = _normalizeCircuitText(
+    '${report.name} ${report.sourceFileName}',
+  );
+  if (searchable.contains('gym leader challenge') ||
+      RegExp(r'(^|\s)glc($|\s)').hasMatch(searchable)) {
+    return PokemonWeeklyCircuit.glc;
+  }
+  if (searchable.contains('meta nao pode') ||
+      searchable.contains('metanaopode')) {
+    return PokemonWeeklyCircuit.metaNaoPode;
+  }
+  return pokemonCircuitForDate(report.eventDate);
+}
+
 bool pokemonReportBelongsToCircuit(
   PokemonTournamentReport report,
   PokemonWeeklyCircuit circuit,
-) => pokemonCircuitForDate(report.eventDate) == circuit;
+) => pokemonCircuitForReport(report) == circuit;
+
+String _normalizeCircuitText(String value) => value
+    .toLowerCase()
+    .replaceAll(RegExp('[áàâãä]'), 'a')
+    .replaceAll(RegExp('[éèêë]'), 'e')
+    .replaceAll(RegExp('[íìîï]'), 'i')
+    .replaceAll(RegExp('[óòôõö]'), 'o')
+    .replaceAll(RegExp('[úùûü]'), 'u')
+    .replaceAll('ç', 'c')
+    .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+    .trim();
 
 List<PokemonTournamentPlayer> sortPokemonUnifiedStandings(
   Iterable<PokemonTournamentPlayer> players,
