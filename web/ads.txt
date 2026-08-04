@@ -1,0 +1,2 @@
+# TCG BH advertising authorization file.
+# The publisher entry will be added only after AdSense approval.

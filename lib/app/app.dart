@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/providers/collection_view_mode_provider.dart';
 import '../core/providers/theme_mode_provider.dart';
+import '../core/privacy/cookie_consent.dart';
 import '../data/repositories/auth_repository.dart';
 import 'router.dart';
 
@@ -97,9 +98,11 @@ class OptcgManagerApp extends ConsumerWidget {
       darkTheme: _buildTheme(darkScheme),
       builder: (context, child) {
         return _PreferenceBootstrapper(
-          child: FocusTraversalGroup(
-            policy: ReadingOrderTraversalPolicy(),
-            child: child ?? const SizedBox.shrink(),
+          child: CookieConsentLayer(
+            child: FocusTraversalGroup(
+              policy: ReadingOrderTraversalPolicy(),
+              child: child ?? const SizedBox.shrink(),
+            ),
           ),
         );
       },

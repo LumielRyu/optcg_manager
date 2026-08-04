@@ -1701,3 +1701,25 @@ git diff --stat
 - Pos-publicacao: pagina Pokemon semanal e health check responderam 200, o
   bundle contem os quatro circuitos e o aviso de separacao dos domingos, e a
   Vercel nao registrou erros de runtime nos 30 minutos verificados.
+
+### 04/08/2026 - Estrutura de privacidade e monetizacao
+
+- Foram criadas as paginas publicas `/privacy`, `/cookies`, `/terms` e
+  `/contact`, acessiveis mesmo antes do login e durante a conclusao do perfil.
+- A pagina inicial agora possui um rodape publico com links legais e acesso
+  permanente a `Gerenciar privacidade`.
+- Novos visitantes recebem uma escolha versionada de consentimento, com
+  opcoes para aceitar tudo, recusar itens opcionais ou configurar analise e
+  anuncios personalizados separadamente.
+- A preferencia fica salva localmente na caixa `app_prefs` do Hive e volta a
+  ser solicitada se a versao da politica mudar.
+- Nenhum anuncio, cookie publicitario ou rastreador foi ativado nesta etapa.
+  O componente de espaco publicitario permanece invisivel ate receber
+  conteudo aprovado, evitando espacos vazios na interface.
+- Foi criado `web/ads.txt` apenas com comentarios. A linha do editor sera
+  adicionada depois da aprovacao no AdSense, sem publicar um identificador
+  ficticio.
+- Nao foi necessaria migracao SQL.
+- Validacoes aprovadas: quality gate completo, 138 testes Flutter, 16 testes
+  Python, 15 testes Node, cobertura de 30,93%, analise estatica limpa e build
+  web de producao.

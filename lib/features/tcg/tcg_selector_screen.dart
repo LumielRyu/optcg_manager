@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../core/providers/theme_mode_provider.dart';
 import '../../core/widgets/accessible_action_surface.dart';
 import '../../core/widgets/app_page_shell.dart';
+import '../../core/widgets/legal_footer.dart';
+import '../../core/widgets/monetization_slot.dart';
 import '../../data/repositories/auth_repository.dart';
 
 class TcgSelectorScreen extends ConsumerWidget {
@@ -189,6 +191,9 @@ class TcgSelectorScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
+                const MonetizationSlot(placement: 'home-after-game-list'),
+                const SizedBox(height: 28),
+                const LegalFooter(),
               ],
             ),
           );

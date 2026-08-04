@@ -31,6 +31,7 @@ import '../features/imports/tcg_import/tcg_import_screen.dart';
 import '../features/library/library_card_details_screen.dart';
 import '../features/library/library_compare_screen.dart';
 import '../features/library/one_piece_library_screen.dart';
+import '../features/legal/legal_document_screen.dart';
 import '../features/marketplace/global_marketplace_screen.dart';
 import '../features/marketplace/tcg_marketplace_screen.dart';
 import '../features/magic/magic_library_screen.dart';
@@ -83,6 +84,12 @@ final GoRouter appRouter = GoRouter(
     final isRegisterRoute = location == '/register';
     final isCompleteProfileRoute = location == '/complete-profile';
     final isProfileRoute = location == '/profile';
+    final isLegalRoute = const {
+      '/privacy',
+      '/cookies',
+      '/terms',
+      '/contact',
+    }.contains(location);
     final isRootRoute = location == '/';
     final isSharedDeckRoute = location.startsWith('/shared/deck/');
     final isSharedSaleRoute = location.startsWith('/shared/sale/');
@@ -128,7 +135,10 @@ final GoRouter appRouter = GoRouter(
           );
       final needsCompletion = !hasCompletedProfile;
 
-      if (needsCompletion && !isCompleteProfileRoute && !isSharedRoute) {
+      if (needsCompletion &&
+          !isCompleteProfileRoute &&
+          !isSharedRoute &&
+          !isLegalRoute) {
         return '/complete-profile';
       }
 
@@ -197,6 +207,26 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/profile',
       builder: (context, state) => const ProfileScreen(),
+    ),
+    GoRoute(
+      path: '/privacy',
+      builder: (context, state) =>
+          const LegalDocumentScreen(type: LegalDocumentType.privacy),
+    ),
+    GoRoute(
+      path: '/cookies',
+      builder: (context, state) =>
+          const LegalDocumentScreen(type: LegalDocumentType.cookies),
+    ),
+    GoRoute(
+      path: '/terms',
+      builder: (context, state) =>
+          const LegalDocumentScreen(type: LegalDocumentType.terms),
+    ),
+    GoRoute(
+      path: '/contact',
+      builder: (context, state) =>
+          const LegalDocumentScreen(type: LegalDocumentType.contact),
     ),
     GoRoute(
       path: '/home/one-piece',
