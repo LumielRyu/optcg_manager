@@ -1723,3 +1723,10 @@ git diff --stat
 - Validacoes aprovadas: quality gate completo, 138 testes Flutter, 16 testes
   Python, 15 testes Node, cobertura de 30,93%, analise estatica limpa e build
   web de producao.
+- Commit funcional `91c8bae`, enviado para `origin/main`.
+- Deploy Vercel `dpl_3Fn51WHBx3UVTUq1XUUuEPVjuWdR`, status READY e publicado
+  em `https://tcgbh.vercel.app`.
+- Pos-publicacao: `ads.txt` e health check responderam 200, a API confirmou a
+  release `91c8bae340f8`, o bundle contem as quatro rotas legais e o controle
+  de privacidade, nao contem `adsbygoogle`, e a Vercel nao registrou erros de
+  runtime nos 30 minutos verificados.
