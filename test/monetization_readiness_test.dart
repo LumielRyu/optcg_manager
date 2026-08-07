@@ -60,6 +60,13 @@ void main() {
       expect(router, contains("path: '$route'"));
     }
     expect(home, contains("placement: 'home-after-game-list'"));
+    expect(
+      webIndex,
+      contains(
+        '<meta name="google-adsense-account" '
+        'content="ca-pub-3496425300816491">',
+      ),
+    );
     expect(webIndex, isNot(contains('adsbygoogle.js')));
     expect(ads, contains('publisher entry will be added only'));
   });

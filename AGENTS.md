@@ -1730,3 +1730,12 @@ git diff --stat
   release `91c8bae340f8`, o bundle contem as quatro rotas legais e o controle
   de privacidade, nao contem `adsbygoogle`, e a Vercel nao registrou erros de
   runtime nos 30 minutos verificados.
+
+### 07/08/2026 - Verificacao do Google AdSense
+
+- A meta tag de propriedade fornecida pelo Google foi adicionada ao `head`
+  publico: `google-adsense-account=ca-pub-3496425300816491`.
+- A alteracao serve apenas para conectar e verificar o site no AdSense.
+  Nenhum script de anuncios ou `adsbygoogle` foi ativado.
+- O `ads.txt` continua sem uma linha de vendedor ate o Google fornecer ou
+  confirmar a entrada oficial no painel.
