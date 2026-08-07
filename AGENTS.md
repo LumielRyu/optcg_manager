@@ -1739,3 +1739,12 @@ git diff --stat
   Nenhum script de anuncios ou `adsbygoogle` foi ativado.
 - O `ads.txt` continua sem uma linha de vendedor ate o Google fornecer ou
   confirmar a entrada oficial no painel.
+- Validacoes aprovadas: teste direcionado de monetizacao, quality gate
+  completo, 138 testes Flutter, 16 testes Python, 15 testes Node, cobertura
+  de 30,93%, analise estatica limpa e build web de producao.
+- Commit funcional `9ac4ce6`, enviado para `origin/main`.
+- Deploy Vercel `dpl_Fj9mssW8nXRBiar3Wi7XfCA4dUrv`, status READY e publicado
+  em `https://tcgbh.vercel.app`.
+- Pos-publicacao: o HTML respondeu 200 e contem a meta tag exata, nao carrega
+  `adsbygoogle.js`, o health check confirmou a release `9ac4ce633523` e a
+  Vercel nao registrou erros de runtime nos 30 minutos verificados.
