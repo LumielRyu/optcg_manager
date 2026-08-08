@@ -1770,3 +1770,10 @@ git diff --stat
 - Validacoes aprovadas: quality gate completo, 142 testes Flutter, 16 testes
   Python, 15 testes Node, cobertura de 31,14%, analise estatica limpa e build
   web de producao.
+- Commit funcional `db9cdfb`, enviado para `origin/main`.
+- Deploy Vercel `dpl_8h3DTmVt1WzH7FfKqMe386izjrLy`, status READY e publicado
+  em `https://tcgbh.vercel.app`.
+- Pos-publicacao: o health check respondeu 200 e confirmou a release
+  `db9cdfbf08ec`, o bundle contem a acao de vender pasta e a revisao para
+  publicar no marketplace, e a Vercel nao registrou erros de runtime nos 30
+  minutos verificados.
