@@ -5,9 +5,9 @@ import '../../data/repositories/collection_repository.dart';
 
 final collectionControllerProvider =
     StateNotifierProvider<CollectionController, List<CardRecord>>((ref) {
-  final repo = ref.watch(collectionRepositoryProvider);
-  return CollectionController(repo)..load();
-});
+      final repo = ref.watch(collectionRepositoryProvider);
+      return CollectionController(repo)..load();
+    });
 
 class CollectionController extends StateNotifier<List<CardRecord>> {
   final CollectionRepository _repo;
@@ -41,6 +41,11 @@ class CollectionController extends StateNotifier<List<CardRecord>> {
 
   Future<void> update(CardRecord record) async {
     await _repo.upsert(record);
+    state = _repo.getAll();
+  }
+
+  Future<void> upsertMany(List<CardRecord> records) async {
+    await _repo.upsertMany(records);
     state = _repo.getAll();
   }
 }

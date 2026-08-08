@@ -163,6 +163,57 @@ class MarketplaceRepository {
     }
   }
 
+  Future<void> enablePublicListingsByIds(List<String> listingIds) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw Exception('Usuário não autenticado.');
+    }
+
+    final ids = listingIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    if (ids.isEmpty) return;
+
+    final whatsAppPhone = await _prefs.getCurrentWhatsAppPhone();
+    if (whatsAppPhone.trim().isEmpty) {
+      throw Exception(
+        'Cadastre um telefone/WhatsApp no perfil antes de publicar.',
+      );
+    }
+    final expiration = MarketplaceListing.newExpirationDate().toIso8601String();
+
+    for (var offset = 0; offset < ids.length; offset += 100) {
+      final end = (offset + 100).clamp(0, ids.length);
+      final chunk = ids.sublist(offset, end);
+      final payload = <String, dynamic>{
+        'is_public': true,
+        'sale_contact_info': whatsAppPhone,
+        'sale_status': MarketplaceListing.activeStatus,
+        'sale_expires_at': expiration,
+      };
+
+      try {
+        await _client
+            .from('collection_items')
+            .update(payload)
+            .eq('user_id', user.id)
+            .eq('collection_type', 'forSale')
+            .inFilter('id', chunk);
+      } on PostgrestException catch (error) {
+        if (!_looksLikeMissingListingExpirationSchema(error)) rethrow;
+        payload.remove('sale_expires_at');
+        await _client
+            .from('collection_items')
+            .update(payload)
+            .eq('user_id', user.id)
+            .eq('collection_type', 'forSale')
+            .inFilter('id', chunk);
+      }
+    }
+  }
+
   Future<void> disablePublicStoreSharingForUser() async {
     final user = _client.auth.currentUser;
     if (user == null) return;

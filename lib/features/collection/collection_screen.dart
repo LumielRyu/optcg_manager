@@ -16,9 +16,11 @@ import '../../core/widgets/summary_stat_card.dart';
 import '../../data/models/card_record.dart';
 import '../../data/models/collection_folder.dart';
 import '../../data/repositories/collection_repository.dart';
+import '../../data/repositories/marketplace_repository.dart';
 import '../../data/services/translation_service.dart';
 import '../../core/widgets/primary_bottom_navigation.dart';
 import 'collection_controller.dart';
+import 'collection_bulk_sale_import.dart';
 import 'collection_sale_import.dart';
 import 'deck_details_dialog.dart';
 import 'manual_add_dialog.dart';
@@ -46,6 +48,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
   List<CollectionFolder> _folders = const [];
   String _selectedFolder = _allFolders;
   bool _foldersLoading = true;
+  bool _bulkSaleBusy = false;
 
   static const String _allFolders = '__all__';
   static const String _unfiledFolder = '__unfiled__';
@@ -190,6 +193,8 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
               onCreate: _createFolder,
               onRename: _renameFolder,
               onDelete: _deleteFolder,
+              onSell: _addFolderToMarketplace,
+              selling: _bulkSaleBusy,
             ),
           ),
         if (_selectedLibrary == CollectionTypes.deck)
@@ -496,6 +501,107 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
       }
     });
     await _loadFolders();
+  }
+
+  Future<void> _addFolderToMarketplace(
+    String scopeName,
+    List<CardRecord> sourceItems,
+  ) async {
+    if (_bulkSaleBusy || !requireSignedIn(context)) return;
+
+    final currentItems = ref.read(collectionControllerProvider);
+    final existingSales = currentItems
+        .where((item) => item.collectionType == CollectionTypes.forSale)
+        .toList(growable: false);
+    final result = await _showBulkSaleDialog(
+      context,
+      scopeName: scopeName,
+      sourceItems: sourceItems,
+      existingSales: existingSales,
+    );
+    if (result == null || !mounted) return;
+
+    setState(() => _bulkSaleBusy = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final latestItems = ref.read(collectionControllerProvider);
+      final latestSales = latestItems
+          .where((item) => item.collectionType == CollectionTypes.forSale)
+          .toList(growable: false);
+      final timestamp = DateTime.now().toUtc();
+      final plan = buildBulkSaleImportPlan(
+        sources: sourceItems,
+        existingSales: latestSales,
+        quantityMode: result.quantityMode,
+        now: timestamp,
+        generatedId: (index) =>
+            'bulk-sale-${timestamp.microsecondsSinceEpoch}-$index',
+      );
+
+      if (plan.records.isEmpty) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Todas as cópias selecionadas já estão à venda.'),
+          ),
+        );
+        return;
+      }
+
+      final controller = ref.read(collectionControllerProvider.notifier);
+      await controller.upsertMany(plan.records);
+
+      Object? publicationError;
+      if (result.publishNow) {
+        final importedKeys = plan.records.map(saleVariantKey).toSet();
+        final listingIds = ref
+            .read(collectionControllerProvider)
+            .where(
+              (item) =>
+                  item.collectionType == CollectionTypes.forSale &&
+                  importedKeys.contains(saleVariantKey(item)),
+            )
+            .map((item) => item.id)
+            .toList(growable: false);
+        try {
+          await ref
+              .read(marketplaceRepositoryProvider)
+              .enablePublicListingsByIds(listingIds);
+        } catch (error) {
+          publicationError = error;
+        }
+      }
+
+      if (!mounted) return;
+      final message = publicationError != null
+          ? '${plan.totalQuantity} cópias foram adicionadas às vendas, '
+                'mas não foram publicadas. Confira o WhatsApp do perfil e '
+                'tente novamente em Cartas à venda.'
+          : result.publishNow
+          ? '${plan.totalQuantity} cópias de ${plan.addedVariantCount} cartas '
+                'foram publicadas no marketplace por 7 dias.'
+          : '${plan.totalQuantity} cópias de ${plan.addedVariantCount} cartas '
+                'foram adicionadas às vendas.';
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(message),
+          action: SnackBarAction(
+            label: 'ABRIR VENDAS',
+            onPressed: () => context.go('/sales'),
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Não foi possível adicionar a pasta às vendas. Tente novamente.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _bulkSaleBusy = false);
+    }
   }
 
   int _countUniqueCards(List<CardRecord> items) {
@@ -929,6 +1035,8 @@ class _CollectionFoldersSection extends StatelessWidget {
   final VoidCallback onCreate;
   final ValueChanged<CollectionFolder> onRename;
   final ValueChanged<CollectionFolder> onDelete;
+  final Future<void> Function(String name, List<CardRecord> items) onSell;
+  final bool selling;
 
   const _CollectionFoldersSection({
     required this.folders,
@@ -939,6 +1047,8 @@ class _CollectionFoldersSection extends StatelessWidget {
     required this.onCreate,
     required this.onRename,
     required this.onDelete,
+    required this.onSell,
+    required this.selling,
   });
 
   @override
@@ -958,6 +1068,10 @@ class _CollectionFoldersSection extends StatelessWidget {
               .toList(growable: false),
         ),
     ];
+    final selectedEntry = entries.firstWhere(
+      (entry) => entry.id == selectedFolder,
+      orElse: () => entries.first,
+    );
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 14, 12, 2),
@@ -995,7 +1109,28 @@ class _CollectionFoldersSection extends StatelessWidget {
           const SizedBox(height: 10),
           if (loading)
             const LinearProgressIndicator()
-          else
+          else ...[
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.icon(
+                onPressed: selling || selectedEntry.items.isEmpty
+                    ? null
+                    : () => onSell(selectedEntry.name, selectedEntry.items),
+                icon: selling
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.storefront_outlined),
+                label: Text(
+                  selectedEntry.id == '__all__'
+                      ? 'Vender toda a coleção'
+                      : 'Vender esta pasta',
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
             SizedBox(
               height: 154,
               child: ListView.separated(
@@ -1100,6 +1235,7 @@ class _CollectionFoldersSection extends StatelessWidget {
                 },
               ),
             ),
+          ],
         ],
       ),
     );
@@ -1212,6 +1348,144 @@ class _AddMethodTile extends StatelessWidget {
       ),
     );
   }
+}
+
+class _BulkSaleDialogResult {
+  final BulkSaleQuantityMode quantityMode;
+  final bool publishNow;
+
+  const _BulkSaleDialogResult({
+    required this.quantityMode,
+    required this.publishNow,
+  });
+}
+
+Future<_BulkSaleDialogResult?> _showBulkSaleDialog(
+  BuildContext context, {
+  required String scopeName,
+  required List<CardRecord> sourceItems,
+  required List<CardRecord> existingSales,
+}) {
+  var quantityMode = BulkSaleQuantityMode.allAvailable;
+  var publishNow = true;
+
+  return showDialog<_BulkSaleDialogResult>(
+    context: context,
+    builder: (dialogContext) {
+      return StatefulBuilder(
+        builder: (context, setDialogState) {
+          final preview = buildBulkSaleImportPlan(
+            sources: sourceItems,
+            existingSales: existingSales,
+            quantityMode: quantityMode,
+            now: DateTime.now().toUtc(),
+            generatedId: (index) => 'preview-$index',
+          );
+
+          return AlertDialog(
+            title: const Text('Colocar pasta à venda'),
+            content: SizedBox(
+              width: 520,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      scopeName,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${preview.addedVariantCount} cartas diferentes • '
+                      '${preview.totalQuantity} cópias disponíveis',
+                    ),
+                    if (preview.skippedVariantCount > 0) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        '${preview.skippedVariantCount} cartas já possuem '
+                        'todas as cópias em vendas.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    Text(
+                      'Quantidade',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    RadioGroup<BulkSaleQuantityMode>(
+                      groupValue: quantityMode,
+                      onChanged: (value) {
+                        if (value != null) {
+                          setDialogState(() => quantityMode = value);
+                        }
+                      },
+                      child: const Column(
+                        children: [
+                          RadioListTile<BulkSaleQuantityMode>(
+                            value: BulkSaleQuantityMode.allAvailable,
+                            title: Text('Todas as cópias disponíveis'),
+                          ),
+                          RadioListTile<BulkSaleQuantityMode>(
+                            value: BulkSaleQuantityMode.onePerVariant,
+                            title: Text('Uma cópia de cada carta'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      value: publishNow,
+                      onChanged: (value) {
+                        setDialogState(() => publishNow = value);
+                      },
+                      title: const Text('Publicar agora no marketplace'),
+                      subtitle: const Text(
+                        'Usa o WhatsApp do perfil e mantém os anúncios '
+                        'visíveis por 7 dias.',
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Preços já configurados serão preservados. Cartas novas '
+                      'ficarão como “Sem preço” até você definir o valor '
+                      'manual ou pela Liga em Cartas à venda.',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton.icon(
+                onPressed: preview.records.isEmpty
+                    ? null
+                    : () => Navigator.of(dialogContext).pop(
+                        _BulkSaleDialogResult(
+                          quantityMode: quantityMode,
+                          publishNow: publishNow,
+                        ),
+                      ),
+                icon: Icon(
+                  publishNow
+                      ? Icons.storefront_outlined
+                      : Icons.inventory_2_outlined,
+                ),
+                label: Text(publishNow ? 'Publicar' : 'Adicionar às vendas'),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
 }
 
 Future<int?> _showSaleQuantityDialog(

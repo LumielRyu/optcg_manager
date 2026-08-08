@@ -1748,3 +1748,25 @@ git diff --stat
 - Pos-publicacao: o HTML respondeu 200 e contem a meta tag exata, nao carrega
   `adsbygoogle.js`, o health check confirmou a release `9ac4ce633523` e a
   Vercel nao registrou erros de runtime nos 30 minutos verificados.
+
+### 08/08/2026 - Venda em lote pelas pastas da colecao
+
+- A area de pastas da colecao One Piece ganhou a acao `Vender esta pasta`;
+  na visao `Todas as cartas`, a mesma acao aparece como
+  `Vender toda a colecao`.
+- Antes de executar, o usuario revisa o total e escolhe entre uma copia de
+  cada variante ou todas as copias ainda disponiveis.
+- O calculo desconta quantidades que ja estao em `Cartas a venda`, evita
+  duplicar estoque e trata carta normal e arte alternativa separadamente pela
+  combinacao de codigo e imagem.
+- O usuario pode apenas preparar o lote em `Cartas a venda` ou publica-lo
+  imediatamente no marketplace. A publicacao usa o WhatsApp do perfil,
+  reativa somente os anuncios do lote e define validade de sete dias.
+- Precos existentes sao preservados. Novos anuncios entram como `Sem preco`
+  para posterior configuracao manual ou percentual da Liga.
+- As inclusoes e atualizacoes sao enviadas em lote ao Supabase; publicacoes
+  maiores sao divididas em grupos de 100 IDs.
+- Nao foi necessaria migracao SQL.
+- Validacoes aprovadas: quality gate completo, 142 testes Flutter, 16 testes
+  Python, 15 testes Node, cobertura de 31,14%, analise estatica limpa e build
+  web de producao.
