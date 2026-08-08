@@ -1799,7 +1799,11 @@ git diff --stat
 - A migracao necessaria esta em
   `sql/marketplace_inventory_reservations.sql` e precisa ser executada antes
   da publicacao da interface.
-- Validacoes locais aprovadas: quality gate completo, 150 testes Flutter, 16
+- Validacoes locais aprovadas: quality gate completo, 151 testes Flutter, 16
   testes Python, 15 testes Node, cobertura de 31,45%, analise estatica limpa
   e build web de producao. Depois dos ajustes finais de protecao, os nove
   testes direcionados e a analise estatica tambem passaram.
+- Durante a publicacao, o audit remoto detectou tres avisos de alta severidade
+  na dependencia transitiva `ip-address` 10.2.0. O lockfile foi atualizado
+  para 10.4.0; `npm audit` voltou a zero vulnerabilidades e o quality gate
+  completo foi repetido com sucesso.
