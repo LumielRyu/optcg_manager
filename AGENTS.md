@@ -1777,3 +1777,29 @@ git diff --stat
   `db9cdfbf08ec`, o bundle contem a acao de vender pasta e a revisao para
   publicar no marketplace, e a Vercel nao registrou erros de runtime nos 30
   minutos verificados.
+
+### 08/08/2026 - Reservas de estoque no marketplace
+
+- O comprador agora escolhe a quantidade antes de reservar uma carta. No
+  marketplace One Piece, o carrinho permite reservar varias cartas do mesmo
+  vendedor em uma unica operacao; os demais TCGs reservam pelo anuncio.
+- A reserva e transacional: o Supabase bloqueia os anuncios, valida o estoque
+  e desconta as quantidades de forma atomica, sem permitir estoque negativo
+  em compras concorrentes.
+- Cada reserva dura 24 horas. O vendedor ve os pedidos pendentes em `Cartas a
+  venda`, pode falar com o comprador pelo WhatsApp, confirmar a venda ou
+  recusar e devolver o estoque.
+- O comprador ganhou `Minhas reservas` em todos os marketplaces e pode
+  cancelar um pedido pendente, restaurando o estoque imediatamente.
+- Reservas vencidas sao restauradas por uma tarefa `pg_cron` a cada cinco
+  minutos e tambem por verificacao oportunista nas operacoes do aplicativo.
+- O banco preserva dados essenciais do pedido, aplica RLS para comprador e
+  vendedor, exige WhatsApp no perfil e limita cada comprador a dez reservas
+  pendentes.
+- A migracao necessaria esta em
+  `sql/marketplace_inventory_reservations.sql` e precisa ser executada antes
+  da publicacao da interface.
+- Validacoes locais aprovadas: quality gate completo, 150 testes Flutter, 16
+  testes Python, 15 testes Node, cobertura de 31,45%, analise estatica limpa
+  e build web de producao. Depois dos ajustes finais de protecao, os nove
+  testes direcionados e a analise estatica tambem passaram.

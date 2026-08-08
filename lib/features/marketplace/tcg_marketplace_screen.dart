@@ -7,7 +7,9 @@ import '../../core/tcg/tcg_game.dart';
 import '../../core/utils/auth_action_guard.dart';
 import '../../core/widgets/catalog_grid_card.dart';
 import '../../core/widgets/home_navigation_button.dart';
+import '../../data/models/marketplace_order.dart';
 import '../../data/models/tcg_marketplace_listing.dart';
+import '../../data/repositories/marketplace_order_repository.dart';
 import '../../data/repositories/tcg_marketplace_repository.dart';
 
 class TcgMarketplaceScreen extends ConsumerStatefulWidget {
@@ -25,11 +27,25 @@ class _TcgMarketplaceScreenState extends ConsumerState<TcgMarketplaceScreen> {
   bool _loading = true;
   String? _error;
   String _query = '';
+  late Future<List<MarketplaceOrder>> _buyerOrdersFuture;
 
   @override
   void initState() {
     super.initState();
+    _buyerOrdersFuture = _loadBuyerOrders();
     _load();
+  }
+
+  Future<List<MarketplaceOrder>> _loadBuyerOrders() async {
+    final orders = await ref
+        .read(marketplaceOrderRepositoryProvider)
+        .getBuyerOrders();
+    return orders
+        .where(
+          (order) =>
+              order.items.any((item) => item.gameSlug == widget.game.slug),
+        )
+        .toList(growable: false);
   }
 
   Future<void> _load() async {
@@ -99,6 +115,45 @@ class _TcgMarketplaceScreenState extends ConsumerState<TcgMarketplaceScreen> {
     }
   }
 
+  Future<void> _reserve(
+    TcgMarketplaceListing item,
+    int quantity,
+    BuildContext dialogContext,
+  ) async {
+    if (!requireSignedIn(context)) return;
+    try {
+      final receipt = await ref
+          .read(marketplaceOrderRepositoryProvider)
+          .reserveItems({item.id: quantity});
+      if (!mounted) return;
+      if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+      await _load();
+      _buyerOrdersFuture = _loadBuyerOrders();
+      if (!mounted) return;
+      final time = TimeOfDay.fromDateTime(
+        receipt.expiresAt.toLocal(),
+      ).format(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '$quantity carta(s) reservada(s) até $time. O vendedor tem 24 '
+            'horas para confirmar.',
+          ),
+          action: SnackBarAction(
+            label: 'WHATSAPP',
+            onPressed: () => _contact(item),
+          ),
+        ),
+      );
+    } on MarketplaceReservationException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+      await _load();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final visible = _visible;
@@ -107,6 +162,11 @@ class _TcgMarketplaceScreenState extends ConsumerState<TcgMarketplaceScreen> {
         leading: HomeNavigationButton(destinationRoute: '/${widget.game.slug}'),
         title: Text('Marketplace • ${widget.game.label}'),
         actions: [
+          IconButton(
+            tooltip: 'Minhas reservas',
+            onPressed: _showBuyerOrders,
+            icon: const Icon(Icons.inventory_2_outlined),
+          ),
           IconButton(
             tooltip: 'Minhas vendas',
             onPressed: () => context.go('/${widget.game.slug}/sales'),
@@ -257,62 +317,229 @@ class _TcgMarketplaceScreenState extends ConsumerState<TcgMarketplaceScreen> {
   }
 
   void _openDetails(TcgMarketplaceListing item) {
+    var quantity = 1;
     showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(item.name),
-        content: SizedBox(
-          width: 500,
-          child: SingleChildScrollView(
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(item.name),
+          content: SizedBox(
+            width: 500,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    height: 300,
+                    child: Image.network(
+                      item.imageUrl,
+                      fit: BoxFit.contain,
+                      webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    item.formattedPrice,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text('${item.quantity} disponível • ${item.conditionLabel}'),
+                  Text('${item.setName} • ${item.rarity}'),
+                  const SizedBox(height: 14),
+                  DropdownButtonFormField<int>(
+                    initialValue: quantity,
+                    decoration: const InputDecoration(
+                      labelText: 'Quantidade para reservar',
+                    ),
+                    items: [
+                      for (var value = 1; value <= item.quantity; value++)
+                        DropdownMenuItem(value: value, child: Text('$value')),
+                    ],
+                    onChanged: (value) {
+                      setDialogState(() => quantity = value ?? 1);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'O estoque escolhido ficará separado por 24 horas '
+                    'aguardando a confirmação do vendedor.',
+                  ),
+                  const Divider(height: 28),
+                  Text(
+                    item.sellerName.isEmpty
+                        ? 'Vendedor da comunidade'
+                        : 'Vendedor: ${item.sellerName}',
+                  ),
+                  if (item.notes.trim().isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(item.notes),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Fechar'),
+            ),
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _contact(item);
+              },
+              icon: const Icon(Icons.chat_outlined),
+              label: const Text('WhatsApp'),
+            ),
+            FilledButton.icon(
+              onPressed: () => _reserve(item, quantity, dialogContext),
+              icon: const Icon(Icons.lock_clock_outlined),
+              label: const Text('Reservar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showBuyerOrders() async {
+    if (!requireSignedIn(context)) return;
+    _buyerOrdersFuture = _loadBuyerOrders();
+    var ordersFuture = _buyerOrdersFuture;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) => FractionallySizedBox(
+          heightFactor: 0.86,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                SizedBox(
-                  height: 300,
-                  child: Image.network(
-                    item.imageUrl,
-                    fit: BoxFit.contain,
-                    webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+                Text(
+                  'Minhas reservas de ${widget.game.label}',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'O estoque fica separado por 24 horas enquanto o vendedor '
+                  'confirma a venda.',
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: FutureBuilder<List<MarketplaceOrder>>(
+                    future: ordersFuture,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (snapshot.hasError) {
+                        return const Center(
+                          child: Text('Não foi possível carregar as reservas.'),
+                        );
+                      }
+                      final orders = snapshot.data ?? const [];
+                      if (orders.isEmpty) {
+                        return const Center(
+                          child: Text('Você ainda não possui reservas.'),
+                        );
+                      }
+                      return ListView.separated(
+                        itemCount: orders.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final order = orders[index];
+                          final seller = order.sellerName.trim().isEmpty
+                              ? 'Vendedor'
+                              : order.sellerName;
+                          return Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          seller,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                        ),
+                                      ),
+                                      Chip(label: Text(order.statusLabel)),
+                                    ],
+                                  ),
+                                  Text(
+                                    '${order.totalCards} carta(s) • '
+                                    '${order.remainingLabel}',
+                                  ),
+                                  const SizedBox(height: 6),
+                                  for (final item in order.items.where(
+                                    (item) => item.gameSlug == widget.game.slug,
+                                  ))
+                                    Text(
+                                      '${item.quantity}x ${item.cardName} '
+                                      '(${item.cardCode})',
+                                    ),
+                                  if (order.isPending) ...[
+                                    const SizedBox(height: 10),
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: TextButton.icon(
+                                        onPressed: () async {
+                                          try {
+                                            await ref
+                                                .read(
+                                                  marketplaceOrderRepositoryProvider,
+                                                )
+                                                .cancelOrder(order.id);
+                                            ordersFuture = _loadBuyerOrders();
+                                            _buyerOrdersFuture = ordersFuture;
+                                            setSheetState(() {});
+                                            await _load();
+                                          } on MarketplaceReservationException catch (
+                                            error
+                                          ) {
+                                            if (!sheetContext.mounted) return;
+                                            ScaffoldMessenger.of(
+                                              sheetContext,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(error.message),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                        icon: const Icon(Icons.undo_outlined),
+                                        label: const Text(
+                                          'Cancelar e devolver estoque',
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
                   ),
                 ),
-                const SizedBox(height: 14),
-                Text(
-                  item.formattedPrice,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text('${item.quantity} disponível • ${item.conditionLabel}'),
-                Text('${item.setName} • ${item.rarity}'),
-                const Divider(height: 28),
-                Text(
-                  item.sellerName.isEmpty
-                      ? 'Vendedor da comunidade'
-                      : 'Vendedor: ${item.sellerName}',
-                ),
-                if (item.notes.trim().isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Text(item.notes),
-                ],
               ],
             ),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fechar'),
-          ),
-          FilledButton.icon(
-            onPressed: () {
-              Navigator.pop(context);
-              _contact(item);
-            },
-            icon: const Icon(Icons.chat_outlined),
-            label: const Text('Falar no WhatsApp'),
-          ),
-        ],
       ),
     );
   }

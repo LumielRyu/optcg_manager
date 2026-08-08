@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/tcg/tcg_game.dart';
 import '../../core/widgets/catalog_grid_card.dart';
 import '../../core/widgets/home_navigation_button.dart';
 import '../../data/models/tcg_marketplace_listing.dart';
+import '../../data/models/marketplace_order.dart';
+import '../../data/repositories/marketplace_order_repository.dart';
 import '../../data/repositories/tcg_marketplace_repository.dart';
 
 class TcgSalesScreen extends ConsumerStatefulWidget {
@@ -22,6 +25,8 @@ class _TcgSalesScreenState extends ConsumerState<TcgSalesScreen> {
   List<TcgMarketplaceListing> _items = const [];
   bool _loading = true;
   String? _error;
+  List<MarketplaceOrder> _pendingOrders = const [];
+  final Set<String> _resolvingOrderIds = {};
 
   @override
   void initState() {
@@ -35,12 +40,18 @@ class _TcgSalesScreenState extends ConsumerState<TcgSalesScreen> {
       _error = null;
     });
     try {
-      final items = await ref
-          .read(tcgMarketplaceRepositoryProvider)
-          .listMine(widget.game.slug);
+      final results = await Future.wait([
+        ref.read(tcgMarketplaceRepositoryProvider).listMine(widget.game.slug),
+        ref
+            .read(marketplaceOrderRepositoryProvider)
+            .getSellerOrders(gameSlug: widget.game.slug),
+      ]);
+      final items = results[0] as List<TcgMarketplaceListing>;
+      final orders = results[1] as List<MarketplaceOrder>;
       if (!mounted) return;
       setState(() {
         _items = items;
+        _pendingOrders = orders;
         _loading = false;
       });
     } catch (error) {
@@ -58,6 +69,129 @@ class _TcgSalesScreenState extends ConsumerState<TcgSalesScreen> {
       builder: (_) => _TcgSaleEditorDialog(game: widget.game, listing: listing),
     );
     if (changed == true) await _load();
+  }
+
+  Future<void> _resolveOrder(
+    MarketplaceOrder order, {
+    required bool confirm,
+  }) async {
+    if (_resolvingOrderIds.contains(order.id)) return;
+    setState(() => _resolvingOrderIds.add(order.id));
+    try {
+      final repository = ref.read(marketplaceOrderRepositoryProvider);
+      if (confirm) {
+        await repository.confirmOrder(order.id);
+      } else {
+        await repository.rejectOrder(order.id);
+      }
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            confirm
+                ? 'Venda confirmada.'
+                : 'Reserva recusada e estoque restaurado.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('$error')));
+    } finally {
+      if (mounted) setState(() => _resolvingOrderIds.remove(order.id));
+    }
+  }
+
+  Future<void> _contactBuyer(MarketplaceOrder order) async {
+    final digits = order.buyerContact.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) return;
+    final phone = digits.startsWith('55') ? digits : '55$digits';
+    await launchUrl(
+      Uri.parse(
+        'https://wa.me/$phone?text=${Uri.encodeComponent('Olá ${order.buyerName}, recebi sua reserva no TCG BH.')}',
+      ),
+      mode: LaunchMode.externalApplication,
+    );
+  }
+
+  Widget _buildPendingOrdersPanel() {
+    if (_pendingOrders.isEmpty) return const SizedBox.shrink();
+    return Card(
+      color: Theme.of(context).colorScheme.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Pedidos aguardando confirmação (${_pendingOrders.length})',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+            ),
+            const Text(
+              'Confirme em até 24 horas ou o estoque será restaurado.',
+            ),
+            const SizedBox(height: 10),
+            for (final order in _pendingOrders)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        order.buyerName.trim().isEmpty
+                            ? 'Comprador'
+                            : order.buyerName,
+                        style: const TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                      Text(
+                        '${order.totalCards} cartas • ${order.remainingLabel}',
+                      ),
+                      const SizedBox(height: 6),
+                      for (final item in order.items)
+                        Text(
+                          '${item.quantity}x ${item.cardName} (${item.cardCode})',
+                        ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        alignment: WrapAlignment.end,
+                        children: [
+                          if (order.buyerContact.trim().isNotEmpty)
+                            OutlinedButton.icon(
+                              onPressed: () => _contactBuyer(order),
+                              icon: const Icon(Icons.chat_outlined),
+                              label: const Text('WhatsApp'),
+                            ),
+                          OutlinedButton(
+                            onPressed: _resolvingOrderIds.contains(order.id)
+                                ? null
+                                : () => _resolveOrder(order, confirm: false),
+                            child: const Text('Recusar'),
+                          ),
+                          FilledButton.icon(
+                            onPressed: _resolvingOrderIds.contains(order.id)
+                                ? null
+                                : () => _resolveOrder(order, confirm: true),
+                            icon: const Icon(Icons.check_circle_outline),
+                            label: const Text('Confirmar venda'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -179,6 +313,10 @@ class _TcgSalesScreenState extends ConsumerState<TcgSalesScreen> {
                     ),
                   ),
                 ),
+                if (_pendingOrders.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _buildPendingOrdersPanel(),
+                ],
               ],
             ),
           ),

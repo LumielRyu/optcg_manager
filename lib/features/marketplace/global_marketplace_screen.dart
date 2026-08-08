@@ -14,7 +14,9 @@ import '../../core/widgets/catalog_grid_card.dart';
 import '../../core/widgets/app_page_shell.dart';
 import '../../core/widgets/home_navigation_button.dart';
 import '../../data/models/marketplace_listing.dart';
+import '../../data/models/marketplace_order.dart';
 import '../../data/repositories/marketplace_repository.dart';
+import '../../data/repositories/marketplace_order_repository.dart';
 import '../../data/services/liga_one_piece_service.dart';
 
 class GlobalMarketplaceScreen extends ConsumerStatefulWidget {
@@ -44,8 +46,10 @@ class _GlobalMarketplaceScreenState
   final Map<String, int> _cartQuantities = {};
   final Map<String, String?> _ligaPriceLabels = {};
   final Set<String> _ligaPriceLoadingCodes = {};
+  final Set<String> _reservingSellerIds = {};
   List<MarketplaceListing> _loadedPublicItems = const [];
   late Future<List<MarketplaceListing>> _publicListingsFuture;
+  late Future<List<MarketplaceOrder>> _buyerOrdersFuture;
   List<MarketplaceListing> _cachedSourceItems = const [];
   List<MarketplaceListing> _cachedFilteredItems = const [];
   List<String> _cachedColorOptions = const ['Todas'];
@@ -63,6 +67,7 @@ class _GlobalMarketplaceScreenState
   void initState() {
     super.initState();
     _publicListingsFuture = _loadPublicListings();
+    _buyerOrdersFuture = _loadBuyerOrders();
     _searchController.addListener(() {
       setState(() {
         _query = _searchController.text.trim().toLowerCase();
@@ -90,6 +95,10 @@ class _GlobalMarketplaceScreenState
       );
       throw _MarketplaceLoadException(referenceId);
     }
+  }
+
+  Future<List<MarketplaceOrder>> _loadBuyerOrders() {
+    return ref.read(marketplaceOrderRepositoryProvider).getBuyerOrders();
   }
 
   void _retryPublicListings() {
@@ -430,6 +439,255 @@ class _GlobalMarketplaceScreenState
     }
   }
 
+  Future<void> _reserveSellerCart(
+    List<MarketplaceListing> sellerItems,
+    BuildContext sheetContext,
+  ) async {
+    if (!requireSignedIn(context) || sellerItems.isEmpty) return;
+
+    final selected = sellerItems
+        .where((item) => _selectedQuantityFor(item) > 0)
+        .toList(growable: false);
+    if (selected.isEmpty) return;
+
+    final sellerId = selected.first.ownerUserId;
+    if (_reservingSellerIds.contains(sellerId)) return;
+    final totalCards = selected.fold<int>(
+      0,
+      (sum, item) => sum + _selectedQuantityFor(item),
+    );
+    final sellerName = selected.first.sellerName.trim().isEmpty
+        ? 'este vendedor'
+        : selected.first.sellerName.trim();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Reservar estoque por 24 horas?'),
+        content: Text(
+          '$totalCards cartas de $sellerName serão retiradas temporariamente '
+          'do marketplace. O vendedor terá 24 horas para confirmar a venda. '
+          'Se não confirmar, o estoque será restaurado automaticamente.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            icon: const Icon(Icons.lock_clock_outlined),
+            label: const Text('Reservar estoque'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _reservingSellerIds.add(sellerId));
+    try {
+      final quantities = <String, int>{
+        for (final item in selected) item.id: _selectedQuantityFor(item),
+      };
+      final receipt = await ref
+          .read(marketplaceOrderRepositoryProvider)
+          .reserveItems(quantities);
+
+      if (!mounted) return;
+      setState(() {
+        for (final item in selected) {
+          _cartQuantities.remove(item.id);
+        }
+        _publicListingsFuture = _loadPublicListings();
+        _buyerOrdersFuture = _loadBuyerOrders();
+      });
+      if (sheetContext.mounted) Navigator.of(sheetContext).pop();
+
+      final expirationTime = TimeOfDay.fromDateTime(
+        receipt.expiresAt.toLocal(),
+      ).format(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Estoque reservado até $expirationTime. Aguarde a confirmação '
+            'do vendedor.',
+          ),
+          action: SnackBarAction(
+            label: 'WHATSAPP',
+            onPressed: () => _openSellerCartWhatsApp(selected),
+          ),
+        ),
+      );
+    } on MarketplaceReservationException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+      setState(() => _publicListingsFuture = _loadPublicListings());
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Não foi possível reservar o estoque. Atualize e tente novamente.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _reservingSellerIds.remove(sellerId));
+    }
+  }
+
+  Future<void> _showBuyerOrders() async {
+    if (!requireSignedIn(context)) return;
+    _buyerOrdersFuture = _loadBuyerOrders();
+    var ordersFuture = _buyerOrdersFuture;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          return FractionallySizedBox(
+            heightFactor: 0.86,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Minhas reservas',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'O estoque fica separado por até 24 horas enquanto o '
+                    'vendedor confirma a venda.',
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: FutureBuilder<List<MarketplaceOrder>>(
+                      future: ordersFuture,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+                        if (snapshot.hasError) {
+                          return const Center(
+                            child: Text(
+                              'Não foi possível carregar as reservas.',
+                            ),
+                          );
+                        }
+                        final orders = snapshot.data ?? const [];
+                        if (orders.isEmpty) {
+                          return const Center(
+                            child: Text('Você ainda não possui reservas.'),
+                          );
+                        }
+
+                        return ListView.separated(
+                          itemCount: orders.length,
+                          separatorBuilder: (_, _) =>
+                              const SizedBox(height: 10),
+                          itemBuilder: (context, index) {
+                            final order = orders[index];
+                            final seller = order.sellerName.trim().isEmpty
+                                ? 'Vendedor'
+                                : order.sellerName;
+                            final total = order.hasCompletePrice
+                                ? _formatCents(order.knownTotalInCents)
+                                : 'Preço a combinar';
+                            return Card(
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            seller,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w900,
+                                            ),
+                                          ),
+                                        ),
+                                        Chip(label: Text(order.statusLabel)),
+                                      ],
+                                    ),
+                                    Text(
+                                      '${order.totalCards} cartas • $total • '
+                                      '${order.remainingLabel}',
+                                    ),
+                                    const SizedBox(height: 8),
+                                    for (final item in order.items)
+                                      Text(
+                                        '${item.quantity}x ${item.cardName} '
+                                        '(${item.cardCode})',
+                                      ),
+                                    if (order.isPending) ...[
+                                      const SizedBox(height: 10),
+                                      Align(
+                                        alignment: Alignment.centerRight,
+                                        child: OutlinedButton.icon(
+                                          onPressed: () async {
+                                            try {
+                                              await ref
+                                                  .read(
+                                                    marketplaceOrderRepositoryProvider,
+                                                  )
+                                                  .cancelOrder(order.id);
+                                              if (!sheetContext.mounted) return;
+                                              ordersFuture = _loadBuyerOrders();
+                                              _buyerOrdersFuture = ordersFuture;
+                                              setSheetState(() {});
+                                              setState(
+                                                () => _publicListingsFuture =
+                                                    _loadPublicListings(),
+                                              );
+                                            } catch (error) {
+                                              if (!sheetContext.mounted) return;
+                                              ScaffoldMessenger.of(
+                                                sheetContext,
+                                              ).showSnackBar(
+                                                SnackBar(
+                                                  content: Text('$error'),
+                                                ),
+                                              );
+                                            }
+                                          },
+                                          icon: const Icon(Icons.undo),
+                                          label: const Text('Cancelar reserva'),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   void _showCartSheet(List<MarketplaceListing> allItems) {
     if (!requireSignedIn(context)) {
       return;
@@ -569,21 +827,32 @@ class _GlobalMarketplaceScreenState
                                       children: [
                                         Expanded(
                                           child: FilledButton.icon(
-                                            onPressed: () =>
-                                                _openSellerCartWhatsApp(
-                                                  sellerItems
-                                                      .where(
-                                                        (item) =>
-                                                            _selectedQuantityFor(
-                                                              item,
-                                                            ) >
-                                                            0,
-                                                      )
-                                                      .toList(),
-                                                ),
-                                            icon: const Icon(Icons.open_in_new),
+                                            onPressed:
+                                                _reservingSellerIds.contains(
+                                                  entry.key,
+                                                )
+                                                ? null
+                                                : () => _reserveSellerCart(
+                                                    sellerItems,
+                                                    context,
+                                                  ),
+                                            icon:
+                                                _reservingSellerIds.contains(
+                                                  entry.key,
+                                                )
+                                                ? const SizedBox(
+                                                    width: 18,
+                                                    height: 18,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                        ),
+                                                  )
+                                                : const Icon(
+                                                    Icons.lock_clock_outlined,
+                                                  ),
                                             label: const Text(
-                                              'Enviar interesse',
+                                              'Reservar estoque',
                                             ),
                                           ),
                                         ),
@@ -959,6 +1228,11 @@ class _GlobalMarketplaceScreenState
             icon: Icon(
               isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
             ),
+          ),
+          IconButton(
+            tooltip: 'Minhas reservas',
+            onPressed: _showBuyerOrders,
+            icon: const Icon(Icons.receipt_long_outlined),
           ),
           IconButton(
             tooltip: 'Carrinho',

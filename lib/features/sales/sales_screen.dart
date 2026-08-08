@@ -18,7 +18,9 @@ import '../../core/widgets/catalog_grid_card.dart';
 import '../../core/widgets/catalog_list_card.dart';
 import '../../core/widgets/summary_stat_card.dart';
 import '../../data/models/marketplace_listing.dart';
+import '../../data/models/marketplace_order.dart';
 import '../../data/repositories/marketplace_repository.dart';
+import '../../data/repositories/marketplace_order_repository.dart';
 import '../../data/services/liga_one_piece_service.dart';
 import '../../data/services/op_api_service.dart';
 import '../../data/services/translation_service.dart';
@@ -38,6 +40,8 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   String _query = '';
   bool _isSharingBusy = false;
   late Future<List<MarketplaceListing>> _listingsFuture;
+  late Future<List<MarketplaceOrder>> _pendingOrdersFuture;
+  final Set<String> _resolvingOrderIds = {};
   List<MarketplaceListing> _cachedSourceItems = const [];
   List<MarketplaceListing> _cachedFilteredItems = const [];
   String _cachedQuery = '';
@@ -49,6 +53,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   void initState() {
     super.initState();
     _listingsFuture = _loadListings();
+    _pendingOrdersFuture = _loadPendingOrders();
     _searchController.addListener(() {
       setState(() {
         _query = _searchController.text.trim().toLowerCase();
@@ -64,6 +69,12 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 
   Future<List<MarketplaceListing>> _loadListings() {
     return ref.read(marketplaceRepositoryProvider).getMyListings();
+  }
+
+  Future<List<MarketplaceOrder>> _loadPendingOrders() {
+    return ref
+        .read(marketplaceOrderRepositoryProvider)
+        .getSellerOrders(gameSlug: 'one-piece');
   }
 
   void _updateSalesDerivedData(List<MarketplaceListing> allItems) {
@@ -102,7 +113,91 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     if (!mounted) return;
     setState(() {
       _listingsFuture = _loadListings();
+      _pendingOrdersFuture = _loadPendingOrders();
     });
+  }
+
+  Future<void> _resolvePendingOrder(
+    MarketplaceOrder order, {
+    required bool confirm,
+  }) async {
+    if (_resolvingOrderIds.contains(order.id)) return;
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(confirm ? 'Confirmar venda?' : 'Recusar reserva?'),
+        content: Text(
+          confirm
+              ? 'A venda de ${order.totalCards} cartas será confirmada e o '
+                    'estoque reservado permanecerá descontado.'
+              : 'As ${order.totalCards} cartas serão devolvidas '
+                    'imediatamente ao estoque do marketplace.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Voltar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(confirm ? 'Confirmar venda' : 'Recusar e devolver'),
+          ),
+        ],
+      ),
+    );
+    if (accepted != true || !mounted) return;
+
+    setState(() => _resolvingOrderIds.add(order.id));
+    try {
+      final repository = ref.read(marketplaceOrderRepositoryProvider);
+      if (confirm) {
+        await repository.confirmOrder(order.id);
+      } else {
+        await repository.rejectOrder(order.id);
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            confirm
+                ? 'Venda confirmada. O estoque permaneceu descontado.'
+                : 'Reserva recusada. O estoque foi restaurado.',
+          ),
+        ),
+      );
+      _reloadListings();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('$error')));
+    } finally {
+      if (mounted) setState(() => _resolvingOrderIds.remove(order.id));
+    }
+  }
+
+  Future<void> _openBuyerWhatsApp(MarketplaceOrder order) async {
+    final digits = order.buyerContact.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('O comprador não informou WhatsApp.')),
+      );
+      return;
+    }
+    final phone = digits.startsWith('55') ? digits : '55$digits';
+    final message = Uri.encodeComponent(
+      'Oi ${order.buyerName}, recebi sua reserva de '
+      '${order.totalCards} cartas no TCG BH.',
+    );
+    final launched = await launchUrl(
+      Uri.parse('https://wa.me/$phone?text=$message'),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Não foi possível abrir o WhatsApp.')),
+      );
+    }
   }
 
   String _buildPublicStoreLink(String userId) {
@@ -314,6 +409,15 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
           return SingleChildScrollView(
             child: Column(
               children: [
+                _PendingMarketplaceOrdersPanel(
+                  ordersFuture: _pendingOrdersFuture,
+                  resolvingOrderIds: _resolvingOrderIds,
+                  onConfirm: (order) =>
+                      _resolvePendingOrder(order, confirm: true),
+                  onReject: (order) =>
+                      _resolvePendingOrder(order, confirm: false),
+                  onWhatsApp: _openBuyerWhatsApp,
+                ),
                 _SalesHeaderSection(
                   totalUnique: totalUnique,
                   totalCards: totalCards,
@@ -359,6 +463,175 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       bottomNavigationBar: const PrimaryBottomNavigation(
         currentRoute: '/sales',
       ),
+    );
+  }
+}
+
+class _PendingMarketplaceOrdersPanel extends StatelessWidget {
+  final Future<List<MarketplaceOrder>> ordersFuture;
+  final Set<String> resolvingOrderIds;
+  final ValueChanged<MarketplaceOrder> onConfirm;
+  final ValueChanged<MarketplaceOrder> onReject;
+  final ValueChanged<MarketplaceOrder> onWhatsApp;
+
+  const _PendingMarketplaceOrdersPanel({
+    required this.ordersFuture,
+    required this.resolvingOrderIds,
+    required this.onConfirm,
+    required this.onReject,
+    required this.onWhatsApp,
+  });
+
+  String _formatCents(int cents) {
+    final reais = cents ~/ 100;
+    final centavos = (cents % 100).toString().padLeft(2, '0');
+    return 'R\$ $reais,$centavos';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<MarketplaceOrder>>(
+      future: ordersFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.fromLTRB(12, 12, 12, 0),
+            child: LinearProgressIndicator(),
+          );
+        }
+        if (snapshot.hasError) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+            child: Card(
+              child: ListTile(
+                leading: const Icon(Icons.warning_amber_outlined),
+                title: const Text('Pedidos pendentes indisponíveis'),
+                subtitle: const Text(
+                  'Não foi possível consultar as reservas agora.',
+                ),
+              ),
+            ),
+          );
+        }
+        final orders = snapshot.data ?? const [];
+        if (orders.isEmpty) return const SizedBox.shrink();
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.pending_actions_outlined),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Pedidos aguardando confirmação (${orders.length})',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Confirme em até 24 horas. Reservas vencidas devolvem o '
+                    'estoque automaticamente.',
+                  ),
+                  const SizedBox(height: 12),
+                  for (final order in orders) ...[
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    order.buyerName.trim().isEmpty
+                                        ? 'Comprador'
+                                        : order.buyerName,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                                Chip(label: Text(order.remainingLabel)),
+                              ],
+                            ),
+                            Text(
+                              '${order.totalCards} cartas • '
+                              '${order.hasCompletePrice ? _formatCents(order.knownTotalInCents) : 'Preço a combinar'}',
+                            ),
+                            const SizedBox(height: 8),
+                            for (final item in order.items)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 3),
+                                child: Text(
+                                  '${item.quantity}x ${item.cardName} '
+                                  '(${item.cardCode})',
+                                ),
+                              ),
+                            const SizedBox(height: 10),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              alignment: WrapAlignment.end,
+                              children: [
+                                if (order.buyerContact.trim().isNotEmpty)
+                                  OutlinedButton.icon(
+                                    onPressed: () => onWhatsApp(order),
+                                    icon: const Icon(Icons.chat_outlined),
+                                    label: const Text('WhatsApp'),
+                                  ),
+                                OutlinedButton.icon(
+                                  onPressed:
+                                      resolvingOrderIds.contains(order.id)
+                                      ? null
+                                      : () => onReject(order),
+                                  icon: const Icon(Icons.undo),
+                                  label: const Text('Recusar'),
+                                ),
+                                FilledButton.icon(
+                                  onPressed:
+                                      resolvingOrderIds.contains(order.id)
+                                      ? null
+                                      : () => onConfirm(order),
+                                  icon: resolvingOrderIds.contains(order.id)
+                                      ? const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Icon(Icons.check_circle_outline),
+                                  label: const Text('Confirmar venda'),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (order != orders.last) const SizedBox(height: 8),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
