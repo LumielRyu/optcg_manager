@@ -1796,9 +1796,9 @@ git diff --stat
 - O banco preserva dados essenciais do pedido, aplica RLS para comprador e
   vendedor, exige WhatsApp no perfil e limita cada comprador a dez reservas
   pendentes.
-- A migracao necessaria esta em
-  `sql/marketplace_inventory_reservations.sql` e precisa ser executada antes
-  da publicacao da interface.
+- A migracao `sql/marketplace_inventory_reservations.sql` foi executada no
+  Supabase. As duas tabelas e a RPC de expiracao responderam corretamente;
+  nao havia reservas vencidas no momento da verificacao.
 - Validacoes locais aprovadas: quality gate completo, 151 testes Flutter, 16
   testes Python, 15 testes Node, cobertura de 31,45%, analise estatica limpa
   e build web de producao. Depois dos ajustes finais de protecao, os nove
@@ -1807,3 +1807,11 @@ git diff --stat
   na dependencia transitiva `ip-address` 10.2.0. O lockfile foi atualizado
   para 10.4.0; `npm audit` voltou a zero vulnerabilidades e o quality gate
   completo foi repetido com sucesso.
+- Commits funcionais `9462edf` e `e002b2d`, enviados para `origin/main`; o
+  quality gate remoto do commit final terminou com sucesso.
+- Deploy Vercel `dpl_EuqKA3hLeXfqYvFxhSg5AkAA4mYb`, status READY e publicado
+  em `https://tcgbh.vercel.app`.
+- Pos-publicacao: home e marketplace carregaram visualmente sem overlay de
+  erro; o bundle contem as quatro acoes novas de reserva, o health check
+  confirmou a release `e002b2d82d6c` e banco saudavel, e nao foram encontrados
+  erros de runtime nos logs de producao consultados.
