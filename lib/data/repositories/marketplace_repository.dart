@@ -442,10 +442,12 @@ class MarketplaceRepository {
         await _liga.fetchCachedPublicCardSnapshotForCard(
           cardName: cardName.isEmpty ? cardCode : cardName,
           cardCode: cardCode,
+          imageUrl: (row['image_url'] ?? '').toString(),
         ) ??
         await _liga.fetchPublicCardSnapshotForCard(
           cardName: cardName.isEmpty ? cardCode : cardName,
           cardCode: cardCode,
+          imageUrl: (row['image_url'] ?? '').toString(),
         );
     final basePrice = snapshot.minimumPrice ?? snapshot.lowestListing?.price;
     if (basePrice == null || basePrice <= 0) return false;

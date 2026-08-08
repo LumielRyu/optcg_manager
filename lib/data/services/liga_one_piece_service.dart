@@ -10,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/services/app_error_reporter.dart';
 import '../local/hive_boxes.dart';
+import 'liga_variant_classifier.dart';
 import 'supabase_client_provider.dart';
 
 final ligaOnePieceServiceProvider = Provider<LigaOnePieceService>((ref) {
@@ -22,35 +23,7 @@ String inferLigaLookupCode({
   required String cardName,
   required String cardCode,
 }) {
-  final normalizedCode = cardCode.trim().toUpperCase();
-  if (RegExp(r'-(AA|DP|FA|G|MA|OP|PA|PR|RE|SP|TR)$').hasMatch(normalizedCode) ||
-      RegExp(r'^[A-Z0-9]+-\d{3}-[A-Z0-9]+$').hasMatch(normalizedCode)) {
-    return normalizedCode;
-  }
-  final normalizedName = cardName
-      .toLowerCase()
-      .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
-      .trim();
-  final tokens = normalizedName.split(RegExp(r'\s+')).toSet();
-
-  if (normalizedName.contains('release event winner')) {
-    return '$normalizedCode-RW';
-  }
-  if (normalizedName.contains('release event')) return '$normalizedCode-RE';
-  if (normalizedName.contains('manga')) return '$normalizedCode-MA';
-  if (normalizedName.contains('treasure rare')) return '$normalizedCode-TR';
-  if (normalizedName.contains('full art')) return '$normalizedCode-FA';
-  if (normalizedName.contains('don parallel')) return '$normalizedCode-DP';
-  if (normalizedName.contains('gold')) return '$normalizedCode-G';
-  if (normalizedName.contains('reprint')) return '$normalizedCode-RE';
-  if (tokens.contains('sp')) return '$normalizedCode-SP';
-  if (normalizedName.contains('special')) return '$normalizedCode-SP';
-  if (normalizedName.contains('alternate art') ||
-      normalizedName.contains('alt art')) {
-    return '$normalizedCode-AA';
-  }
-  if (normalizedName.contains('parallel')) return '$normalizedCode-PA';
-  return normalizedCode;
+  return inferPrimaryLigaVariantCode(cardName: cardName, cardCode: cardCode);
 }
 
 @visibleForTesting
@@ -58,34 +31,7 @@ List<String> inferLigaLookupCodes({
   required String cardName,
   required String cardCode,
 }) {
-  final normalizedCode = cardCode.trim().toUpperCase();
-  if (normalizedCode.isEmpty) return const [];
-  final primary = inferLigaLookupCode(
-    cardName: cardName,
-    cardCode: normalizedCode,
-  );
-  final normalizedName = cardName
-      .toLowerCase()
-      .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
-      .trim();
-  final wantsAlternative =
-      normalizedName.contains('alternate art') ||
-      normalizedName.contains('alt art') ||
-      normalizedName.contains('parallel');
-  if (!wantsAlternative || primary == normalizedCode) {
-    return <String>{primary, normalizedCode}.toList(growable: false);
-  }
-
-  return <String>{
-    primary,
-    '$normalizedCode-AA',
-    '$normalizedCode-PA',
-    '$normalizedCode-PAR',
-    '$normalizedCode-E',
-    '$normalizedCode-A',
-    '$normalizedCode-P',
-    normalizedCode,
-  }.toList(growable: false);
+  return inferLigaVariantCandidateCodes(cardName: cardName, cardCode: cardCode);
 }
 
 class LigaOnePieceService {
@@ -95,8 +41,9 @@ class LigaOnePieceService {
   static const String _priceCacheAssetPath =
       'assets/liga_one_piece_price_cache.json';
   static const String _remoteCacheTable = 'liga_card_price_cache';
-  static const String _snapshotCachePrefix = 'liga_snapshot_v2_';
-  static const String _snapshotCachedAtPrefix = 'liga_snapshot_v2_cached_at_';
+  static const String _variantMappingTable = 'liga_card_variant_mappings';
+  static const String _snapshotCachePrefix = 'liga_snapshot_v3_';
+  static const String _snapshotCachedAtPrefix = 'liga_snapshot_v3_cached_at_';
   static const Duration _snapshotCacheMaxAge = Duration(hours: 12);
   static const String defaultCardUrl =
       'https://www.ligaonepiece.com.br/?view=cards/card&card=Porche+%28OP07-072%29&ed=OP-07&num=OP07-072';
@@ -104,6 +51,8 @@ class LigaOnePieceService {
   Future<Map<String, LigaOnePieceCardSnapshot>>? _assetCacheFuture;
   final Map<String, LigaOnePieceCardSnapshot> _memorySnapshotCache =
       <String, LigaOnePieceCardSnapshot>{};
+  final Map<String, String> _confirmedMappingCache = <String, String>{};
+  final Set<String> _loadedMappingKeys = <String>{};
   final SupabaseClient _supabase;
 
   LigaOnePieceService(this._supabase);
@@ -188,6 +137,10 @@ class LigaOnePieceService {
       cardName: cardName,
       cardCode: normalizedCode,
     );
+    final strictVariant = classifyLigaVariant(
+      cardName: cardName,
+      cardCode: normalizedCode,
+    ).requiresStrictMatch;
 
     final referenceKey = priceReferenceKeyForCard(
       cardName: cardName,
@@ -202,6 +155,11 @@ class LigaOnePieceService {
     if (remoteCached != null) {
       _saveSnapshotForCardCode(referenceKey, remoteCached);
       return remoteCached;
+    }
+    if (strictVariant) {
+      throw StateError(
+        'A variante possui mais de uma impressao possivel na Liga e ainda nao foi confirmada.',
+      );
     }
 
     final memoryCached =
@@ -349,6 +307,12 @@ class LigaOnePieceService {
       _saveSnapshotForCardCode(referenceKey, remoteCached);
       return remoteCached;
     }
+    if (classifyLigaVariant(
+      cardName: cardName,
+      cardCode: cardCode,
+    ).requiresStrictMatch) {
+      return null;
+    }
 
     final memoryCached =
         _memorySnapshotForCardCode(referenceKey) ??
@@ -411,6 +375,9 @@ class LigaOnePieceService {
     }
 
     final rowsByCode = <String, List<Map<String, dynamic>>>{};
+    final confirmedMappings = await _loadConfirmedMappings(
+      missingReferences.map((card) => card.referenceKey),
+    );
 
     void indexRow(Map<String, dynamic> row, Object? rawCode) {
       final code = _normalizeLookupCode(rawCode?.toString() ?? '');
@@ -459,6 +426,32 @@ class LigaOnePieceService {
         // A lista continua utilizavel mesmo se o cache remoto estiver offline.
       }
     }
+    final mappedLookupCodes = confirmedMappings.values.toSet().toList();
+    for (
+      var offset = 0;
+      offset < mappedLookupCodes.length;
+      offset += chunkSize
+    ) {
+      final end = (offset + chunkSize).clamp(0, mappedLookupCodes.length);
+      final chunk = mappedLookupCodes.sublist(offset, end);
+      try {
+        final rows = await _supabase
+            .from(_remoteCacheTable)
+            .select()
+            .inFilter('lookup_code', chunk);
+        for (final rawRow in rows) {
+          final row = Map<String, dynamic>.from(rawRow);
+          indexRow(row, row['card_code']);
+          indexRow(row, row['lookup_code']);
+        }
+      } catch (error, stackTrace) {
+        AppErrorReporter.report(
+          error,
+          stackTrace,
+          context: 'liga-price-mapped-batch-query',
+        );
+      }
+    }
 
     for (final card in missingReferences) {
       try {
@@ -474,18 +467,39 @@ class LigaOnePieceService {
         final candidates = <Map<String, dynamic>>{
           for (final code in candidateCodes) ...?rowsByCode[code],
         };
-        final row = selectBestRemoteRow(
-          candidates,
+        final mappedLookup = confirmedMappings[card.referenceKey];
+        final mappedRows = mappedLookup == null
+            ? const <Map<String, dynamic>>[]
+            : rowsByCode[mappedLookup] ?? const <Map<String, dynamic>>[];
+        final mappedRow = mappedRows
+            .where(
+              (candidate) =>
+                  _normalizeLookupCode(
+                    candidate['lookup_code']?.toString() ?? '',
+                  ) ==
+                  mappedLookup,
+            )
+            .firstOrNull;
+        final row =
+            mappedRow ??
+            selectBestRemoteRow(
+              candidates,
+              cardName: card.cardName,
+              lookupCode: lookupCode,
+              imageUrl: card.imageUrl,
+            );
+        final strictVariant = classifyLigaVariant(
           cardName: card.cardName,
-          lookupCode: lookupCode,
-          imageUrl: card.imageUrl,
-        );
+          cardCode: card.cardCode,
+        ).requiresStrictMatch;
         final snapshot = row == null
-            ? await _cachedFallbackForBatchCard(
-                referenceKey: card.referenceKey,
-                lookupCode: lookupCode,
-                normalizedCode: normalizedCode,
-              )
+            ? (strictVariant || candidates.isNotEmpty)
+                  ? null
+                  : await _cachedFallbackForBatchCard(
+                      referenceKey: card.referenceKey,
+                      lookupCode: lookupCode,
+                      normalizedCode: normalizedCode,
+                    )
             : _snapshotFromRemoteRow(row);
         if (snapshot == null) continue;
         _registerBatchSnapshot(
@@ -728,6 +742,21 @@ class LigaOnePieceService {
     required String cardCode,
     required String imageUrl,
   }) async {
+    final referenceKey = priceReferenceKeyForCard(
+      cardName: cardName,
+      cardCode: cardCode,
+      imageUrl: imageUrl,
+    );
+    final confirmedMappings = await _loadConfirmedMappings([referenceKey]);
+    final mappedLookup = confirmedMappings[referenceKey];
+    if (mappedLookup != null) {
+      final mapped = await _remoteSnapshotForCardCode(mappedLookup);
+      if (mapped != null) return mapped;
+    }
+    final requestedVariant = classifyLigaVariant(
+      cardName: cardName,
+      cardCode: cardCode,
+    );
     try {
       final lookupCode = lookupCodeForCard(
         cardName: cardName,
@@ -752,16 +781,60 @@ class LigaOnePieceService {
         lookupCode: lookupCode,
         imageUrl: imageUrl,
       );
-      if (selected != null) {
-        return _snapshotFromRemoteRow(selected);
-      }
+      return selected == null ? null : _snapshotFromRemoteRow(selected);
     } catch (_) {
-      // Tenta a chave legada abaixo.
+      if (requestedVariant.requiresStrictMatch) return null;
     }
 
+    if (requestedVariant.requiresStrictMatch) return null;
     return _remoteSnapshotForCardCode(
       lookupCodeForCard(cardName: cardName, cardCode: cardCode),
     );
+  }
+
+  Future<Map<String, String>> _loadConfirmedMappings(
+    Iterable<String> referenceKeys,
+  ) async {
+    final keys = referenceKeys
+        .map((key) => key.trim())
+        .where((key) => key.isNotEmpty)
+        .toSet();
+    final pending = keys
+        .where((key) => !_loadedMappingKeys.contains(key))
+        .toList(growable: false);
+    const chunkSize = 80;
+    for (var offset = 0; offset < pending.length; offset += chunkSize) {
+      final end = (offset + chunkSize).clamp(0, pending.length);
+      final chunk = pending.sublist(offset, end);
+      try {
+        final rows = await _supabase
+            .from(_variantMappingTable)
+            .select('catalog_variant_key, liga_lookup_code')
+            .eq('game_slug', 'one-piece')
+            .eq('status', 'confirmed')
+            .inFilter('catalog_variant_key', chunk);
+        for (final rawRow in rows) {
+          final row = Map<String, dynamic>.from(rawRow);
+          final key = row['catalog_variant_key']?.toString().trim() ?? '';
+          final lookup = _normalizeLookupCode(
+            row['liga_lookup_code']?.toString() ?? '',
+          );
+          if (key.isNotEmpty && lookup.isNotEmpty) {
+            _confirmedMappingCache[key] = lookup;
+          }
+        }
+      } catch (_) {
+        // O seletor heuristico continua disponivel enquanto a auditoria carrega.
+      } finally {
+        _loadedMappingKeys.addAll(chunk);
+      }
+    }
+    final result = <String, String>{};
+    for (final key in keys) {
+      final lookup = _confirmedMappingCache[key];
+      if (lookup != null) result[key] = lookup;
+    }
+    return result;
   }
 
   @visibleForTesting
@@ -774,25 +847,15 @@ class LigaOnePieceService {
     Map<String, dynamic>? best;
     var bestScore = -1 << 30;
     DateTime? bestResolvedAt;
-    final normalizedName = cardName
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
-        .trim();
-    final wantsPreRelease =
-        normalizedName.contains('pre release') ||
-        normalizedName.contains('prerelease');
-    final wantsReleaseEvent =
-        normalizedName.contains('release event') ||
-        normalizedName.contains('release version');
-    final wantsReprint = normalizedName.contains('reprint');
-    final wantsAlternateArt =
-        normalizedName.contains('alternate art') ||
-        normalizedName.contains('alt art');
-    final wantsParallel = normalizedName.contains('parallel');
-    final wantsSpr = normalizedName.split(' ').contains('spr');
+    String? bestPrintingIdentity;
+    final bestPrintingIdentities = <String>{};
+    final requestedVariant = classifyLigaVariant(
+      cardName: cardName,
+      cardCode: lookupCode,
+    );
     final requestedImage = imageUrl.trim();
     final requestedImageIdentity = _imageIdentity(requestedImage);
-    final requestedBaseCode = _baseLookupCode(lookupCode);
+    final requestedBaseCode = requestedVariant.baseCode;
     final expectedEdition = _expectedOriginalEdition(requestedBaseCode);
 
     for (final row in rows) {
@@ -808,75 +871,68 @@ class LigaOnePieceService {
       final rowCode = (row['card_code']?.toString() ?? rowLookup)
           .trim()
           .toUpperCase();
-      final rowName = (row['card_name']?.toString() ?? '')
-          .toLowerCase()
-          .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
-          .trim();
-      final rowSuffix = rowCode.startsWith('$requestedBaseCode-')
-          ? rowCode.substring(requestedBaseCode.length + 1)
-          : '';
-      final isAlternatePrinting =
-          const {'AA', 'PA', 'PAR', 'E', 'A', 'P'}.contains(rowSuffix) ||
-          rowName.contains('alternate art') ||
-          rowName.contains('parallel');
-      final isAuxiliary =
-          rowLookup.contains('@') || RegExp(r'-(?:PR|RE)$').hasMatch(edition);
+      final rowName = (row['card_name']?.toString() ?? '').trim();
+      final candidateVariant = classifyLigaVariant(
+        cardName: rowName,
+        cardCode: rowCode,
+      );
+      if (candidateVariant.baseCode != requestedBaseCode ||
+          !ligaVariantMatchesEditionHint(
+            requestedVariant.kind,
+            candidateVariant.kind,
+            edition,
+          )) {
+        continue;
+      }
 
-      if (rowLookup == lookupCode) score += 160;
+      score +=
+          ligaVariantKindsCompatible(
+            requestedVariant.kind,
+            candidateVariant.kind,
+          )
+          ? 900
+          : 700;
       if (requestedImage.isNotEmpty && rowImage == requestedImage) {
         score += 1200;
       } else if (requestedImageIdentity.isNotEmpty &&
           rowImageIdentity == requestedImageIdentity) {
         score += 900;
       }
-
-      if (wantsAlternateArt || wantsParallel) {
-        score += isAlternatePrinting ? 700 : -700;
-        if (wantsAlternateArt && rowName.contains('alternate art')) {
-          score += 180;
-        }
-        if (wantsParallel && rowName.contains('parallel')) {
-          score += 180;
-        }
-      } else if (wantsSpr) {
-        score += rowName.split(' ').contains('spr') ? 700 : -300;
-      } else {
-        if (isAlternatePrinting) score -= 700;
-        if (rowName.split(' ').contains('spr')) score -= 450;
-        if (rowCode == requestedBaseCode) score += 100;
-        if (expectedEdition.isNotEmpty && edition == expectedEdition) {
-          score += 380;
-        }
-      }
-
-      if (wantsPreRelease) {
-        score += edition.endsWith('-PR') ? 500 : -100;
-      } else if (wantsReleaseEvent || wantsReprint) {
-        score += edition.endsWith('-RE') ? 500 : -100;
-      } else {
-        score += isAuxiliary ? -20 : 20;
+      if (!requestedVariant.requiresStrictMatch &&
+          expectedEdition.isNotEmpty &&
+          edition == expectedEdition) {
+        score += 380;
       }
 
       final resolvedAt = DateTime.tryParse(
         row['resolved_at']?.toString() ?? '',
       );
-      if (best == null ||
-          score > bestScore ||
-          (score == bestScore &&
-              resolvedAt != null &&
-              (bestResolvedAt == null || resolvedAt.isAfter(bestResolvedAt)))) {
+      final printingIdentity = [
+        rowCode,
+        edition,
+        rowImageIdentity,
+        row['minimum_price']?.toString() ?? '',
+      ].join('|');
+      if (best == null || score > bestScore) {
         best = row;
         bestScore = score;
         bestResolvedAt = resolvedAt;
+        bestPrintingIdentity = printingIdentity;
+        bestPrintingIdentities
+          ..clear()
+          ..add(printingIdentity);
+      } else if (score == bestScore) {
+        bestPrintingIdentities.add(printingIdentity);
+        if (printingIdentity == bestPrintingIdentity &&
+            resolvedAt != null &&
+            (bestResolvedAt == null || resolvedAt.isAfter(bestResolvedAt))) {
+          best = row;
+          bestResolvedAt = resolvedAt;
+        }
       }
     }
 
-    return best;
-  }
-
-  static String _baseLookupCode(String lookupCode) {
-    final normalized = lookupCode.trim().toUpperCase().split('@').first;
-    return normalized.replaceFirst(RegExp(r'-(?:AA|PA|PAR|E|A|P)$'), '');
+    return bestPrintingIdentities.length > 1 ? null : best;
   }
 
   static String _expectedOriginalEdition(String cardCode) {

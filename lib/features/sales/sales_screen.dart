@@ -1582,6 +1582,7 @@ class _SalesCardDetailsDialogState
     final cached = await service.fetchCachedPublicCardSnapshotForCard(
       cardName: widget.card.name,
       cardCode: widget.card.cardCode,
+      imageUrl: widget.card.imageUrl,
     );
     if (cached != null) {
       return cached;

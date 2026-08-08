@@ -139,6 +139,7 @@ class _GlobalMarketplaceScreenState
       final snapshot = await service.fetchCachedPublicCardSnapshotForCard(
         cardName: item.name,
         cardCode: item.cardCode,
+        imageUrl: item.imageUrl,
       );
       final price = snapshot?.minimumPrice ?? snapshot?.lowestListing?.price;
       final label = price == null || price <= 0

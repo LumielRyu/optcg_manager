@@ -631,6 +631,7 @@ class _LibraryCardPriceSectionState
         .fetchCachedPublicCardSnapshotForCard(
           cardName: widget.card.name,
           cardCode: widget.card.code,
+          imageUrl: widget.card.image,
         );
   }
 

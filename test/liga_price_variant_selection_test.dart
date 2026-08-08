@@ -95,6 +95,98 @@ void main() {
     );
   });
 
+  test('Manga consulta MA e a chave base, mas nunca Alternate Art', () {
+    expect(
+      inferLigaLookupCodes(
+        cardName: 'Tony Tony.Chopper (Alternate Art) (Manga)',
+        cardCode: 'EB01-006',
+      ),
+      <String>['EB01-006-MA', 'EB01-006'],
+    );
+
+    final selected = LigaOnePieceService.selectBestRemoteRow(
+      [
+        {
+          'card_code': 'EB01-006-AA',
+          'card_name': 'Tony Tony.Chopper (Alternate Art)',
+          'edition_code': 'EB01',
+          'minimum_price': 499.99,
+        },
+      ],
+      cardName: 'Tony Tony.Chopper (Alternate Art) (Manga)',
+      lookupCode: 'EB01-006-MA',
+      imageUrl: '',
+    );
+
+    expect(selected, isNull);
+  });
+
+  test('Manga ambiguo entre duas edicoes exige revisao', () {
+    final selected = LigaOnePieceService.selectBestRemoteRow(
+      [
+        {
+          'card_code': 'EB01-006-MA',
+          'edition_code': 'EB01',
+          'image_url': 'https://liga.example/manga-eb01.png',
+          'minimum_price': 13000,
+        },
+        {
+          'card_code': 'EB01-006-MA',
+          'edition_code': 'PRB01',
+          'image_url': 'https://liga.example/manga-prb01.png',
+          'minimum_price': 5700,
+        },
+      ],
+      cardName: 'Tony Tony.Chopper (Alternate Art) (Manga)',
+      lookupCode: 'EB01-006-MA',
+      imageUrl: '',
+    );
+
+    expect(selected, isNull);
+  });
+
+  test('imagem exata resolve Manga entre duas edicoes', () {
+    final selected = LigaOnePieceService.selectBestRemoteRow(
+      [
+        {
+          'card_code': 'EB01-006-MA',
+          'edition_code': 'EB01',
+          'image_url': 'https://liga.example/manga-eb01.png',
+          'minimum_price': 13000,
+        },
+        {
+          'card_code': 'EB01-006-MA',
+          'edition_code': 'PRB01',
+          'image_url': 'https://liga.example/manga-prb01.png',
+          'minimum_price': 5700,
+        },
+      ],
+      cardName: 'Tony Tony.Chopper (Alternate Art) (Manga)',
+      lookupCode: 'EB01-006-MA',
+      imageUrl: 'https://catalog.example/manga-eb01.png',
+    );
+
+    expect(selected?['edition_code'], 'EB01');
+    expect(selected?['minimum_price'], 13000);
+  });
+
+  test('Treasure Cup usa somente a variante TC', () {
+    expect(
+      inferLigaLookupCodes(
+        cardName: 'Tony Tony.Chopper (Treasure Cup 2024)',
+        cardCode: 'EB01-006',
+      ),
+      <String>['EB01-006-TC', 'EB01-006'],
+    );
+  });
+
+  test('SPR e reconhecida como variante especial SP', () {
+    expect(
+      inferLigaLookupCode(cardName: 'Belo Betty (SPR)', cardCode: 'OP05-002'),
+      'OP05-002-SP',
+    );
+  });
+
   test('seleciona variante histórica -E para arte alternativa', () {
     final base = <String, dynamic>{
       'lookup_code': 'OP02-001@ST15',

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:optcg_manager/data/models/op_card.dart';
 import 'package:optcg_manager/data/services/liga_price_admin_service.dart';
 
 void main() {
@@ -80,5 +81,64 @@ void main() {
       LigaEditionUpdateState.stale,
     );
     expect(status().stateAt(now), LigaEditionUpdateState.neverUpdated);
+  });
+
+  test('audit separates unique, ambiguous and missing variants', () {
+    OpCard card(String name, String image) => OpCard(
+      code: 'EB01-006',
+      name: name,
+      image: image,
+      setName: 'EB01',
+      rarity: 'SR',
+      color: 'Red',
+      type: 'Character',
+      subTypes: '',
+      text: '',
+      attribute: '',
+    );
+
+    final audit = LigaPriceAdminService.buildVariantAudit(
+      cards: [
+        card('Tony Tony.Chopper', 'https://catalog.example/normal.png'),
+        card(
+          'Tony Tony.Chopper (Alternate Art) (Manga)',
+          'https://catalog.example/manga.png',
+        ),
+        card(
+          'Tony Tony.Chopper (Treasure Cup 2024)',
+          'https://catalog.example/treasure.png',
+        ),
+      ],
+      priceRows: [
+        {
+          'card_code': 'EB01-006',
+          'edition_code': 'EB01',
+          'image_url': 'https://liga.example/normal.png',
+          'minimum_price': 116.89,
+        },
+        {
+          'card_code': 'EB01-006-MA',
+          'edition_code': 'EB01',
+          'image_url': 'https://liga.example/manga.png',
+          'minimum_price': 13000,
+        },
+        {
+          'card_code': 'EB01-006-MA',
+          'edition_code': 'PRB01',
+          'image_url': 'https://liga.example/manga-prb.png',
+          'minimum_price': 5700,
+        },
+      ],
+    );
+
+    expect(audit.catalogCardCount, 3);
+    expect(audit.multiPrintingFamilyCount, 1);
+    expect(audit.cardsInMultiPrintingFamilies, 3);
+    expect(audit.maximumVariantsPerCode, 3);
+    expect(audit.uniquelyMatchedCards, 2);
+    expect(audit.ambiguousCards, 0);
+    expect(audit.missingCards, 1);
+    expect(audit.variantCounts['Manga'], 1);
+    expect(audit.variantCounts['Treasure Cup'], 1);
   });
 }

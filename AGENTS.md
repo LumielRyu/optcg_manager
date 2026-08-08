@@ -1815,3 +1815,41 @@ git diff --stat
   erro; o bundle contem as quatro acoes novas de reserva, o health check
   confirmou a release `e002b2d82d6c` e banco saudavel, e nao foram encontrados
   erros de runtime nos logs de producao consultados.
+
+### 08/08/2026 - Inicio da auditoria segura de variantes da Liga
+
+- A causa do preco incorreto da Manga `EB01-006` foi localizada: o nome Manga
+  tambem contem `Alternate Art`, e o seletor anterior aceitava a linha `-AA`
+  antes de distinguir o tipo especifico da impressao.
+- Foi criada uma taxonomia explicita para cartas comuns, Alternate Art, Manga,
+  Treasure Cup, Treasure Rare, Winner, participante, Pre-release, Release
+  Event, Dash Pack, Full Art, Gold, SP, Parallel, Reprint e promocionais.
+- Variantes especiais agora usam pareamento estrito. Quando duas impressoes da
+  mesma categoria continuam empatadas, o aplicativo retorna `nao verificada`
+  em vez de exibir um preco possivelmente incorreto.
+- O cache local de precos One Piece foi versionado para `v3`, invalidando
+  resultados antigos que possam ter sido associados a outra arte.
+- A tela administrativa ganhou uma auditoria calculada a partir do catalogo e
+  do cache da Liga: total de cartas, codigos com varias impressoes, cartas
+  nesses codigos, maximo de variantes, pareamentos unicos, ambiguos, ausentes e
+  contagem por categoria.
+- Foi criado e executado `sql/liga_card_variant_mapping_audit.sql` para
+  persistir os pareamentos confirmados, a confianca, o metodo de identificacao
+  e o historico das auditorias.
+- O script `scripts/audit_liga_one_piece_variant_mappings.py` filtra o cache
+  compartilhado pelos prefixos One Piece, consolida chaves duplicadas e grava
+  a carga de forma idempotente com a service role.
+- Primeira auditoria persistida: 5.105 cartas do catalogo comparadas com 11.897
+  linhas de preco One Piece; 4.237 correspondencias confirmadas, 224 ambiguas e
+  644 ausentes. As 5.105 cartas resultaram em 5.094 chaves unicas.
+- A Manga `EB01-006` foi confirmada como `EB01-006-MA@EB01`, confianca 98% e
+  menor preco de R$ 13.000,00. A reimpressao `PRB` de R$ 5.700,00 e a Alternate
+  Art comum de R$ 499,99 permanecem separadas.
+- O aplicativo passou a consultar primeiro o mapeamento confirmado pelo par
+  variante/imagem, inclusive nas consultas em lote. Biblioteca, vendas e
+  marketplace agora enviam a imagem ao servico para preservar essa identidade.
+- A tela administrativa usa o ultimo `liga_price_audit_runs` persistido e
+  informa tambem data/hora e quantidade de linhas de preco auditadas.
+- Validacoes direcionadas: 16 testes Flutter e 3 testes Python passaram; a
+  analise estatica nao encontrou problemas. O quality gate completo e o build
+  devem ser repetidos antes da publicacao.

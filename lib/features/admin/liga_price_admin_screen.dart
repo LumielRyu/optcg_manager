@@ -17,22 +17,22 @@ class LigaPriceAdminScreen extends ConsumerStatefulWidget {
 }
 
 class _LigaPriceAdminScreenState extends ConsumerState<LigaPriceAdminScreen> {
-  late Future<List<LigaEditionPriceStatus>> _statuses;
+  late Future<LigaPriceAdminDashboardData> _dashboard;
   final _searchController = TextEditingController();
   LigaEditionUpdateState? _filter;
 
   @override
   void initState() {
     super.initState();
-    _statuses = _load();
+    _dashboard = _load();
   }
 
-  Future<List<LigaEditionPriceStatus>> _load() {
-    return ref.read(ligaPriceAdminServiceProvider).loadEditionStatuses();
+  Future<LigaPriceAdminDashboardData> _load() {
+    return ref.read(ligaPriceAdminServiceProvider).loadDashboardData();
   }
 
   void _refresh() {
-    setState(() => _statuses = _load());
+    setState(() => _dashboard = _load());
   }
 
   @override
@@ -96,8 +96,8 @@ class _LigaPriceAdminScreenState extends ConsumerState<LigaPriceAdminScreen> {
           ),
         ],
       ),
-      body: FutureBuilder<List<LigaEditionPriceStatus>>(
-        future: _statuses,
+      body: FutureBuilder<LigaPriceAdminDashboardData>(
+        future: _dashboard,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
@@ -105,8 +105,21 @@ class _LigaPriceAdminScreenState extends ConsumerState<LigaPriceAdminScreen> {
           if (snapshot.hasError) {
             return _ErrorView(error: snapshot.error, onRetry: _refresh);
           }
+          final data = snapshot.data;
           return _Dashboard(
-            statuses: snapshot.data ?? const [],
+            statuses: data?.editionStatuses ?? const [],
+            variantAudit:
+                data?.variantAudit ??
+                const LigaVariantAuditSummary(
+                  catalogCardCount: 0,
+                  multiPrintingFamilyCount: 0,
+                  cardsInMultiPrintingFamilies: 0,
+                  maximumVariantsPerCode: 0,
+                  uniquelyMatchedCards: 0,
+                  ambiguousCards: 0,
+                  missingCards: 0,
+                  variantCounts: {},
+                ),
             searchController: _searchController,
             filter: _filter,
             onFilterChanged: (value) => setState(() => _filter = value),
@@ -121,6 +134,7 @@ class _LigaPriceAdminScreenState extends ConsumerState<LigaPriceAdminScreen> {
 
 class _Dashboard extends StatelessWidget {
   final List<LigaEditionPriceStatus> statuses;
+  final LigaVariantAuditSummary variantAudit;
   final TextEditingController searchController;
   final LigaEditionUpdateState? filter;
   final ValueChanged<LigaEditionUpdateState?> onFilterChanged;
@@ -129,6 +143,7 @@ class _Dashboard extends StatelessWidget {
 
   const _Dashboard({
     required this.statuses,
+    required this.variantAudit,
     required this.searchController,
     required this.filter,
     required this.onFilterChanged,
@@ -211,6 +226,8 @@ class _Dashboard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
+          _VariantAuditPanel(audit: variantAudit),
+          const SizedBox(height: 20),
           TextField(
             controller: searchController,
             onChanged: onSearchChanged,
@@ -273,6 +290,137 @@ class _Dashboard extends StatelessWidget {
                 child: _EditionCard(status: item, now: now),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VariantAuditPanel extends StatelessWidget {
+  final LigaVariantAuditSummary audit;
+
+  const _VariantAuditPanel({required this.audit});
+
+  @override
+  Widget build(BuildContext context) {
+    final percentage = NumberFormat.percentPattern(
+      'pt_BR',
+    ).format(audit.safeCoverageRatio);
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Auditoria de variantes',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            audit.lastAuditAt == null
+                ? 'Mede o risco de uma arte receber o preco de outra impressao com o mesmo codigo.'
+                : 'Ultima auditoria persistida em ${DateFormat('dd/MM/yyyy HH:mm').format(audit.lastAuditAt!.toLocal())} '
+                      'com ${NumberFormat.decimalPattern('pt_BR').format(audit.auditedPriceRows)} linhas de preco analisadas.',
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _SummaryCard(
+                label: 'Cartas no catalogo',
+                value: audit.catalogCardCount,
+                icon: Icons.style_outlined,
+              ),
+              _SummaryCard(
+                label: 'Codigos com variantes',
+                value: audit.multiPrintingFamilyCount,
+                icon: Icons.copy_all_outlined,
+                color: Colors.blue,
+              ),
+              _SummaryCard(
+                label: 'Cartas nesses codigos',
+                value: audit.cardsInMultiPrintingFamilies,
+                icon: Icons.layers_outlined,
+                color: Colors.indigo,
+              ),
+              _SummaryCard(
+                label: 'Maximo em um codigo',
+                value: audit.maximumVariantsPerCode,
+                icon: Icons.stacked_bar_chart,
+                color: Colors.purple,
+              ),
+              _SummaryCard(
+                label: 'Preco unico ($percentage)',
+                value: audit.uniquelyMatchedCards,
+                icon: Icons.verified_outlined,
+                color: Colors.green,
+              ),
+              _SummaryCard(
+                label: 'Revisao necessaria',
+                value: audit.ambiguousCards,
+                icon: Icons.rule_folder_outlined,
+                color: Colors.orange,
+              ),
+              _SummaryCard(
+                label: 'Sem correspondencia',
+                value: audit.missingCards,
+                icon: Icons.link_off_outlined,
+                color: Colors.red,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.orange.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.shield_outlined, color: Colors.orange),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Modo seguro ativo: uma variante ambigua fica sem preco ate ser identificada, em vez de usar o valor de outra arte.',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (audit.variantCounts.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Text(
+              'Variantes identificadas no catalogo',
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: audit.variantCounts.entries
+                  .map(
+                    (entry) => Chip(
+                      label: Text('${entry.key}: ${entry.value}'),
+                      avatar: const Icon(Icons.sell_outlined, size: 17),
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
+          ],
         ],
       ),
     );
