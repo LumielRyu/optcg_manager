@@ -11,9 +11,11 @@ const jsonHeaders = {
 };
 
 import observability from '../server/api-observability.js';
+import cardCatalog from '../server/one-piece-card-catalog.js';
 import promotionalCatalog from '../server/one-piece-promotional-cards.js';
 
 const { observeRequest } = observability;
+const { fetchCatalogCards, mergeCatalogCards } = cardCatalog;
 const { fetchPromotionalCards, mergePromotionalCards } = promotionalCatalog;
 
 export default async function handler(request, response) {
@@ -60,9 +62,19 @@ export default async function handler(request, response) {
         supabaseUrl: process.env.SUPABASE_URL,
         supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
       });
-      mergedCards = mergePromotionalCards(cards, promotionalRows);
+      mergedCards = mergePromotionalCards(mergedCards, promotionalRows);
     } catch (error) {
       observation.error(error, 'optcg_promotional_catalog_fetch_failed');
+    }
+
+    try {
+      const catalogRows = await fetchCatalogCards({
+        supabaseUrl: process.env.SUPABASE_URL,
+        supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
+      });
+      mergedCards = mergeCatalogCards(cards, catalogRows);
+    } catch (error) {
+      observation.error(error, 'optcg_card_catalog_fetch_failed');
     }
 
     response.setHeader('Cache-Control', jsonHeaders['Cache-Control']);

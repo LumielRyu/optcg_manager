@@ -166,6 +166,48 @@ class LigaEditionPriceCacheTest(unittest.TestCase):
             edition_cache.base_card_code("OP16-001"),
         )
 
+    def test_builds_stable_catalog_rows_from_liga_cards(self):
+        edition = edition_cache.LigaEdition(
+            89,
+            "ST31",
+            "Starter Deck 31: RED Monkey.D.Luffy",
+            "2026-07-31 00:00:00",
+            "main",
+        )
+        source = "<script>const cardsjson = " + json.dumps(
+            [
+                {
+                    "id": 146,
+                    "sN": "ST31-001",
+                    "nEN": "Sanji (ST31-001)",
+                    "sP": "//example.test/st31-001.jpg",
+                    "iR": 4,
+                    "sC": 1,
+                    "dt": "2026-07-30 16:27:07",
+                }
+            ]
+        ) + ";</script>"
+
+        rows = edition_cache.parse_catalog_cards_page(
+            source,
+            edition,
+            resolved_at="2026-08-09T04:18:53Z",
+        )
+
+        self.assertEqual(1, len(rows))
+        self.assertEqual("liga:89:146", rows[0]["catalog_key"])
+        self.assertEqual("ST31-001", rows[0]["card_code"])
+        self.assertEqual("Sanji", rows[0]["card_name"])
+        self.assertEqual(
+            "Starter Deck 31: RED Monkey.D.Luffy",
+            rows[0]["edition_name"],
+        )
+        self.assertEqual(4, rows[0]["source_metadata"]["iR"])
+        self.assertEqual(
+            "https://example.test/st31-001.jpg",
+            rows[0]["image_url"],
+        )
+
     def test_upsert_consolidates_duplicate_codes_and_keeps_newest_edition(self):
         rows = [
             {

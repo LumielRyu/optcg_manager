@@ -1,9 +1,11 @@
 import argparse
+import hashlib
 import json
 import re
 import time
 import urllib.parse
 import urllib.error
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -16,6 +18,7 @@ EDITIONS_FALLBACK_PATH = ROOT / "assets" / "liga_one_piece_editions.json"
 DEFAULT_CRAWL_DELAY_SECONDS = 30.0
 DEFAULT_PRIORITY_EDITIONS = 3
 DEFAULT_BATCH_SIZE = 250
+CATALOG_TABLE = "one_piece_card_catalog"
 KNOWN_VARIANT_SUFFIXES = {
     "AA",
     "DP",
@@ -323,6 +326,87 @@ def parse_edition_cards_page(
     return rows
 
 
+def parse_catalog_cards_page(
+    source: str,
+    edition: LigaEdition,
+    *,
+    resolved_at: str,
+) -> list[dict]:
+    raw = liga.extract_assignment(source, "cardsjson")
+    if not raw:
+        raise RuntimeError(
+            f"cardsjson nao foi encontrado para a edicao {edition.acronym}."
+        )
+
+    try:
+        cards = json.loads(raw)
+    except json.JSONDecodeError as error:
+        raise RuntimeError(
+            f"cardsjson retornou JSON invalido para {edition.acronym}."
+        ) from error
+
+    rows = []
+    seen = set()
+    for item in cards:
+        exact_code = liga.normalize_code(str(item.get("sN") or ""))
+        image_url = liga.normalize_asset_url(str(item.get("sP") or "").strip())
+        if not exact_code or not image_url:
+            continue
+
+        try:
+            source_card_id = int(item.get("id") or 0)
+        except (TypeError, ValueError):
+            source_card_id = 0
+        source_identity = str(source_card_id) if source_card_id > 0 else hashlib.sha256(
+            image_url.encode("utf-8")
+        ).hexdigest()[:20]
+        catalog_key = f"liga:{edition.edition_id}:{source_identity}"
+        if catalog_key in seen:
+            continue
+        seen.add(catalog_key)
+
+        source_metadata = {
+            key: item.get(key)
+            for key in (
+                "dN",
+                "dt",
+                "iCMC",
+                "iCO",
+                "iR",
+                "iT",
+                "idNC",
+                "pF",
+                "sA",
+                "sC",
+                "sT",
+            )
+            if item.get(key) is not None and item.get(key) != ""
+        }
+        rows.append(
+            {
+                "catalog_key": catalog_key,
+                "source": "liga",
+                "source_card_id": source_card_id or None,
+                "source_url": edition.source_url,
+                "edition_id": edition.edition_id,
+                "edition_code": edition.acronym,
+                "edition_name": edition.name,
+                "edition_group": edition.group,
+                "release_date": edition.release_date or None,
+                "card_code": exact_code,
+                "card_name": _clean_card_name(
+                    str(item.get("nPT") or item.get("nEN") or exact_code),
+                    exact_code,
+                ),
+                "image_url": image_url,
+                "source_metadata": source_metadata,
+                "published_at": str(item.get("dt") or "").strip() or None,
+                "resolved_at": resolved_at,
+            }
+        )
+    return rows
+
+
 def storage_lookup_code(exact_code: str, edition: LigaEdition) -> str:
     normalized_code = liga.normalize_code(exact_code)
     if edition.group != "aux":
@@ -352,6 +436,54 @@ def upsert_rows(rows: list[dict], batch_size: int = DEFAULT_BATCH_SIZE) -> int:
     for start in range(0, len(consolidated), batch_size):
         batch = consolidated[start : start + batch_size]
         liga.upsert_supabase_rows(batch)
+        count += len(batch)
+    return count
+
+
+def upsert_catalog_rows(
+    rows: list[dict], batch_size: int = DEFAULT_BATCH_SIZE
+) -> int:
+    if not rows:
+        return 0
+    if batch_size <= 0:
+        raise ValueError("batch_size precisa ser maior que zero.")
+
+    env = liga.load_env()
+    supabase_url = (env.get("SUPABASE_URL") or "").rstrip("/")
+    service_key = env.get("SUPABASE_SERVICE_ROLE_KEY") or ""
+    if not supabase_url or not service_key:
+        raise RuntimeError(
+            "SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY precisam existir no .env."
+        )
+
+    unique_rows = {
+        str(row.get("catalog_key") or "").strip(): row
+        for row in rows
+        if str(row.get("catalog_key") or "").strip()
+    }
+    consolidated = list(unique_rows.values())
+    count = 0
+    for start in range(0, len(consolidated), batch_size):
+        batch = consolidated[start : start + batch_size]
+        url = (
+            f"{supabase_url}/rest/v1/{CATALOG_TABLE}?"
+            "on_conflict=catalog_key"
+        )
+        request = urllib.request.Request(
+            url,
+            data=json.dumps(batch, ensure_ascii=False).encode("utf-8"),
+            method="POST",
+            headers={
+                "apikey": service_key,
+                "authorization": f"Bearer {service_key}",
+                "content-type": "application/json",
+                "prefer": "resolution=merge-duplicates",
+            },
+        )
+        with urllib.request.urlopen(request, timeout=30) as response:
+            response.read()
+            if response.status not in (200, 201, 204):
+                raise RuntimeError(f"Supabase retornou HTTP {response.status}.")
         count += len(batch)
     return count
 
@@ -412,6 +544,7 @@ def main():
         return
 
     all_rows = []
+    all_catalog_rows = []
     failures = []
     for index, edition in enumerate(selected, start=1):
         if index > 1 or catalog_request_attempted:
@@ -425,10 +558,16 @@ def main():
                 edition,
                 resolved_at=resolved_at,
             )
+            catalog_rows = parse_catalog_cards_page(
+                source,
+                edition,
+                resolved_at=resolved_at,
+            )
             if not rows:
                 print("  nenhuma carta publicada; edicao ignorada.")
                 continue
             all_rows.extend(rows)
+            all_catalog_rows.extend(catalog_rows)
             print(f"  {len(rows)} cartas e variantes preparadas.")
         except Exception as error:
             failures.append((edition.acronym, str(error)))
@@ -436,6 +575,14 @@ def main():
 
     written = upsert_rows(all_rows)
     print(f"Supabase atualizado com {written} linhas.")
+    try:
+        catalog_written = upsert_catalog_rows(all_catalog_rows)
+        print(f"Catalogo proprio atualizado com {catalog_written} variantes.")
+    except Exception as error:
+        print(
+            "Aviso: cache de precos atualizado, mas o catalogo proprio nao "
+            f"pode ser gravado ({error})."
+        )
     if failures:
         print(f"Edicoes com falha: {len(failures)}")
         for acronym, error in failures:

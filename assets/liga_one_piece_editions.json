@@ -1,4 +1,11 @@
 [
+  {"edition_id":83,"acronym":"OP-17","name":"The World's Strongest Warriors","release_date":"2026-08-28 00:00:00","group":"main"},
+  {"edition_id":89,"acronym":"ST31","name":"Starter Deck 31: RED Monkey.D.Luffy","release_date":"2026-07-31 00:00:00","group":"main"},
+  {"edition_id":88,"acronym":"ST32","name":"Starter Deck 32: GREEN Roronoa Zoro","release_date":"2026-07-31 00:00:00","group":"main"},
+  {"edition_id":87,"acronym":"ST33","name":"Starter Deck 33: BLUE Kuzan","release_date":"2026-07-31 00:00:00","group":"main"},
+  {"edition_id":86,"acronym":"ST34","name":"Starter Deck 34: PURPLE Charlotte Katakuri","release_date":"2026-07-31 00:00:00","group":"main"},
+  {"edition_id":85,"acronym":"ST35","name":"Starter Deck 35: RED/BLACK Sabo","release_date":"2026-07-31 00:00:00","group":"main"},
+  {"edition_id":84,"acronym":"ST36","name":"Starter Deck 36: YELLOW Eustass Captain Kid","release_date":"2026-07-31 00:00:00","group":"main"},
   {"edition_id":82,"acronym":"ST30","release_date":"2026-06-12 00:00:00","group":"main"},
   {"edition_id":81,"acronym":"OP-16","release_date":"2026-06-12 00:00:00","group":"main"},
   {"edition_id":78,"acronym":"EB-04","release_date":"2026-04-03 00:00:00","group":"main"},

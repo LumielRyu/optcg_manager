@@ -1874,3 +1874,40 @@ git diff --stat
   401 pelas politicas de acesso.
 - Validacoes aprovadas: quality gate completo com 160 testes Flutter, 19 testes
   Python e 15 testes Node/API, analise estatica limpa e build web de producao.
+
+### 09/08/2026 - Catalogo proprio One Piece
+
+- A Liga passou a publicar OP-17 e os Starter Decks ST31 a ST36, elevando o
+  catalogo de edicoes de 78 para 85 entradas. O fallback versionado foi
+  atualizado com os novos IDs e datas.
+- O job automatico de precos funcionou: ST31 a ST36 possuem 30 chaves de cache
+  cada uma. A biblioteca continuava sem as cartas porque `allSTCards` da
+  OPTCG API retornava zero registros desses decks.
+- Foi pesquisada uma fonte alternativa. Limitless ja lista ST31 a ST36 e
+  `one-piece.cards` lista os decks recentes, mas a solucao escolhida evita
+  trocar uma dependencia externa por outra sem API publica estavel.
+- A migracao `sql/one_piece_card_catalog.sql` cria o catalogo proprio do TCG BH.
+  Ele guarda uma linha por impressao da Liga, incluindo edicao, codigo, nome,
+  imagem, metadados de origem e campos reservados para enriquecimento futuro.
+- `scripts/update_liga_edition_price_cache.py` agora atualiza precos e catalogo
+  na mesma passagem. Se a tabela ainda nao existir, o preco continua sendo
+  salvo e o script registra apenas um aviso sobre o catalogo.
+- `/api/optcg-cards` mescla a OPTCG API com o catalogo proprio, elimina
+  duplicatas e herda tipo, cor, raridade e texto de uma impressao conhecida
+  quando o codigo ja existe na fonte antiga.
+- O cache local de cartas foi alterado para `all_cards_v4`, forçando os
+  navegadores a obter a nova lista depois do deploy.
+- Antes da migracao, a tentativa de usar diretamente toda a tabela compartilhada
+  de precos foi descartada: ela continha 237.930 linhas de varios TCGs e geraria
+  uma resposta de aproximadamente 78 MB. A tabela dedicada mantem a consulta
+  pequena e previsivel.
+- Validacoes locais aprovadas: quality gate completo com 160 testes Flutter,
+  20 testes Python e 18 testes Node/API, analise estatica limpa e build web de
+  producao.
+- A migracao foi executada no Supabase e a carga inicial gravou 90 variantes:
+  15 por starter entre ST31 e ST36, sendo cinco codigos novos em cada edicao.
+  Todas as 90 linhas possuem imagem. A mesclagem real retornou 5.195 cartas em
+  aproximadamente 3,5 MB.
+- Os nomes completos dos novos Starter Decks foram adicionados ao fallback e
+  corrigidos diretamente nas 90 linhas da carga inicial. Falta apenas publicar
+  e verificar a versao em producao.
