@@ -23,15 +23,18 @@ class OpApiService {
       'https://www.optcgapi.com/api/allPromos/?format=json';
   static const String _webProxyUrl = '/api/optcg-cards';
   static const String _assetCachePath = 'assets/one_piece_cards_cache.json';
-  static const String _cachedCardsKey = 'all_cards_v5';
-  static const String _cachedAtKey = 'all_cards_cached_at';
-  static const Duration _cacheMaxAge = Duration(minutes: 30);
+  static const String _cachedCardsKey = 'all_cards_v6';
+  static const String _cachedAtKey = 'all_cards_v6_cached_at';
+  static const List<String> _legacyCacheKeys = <String>[
+    'all_cards_v5',
+    'all_cards_cached_at',
+  ];
+  static const Duration _cacheMaxAge = Duration(minutes: 5);
 
   List<OpCard>? _cache;
   Map<String, List<OpCard>>? _byCodeMulti;
   List<_IndexedOpCard>? _searchIndex;
   Future<void>? _preloadFuture;
-  Future<void>? _backgroundRefreshFuture;
 
   static const Map<String, String> _textNormalizationReplacements = {
     'á': 'a',
@@ -125,7 +128,11 @@ class OpApiService {
       _setMemoryCache(cachedCards);
 
       if (_isDiskCacheStale()) {
-        _refreshInBackground();
+        try {
+          await _refreshFromApi();
+        } catch (_) {
+          // Mantem o ultimo catalogo valido quando a rede estiver indisponivel.
+        }
       }
 
       return;
@@ -142,16 +149,6 @@ class OpApiService {
       _setMemoryCache(assetCards);
       await _saveCardsToDisk(assetCards);
     }
-  }
-
-  void _refreshInBackground() {
-    if (_backgroundRefreshFuture != null) return;
-
-    _backgroundRefreshFuture = _refreshFromApi()
-        .catchError((_) {})
-        .whenComplete(() {
-          _backgroundRefreshFuture = null;
-        });
   }
 
   Future<void> _refreshFromApi() async {
@@ -528,6 +525,7 @@ class OpApiService {
       cards.map((card) => card.toJson()).toList(growable: false),
     );
     await box.put(_cachedAtKey, DateTime.now().toIso8601String());
+    await box.deleteAll(_legacyCacheKeys);
   }
 
   String _normalizeCode(String input) {

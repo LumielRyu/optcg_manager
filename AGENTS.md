@@ -1967,3 +1967,21 @@ git diff --stat
   e a escolha de favoritos feita pelo usuario.
 - A tela foi conferida visualmente em desktop e em viewport movel de 390 x 844,
   incluindo as duas abas, sem erros de pagina ou estouro de layout.
+
+### 09/08/2026 - Catalogo OP17 preso no cache do navegador
+
+- A API de producao foi validada nos dominios `tcgbh.vercel.app` e
+  `optcgbh.vercel.app`: ambos retornavam 5.229 cartas e 30 codigos OP17 com
+  imagem, sem erros nos logs da Vercel.
+- Uma sessao limpa do navegador encontrou as 30 cartas, enquanto sessoes que
+  ja possuíam o catalogo local continuavam exibindo zero resultados.
+- A causa estava no comportamento stale-while-revalidate do `OpApiService`:
+  o refresh atualizava a memoria e o Hive em segundo plano, mas a tela ja havia
+  recebido uma copia da lista antiga e nao era reconstruida.
+- O cache passou para `all_cards_v6`, com carimbo de data tambem versionado,
+  evitando reaproveitar a validade de uma versao anterior do catalogo.
+- Quando o cache vence, a biblioteca agora aguarda a atualizacao da API antes
+  de devolver as cartas. Se a rede falhar, o ultimo catalogo valido continua
+  sendo usado como fallback.
+- A janela local foi alinhada ao cache do endpoint e reduzida para cinco
+  minutos. Chaves antigas sao removidas depois da primeira gravacao v6.
