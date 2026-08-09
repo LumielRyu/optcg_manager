@@ -1909,5 +1909,10 @@ git diff --stat
   Todas as 90 linhas possuem imagem. A mesclagem real retornou 5.195 cartas em
   aproximadamente 3,5 MB.
 - Os nomes completos dos novos Starter Decks foram adicionados ao fallback e
-  corrigidos diretamente nas 90 linhas da carga inicial. Falta apenas publicar
-  e verificar a versao em producao.
+  corrigidos diretamente nas 90 linhas da carga inicial.
+- Commit funcional inicial `676b831`, enviado para `origin/main`. Deploy Vercel
+  `dpl_CwgskDhqNbuN5VGmThEUdUgLQtBX` publicado como READY em
+  `https://tcgbh.vercel.app`.
+- A verificacao do endpoint em producao retornou 5.195 cartas e confirmou cinco
+  codigos novos com imagem em cada uma das edicoes ST31, ST32, ST33, ST34,
+  ST35 e ST36. Health check e banco responderam como saudaveis.
