@@ -2054,3 +2054,12 @@ git diff --stat
   cartas; o resumo fixo do carrinho continua visivel somente quando necessario.
 - Foi adicionado um teste estrutural para impedir a reintroducao de uma grade
   com rolagem isolada do cabecalho.
+
+### 09/08/2026 - Retorno da vitrine publica ao TCG BH
+
+- A vitrine compartilhada passou a exibir um atalho de inicio na barra superior
+  e o botao textual `Ir para o TCG BH` junto das ferramentas da vitrine.
+- Em telas pequenas, o botao textual ocupa toda a largura e permanece separado
+  da acao de copiar o link; em telas maiores, as duas acoes ficam lado a lado.
+- Os dois atalhos levam diretamente para `/home`, inclusive quando a vitrine e
+  aberta por um link externo sem historico de navegacao no navegador.

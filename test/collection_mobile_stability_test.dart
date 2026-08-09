@@ -87,4 +87,14 @@ void main() {
     expect(source, contains('return GridView.builder('));
     expect(source, isNot(contains('child: items.isEmpty')));
   });
+
+  test('public store offers a clear route back to the TCG BH home', () {
+    final source = File(
+      'lib/features/collection/shared_store_screen.dart',
+    ).readAsStringSync();
+
+    expect(source, contains("context.go('/home')"));
+    expect(source, contains("label: const Text('Ir para o TCG BH')"));
+    expect(source, contains("tooltip: 'Ir para o TCG BH'"));
+  });
 }

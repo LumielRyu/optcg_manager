@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/utils/share_link_helper.dart';
@@ -303,6 +304,11 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
             headerSliverBuilder: (_, _) => [
               SliverToBoxAdapter(
                 child: AppBar(
+                leading: IconButton(
+                  tooltip: 'Ir para o TCG BH',
+                  onPressed: () => context.go('/home'),
+                  icon: const Icon(Icons.home_outlined),
+                ),
                 title: Text(
                   sellerName.isNotEmpty
                       ? 'Vitrine de $sellerName'
@@ -406,6 +412,15 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                           const SizedBox(height: 10),
                           SizedBox(
                             width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: () => context.go('/home'),
+                              icon: const Icon(Icons.home_outlined),
+                              label: const Text('Ir para o TCG BH'),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: double.infinity,
                             child: FilledButton.icon(
                               onPressed: _copyStoreLink,
                               icon: const Icon(Icons.copy_outlined),
@@ -434,6 +449,12 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                                         .withValues(alpha: 0.9),
                                   ),
                                 ),
+                              ),
+                              const SizedBox(width: 10),
+                              OutlinedButton.icon(
+                                onPressed: () => context.go('/home'),
+                                icon: const Icon(Icons.home_outlined),
+                                label: const Text('Ir para o TCG BH'),
                               ),
                               const SizedBox(width: 10),
                               FilledButton.icon(
