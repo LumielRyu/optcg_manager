@@ -2043,3 +2043,14 @@ git diff --stat
   que pode ter sido desmontado.
 - Testes direcionados da colecao e da importacao para vendas foram aprovados,
   junto da analise estatica sem alertas.
+
+### 09/08/2026 - Rolagem integral da vitrine publica
+
+- A vitrine publica mantinha o cabecalho, os indicadores e a busca parados
+  porque somente a grade de cartas estava dentro do componente rolavel.
+- A tela passou a usar um `NestedScrollView`: barra superior e resumo formam
+  os slivers do cabecalho, enquanto a grade virtualizada permanece no corpo.
+- Ao descer a pagina, toda a parte superior agora sai da tela junto com as
+  cartas; o resumo fixo do carrinho continua visivel somente quando necessario.
+- Foi adicionado um teste estrutural para impedir a reintroducao de uma grade
+  com rolagem isolada do cabecalho.

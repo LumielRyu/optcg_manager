@@ -71,4 +71,20 @@ void main() {
     expect(source, contains('messenger.removeCurrentSnackBar('));
     expect(source, contains("router.go('/sales')"));
   });
+
+  test('public store scrolls its header together with the card grid', () {
+    final source = File(
+      'lib/features/collection/shared_store_screen.dart',
+    ).readAsStringSync();
+
+    expect(source, contains('return NestedScrollView('));
+    expect(source, contains('headerSliverBuilder: (_, _) => ['));
+    expect(
+      RegExp(r'SliverToBoxAdapter\(').allMatches(source),
+      hasLength(greaterThanOrEqualTo(2)),
+    );
+    expect(source, contains('body: items.isEmpty'));
+    expect(source, contains('return GridView.builder('));
+    expect(source, isNot(contains('child: items.isEmpty')));
+  });
 }

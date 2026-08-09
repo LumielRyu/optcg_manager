@@ -299,9 +299,10 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
           final screenWidth = MediaQuery.sizeOf(context).width;
           final isCompactLayout = screenWidth < 760;
 
-          return Column(
-            children: [
-              AppBar(
+          return NestedScrollView(
+            headerSliverBuilder: (_, _) => [
+              SliverToBoxAdapter(
+                child: AppBar(
                 title: Text(
                   sellerName.isNotEmpty
                       ? 'Vitrine de $sellerName'
@@ -314,8 +315,10 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                     icon: const Icon(Icons.link_outlined),
                   ),
                 ],
+                ),
               ),
-              Container(
+              SliverToBoxAdapter(
+                child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
                 decoration: BoxDecoration(
@@ -444,9 +447,10 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                     ),
                   ),
                 ),
+                ),
               ),
-              Expanded(
-                child: items.isEmpty
+            ],
+            body: items.isEmpty
                     ? const Center(
                         child: Padding(
                           padding: EdgeInsets.all(24),
@@ -617,8 +621,6 @@ class _SharedStoreScreenState extends ConsumerState<SharedStoreScreen> {
                           );
                         },
                       ),
-              ),
-            ],
           );
         },
       ),
