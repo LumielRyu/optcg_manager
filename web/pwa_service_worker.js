@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'optcg-shell-v5';
+const CACHE_NAME = 'optcg-shell-v6';
 const NETWORK_FIRST_ASSETS = new Set([
   '/',
   '/index.html',

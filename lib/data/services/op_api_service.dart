@@ -21,7 +21,7 @@ class OpApiService {
       'https://www.optcgapi.com/api/allSTCards/?format=json';
   static const String _promosUrl =
       'https://www.optcgapi.com/api/allPromos/?format=json';
-  static const String _webProxyUrl = '/api/optcg-cards';
+  static const String _webProxyUrl = '/api/optcg-cards?catalog=v6';
   static const String _assetCachePath = 'assets/one_piece_cards_cache.json';
   static const String _cachedCardsKey = 'all_cards_v6';
   static const String _cachedAtKey = 'all_cards_v6_cached_at';
@@ -124,6 +124,19 @@ class OpApiService {
 
   Future<void> _preloadInternal() async {
     final cachedCards = _loadCardsFromDisk();
+
+    if (kIsWeb) {
+      try {
+        await _refreshFromApi();
+        return;
+      } catch (_) {
+        if (cachedCards.isNotEmpty) {
+          _setMemoryCache(cachedCards);
+          return;
+        }
+      }
+    }
+
     if (cachedCards.isNotEmpty) {
       _setMemoryCache(cachedCards);
 
@@ -415,7 +428,10 @@ class OpApiService {
         : Uri.base.resolve(url);
     final response = await http.get(
       uri,
-      headers: const {'Accept': 'application/json'},
+      headers: const {
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache',
+      },
     );
 
     if (response.statusCode != 200) {

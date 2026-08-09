@@ -1985,3 +1985,9 @@ git diff --stat
   sendo usado como fallback.
 - A janela local foi alinhada ao cache do endpoint e reduzida para cinco
   minutos. Chaves antigas sao removidas depois da primeira gravacao v6.
+- Como o navegador do usuario ainda manteve o bundle anterior sob controle do
+  service worker, a estrategia Web foi endurecida: toda nova abertura consulta
+  a API primeiro e usa o Hive apenas se a rede falhar.
+- O endpoint Web recebeu um identificador de catalogo e requisicao `no-cache`.
+  O shell PWA passou para `optcg-shell-v6` e o marcador do `index.html` foi
+  alterado para desregistrar o worker e apagar os caches antigos uma vez.

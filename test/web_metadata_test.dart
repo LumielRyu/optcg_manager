@@ -30,7 +30,7 @@ void main() {
     expect(
       html,
       contains(
-        "const cacheResetVersion = '2026-07-28-pokemon-liga-prices-v1'",
+        "const cacheResetVersion = '2026-08-09-one-piece-catalog-v6'",
       ),
     );
     expect(File('assets/editorial/marketplace_hero.png').existsSync(), isTrue);
@@ -49,7 +49,7 @@ void main() {
     final worker = File('web/pwa_service_worker.js').readAsStringSync();
     final bootstrap = File('web/flutter_bootstrap.js').readAsStringSync();
 
-    expect(worker, contains("const CACHE_NAME = 'optcg-shell-v5'"));
+    expect(worker, contains("const CACHE_NAME = 'optcg-shell-v6'"));
     expect(worker, contains('const NETWORK_FIRST_ASSETS = new Set(['));
     expect(worker, contains("fetch(request, { cache: 'no-store' })"));
     expect(worker, contains("url.pathname.startsWith('/api/')"));
