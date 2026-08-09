@@ -23,9 +23,9 @@ class OpApiService {
       'https://www.optcgapi.com/api/allPromos/?format=json';
   static const String _webProxyUrl = '/api/optcg-cards';
   static const String _assetCachePath = 'assets/one_piece_cards_cache.json';
-  static const String _cachedCardsKey = 'all_cards_v4';
+  static const String _cachedCardsKey = 'all_cards_v5';
   static const String _cachedAtKey = 'all_cards_cached_at';
-  static const Duration _cacheMaxAge = Duration(hours: 12);
+  static const Duration _cacheMaxAge = Duration(minutes: 30);
 
   List<OpCard>? _cache;
   Map<String, List<OpCard>>? _byCodeMulti;

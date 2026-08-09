@@ -7,7 +7,7 @@ const endpoints = [
 const jsonHeaders = {
   'Content-Type': 'application/json; charset=utf-8',
   'Cache-Control':
-    'public, max-age=3600, s-maxage=21600, stale-while-revalidate=86400',
+    'public, max-age=60, s-maxage=300, stale-while-revalidate=1800',
 };
 
 import observability from '../server/api-observability.js';

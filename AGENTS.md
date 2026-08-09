@@ -1931,3 +1931,23 @@ git diff --stat
   para 5.229 cartas sem exigir novo deploy.
 - As futuras execucoes automaticas da edicao completarao o catalogo e os precos
   conforme a Liga publicar novas cartas e ofertas.
+
+### 09/08/2026 - Correcao da busca OP17 apos carga parcial
+
+- O usuario pesquisou `OP17` na biblioteca e recebeu zero resultados, embora o
+  endpoint de producao ja retornasse 30 cartas OP17 com imagem.
+- Os logs mostraram `GET /api/optcg-cards` com HTTP 200 e sem erro. O indicador
+  `Mais filtros 1` representava apenas a propria consulta digitada, nao um filtro
+  avancado adicional.
+- A causa foi cache em duas camadas: o CDN mantinha o endpoint por seis horas e
+  o Hive do navegador mantinha o catalogo por doze horas. `Ctrl + F5` nao limpa
+  o armazenamento Hive, portanto o cliente continuava usando a lista anterior a
+  carga de OP-17.
+- O cache do endpoint foi reduzido para cinco minutos no CDN, com um minuto no
+  navegador e revalidacao por 30 minutos. O cache Hive agora expira em 30
+  minutos e sua chave mudou para `all_cards_v5`, forçando renovacao imediata.
+- A busca tambem passou a comparar o codigo normalizado, aceitando formatos com
+  ou sem hifen.
+- Validacoes locais aprovadas: quality gate completo com 160 testes Flutter,
+  20 testes Python e 18 testes Node/API, analise estatica limpa e build web de
+  producao.

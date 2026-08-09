@@ -199,6 +199,7 @@ class _OnePieceLibraryScreenState extends ConsumerState<OnePieceLibraryScreen> {
           final allCards = (snapshot.data ?? const <OpCard>[])
               .where(_hasVisibleImage)
               .toList(growable: false);
+          final normalizedQueryCode = api.normalizeCode(_query);
           final filtered =
               allCards
                   .where((card) {
@@ -207,6 +208,8 @@ class _OnePieceLibraryScreenState extends ConsumerState<OnePieceLibraryScreen> {
                         _query.isEmpty ||
                         card.name.toLowerCase().contains(_query) ||
                         card.code.toLowerCase().contains(_query) ||
+                        (normalizedQueryCode.isNotEmpty &&
+                            normalizedCode.contains(normalizedQueryCode)) ||
                         card.setName.toLowerCase().contains(_query) ||
                         card.rarity.toLowerCase().contains(_query) ||
                         card.attribute.toLowerCase().contains(_query) ||
