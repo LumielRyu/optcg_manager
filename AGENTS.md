@@ -1951,3 +1951,19 @@ git diff --stat
 - Validacoes locais aprovadas: quality gate completo com 160 testes Flutter,
   20 testes Python e 18 testes Node/API, analise estatica limpa e build web de
   producao.
+
+### 09/08/2026 - Filtro Azul e painel visual da biblioteca
+
+- A lista de cores da Biblioteca One Piece passou a exibir explicitamente
+  `Azul`, alem de `Multicolor`, junto das demais cores suportadas pelo jogo.
+- Cada opcao de cor agora possui uma amostra visual propria; `Multicolor` usa
+  um gradiente para deixar seu significado claro sem depender apenas do texto.
+- O painel `Mais filtros` foi reorganizado em duas abas, `Cores` e `Detalhes`,
+  com cabecalho explicativo, campos com icones e a acao principal
+  `Ver resultados` sempre visivel.
+- O contador de `Mais filtros` agora considera apenas filtros avancados. A
+  busca digitada e o modo de favoritos nao inflam mais esse indicador.
+- O botao `Limpar` redefine somente os filtros avancados, preservando a busca
+  e a escolha de favoritos feita pelo usuario.
+- A tela foi conferida visualmente em desktop e em viewport movel de 390 x 844,
+  incluindo as duas abas, sem erros de pagina ou estouro de layout.

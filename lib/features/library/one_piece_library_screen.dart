@@ -31,12 +31,24 @@ class _OnePieceLibraryScreenState extends ConsumerState<OnePieceLibraryScreen> {
   ];
   static const int _pageSize = 120;
   static const Map<String, String> _libraryColorFilters = <String, String>{
-    'Preto': 'Black',
-    'Roxo': 'Purple',
     'Vermelho': 'Red',
-    'Amarelo': 'Yellow',
     'Verde': 'Green',
+    'Azul': 'Blue',
+    'Roxo': 'Purple',
+    'Preto': 'Black',
+    'Amarelo': 'Yellow',
+    'Multicolor': 'Multi',
   };
+  static const Map<String, List<Color>> _libraryColorSwatches =
+      <String, List<Color>>{
+        'Vermelho': <Color>[Color(0xFFE5484D), Color(0xFFB91C1C)],
+        'Verde': <Color>[Color(0xFF32B67A), Color(0xFF168052)],
+        'Azul': <Color>[Color(0xFF4C8DFF), Color(0xFF2458C6)],
+        'Roxo': <Color>[Color(0xFF9B6DFF), Color(0xFF6D3BC1)],
+        'Preto': <Color>[Color(0xFF3B414B), Color(0xFF111318)],
+        'Amarelo': <Color>[Color(0xFFFFD54A), Color(0xFFE5A900)],
+        'Multicolor': <Color>[Color(0xFFE5484D), Color(0xFF4C8DFF)],
+      };
   static const Map<String, String> _rarityLabels = <String, String>{
     'C': 'Common',
     'UC': 'Uncommon',
@@ -418,7 +430,7 @@ class _OnePieceLibraryScreenState extends ConsumerState<OnePieceLibraryScreen> {
                                 label: 'Busca avancada',
                                 children: [
                                   _AdvancedFiltersButton(
-                                    activeCount: _activeFilterCount(),
+                                    activeCount: _activeAdvancedFilterCount(),
                                     onPressed: () =>
                                         _openFiltersFromLibrary(context),
                                   ),
@@ -621,50 +633,73 @@ class _OnePieceLibraryScreenState extends ConsumerState<OnePieceLibraryScreen> {
     await showDialog<void>(
       context: context,
       builder: (context) {
+        final dialogHeight = (MediaQuery.sizeOf(context).height - 36)
+            .clamp(500.0, 680.0)
+            .toDouble();
         return StatefulBuilder(
           builder: (context, sheetSetState) {
+            final theme = Theme.of(context);
+            final activeCount = _activeAdvancedFilterCount();
             return DefaultTabController(
               length: 2,
               child: Dialog(
                 insetPadding: const EdgeInsets.all(18),
                 clipBehavior: Clip.antiAlias,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxWidth: 640,
-                    maxHeight: 520,
-                  ),
+                child: SizedBox(
+                  width: 680,
+                  height: dialogHeight,
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const SizedBox(height: 8),
                       Container(
-                        width: 44,
-                        height: 5,
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(20, 18, 12, 16),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.outlineVariant,
-                          borderRadius: BorderRadius.circular(999),
+                          gradient: LinearGradient(
+                            colors: [
+                              theme.colorScheme.primaryContainer,
+                              theme.colorScheme.surfaceContainerHigh,
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Row(
                           children: [
-                            Expanded(
-                              child: Text(
-                                'Filtros da Biblioteca',
-                                style: Theme.of(context).textTheme.titleLarge
-                                    ?.copyWith(fontWeight: FontWeight.w800),
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primary.withValues(
+                                  alpha: 0.14,
+                                ),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Icon(
+                                Icons.tune,
+                                color: theme.colorScheme.primary,
                               ),
                             ),
-                            if (_activeFilterCount() > 0)
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.of(context).pop();
-                                  _resetFilters();
-                                },
-                                child: const Text('Limpar tudo'),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Filtros da Biblioteca',
+                                    style: theme.textTheme.titleLarge?.copyWith(
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Combine cores e detalhes para encontrar a carta certa.',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
                               ),
+                            ),
                             IconButton(
                               tooltip: 'Fechar filtros',
                               onPressed: () => Navigator.of(context).pop(),
@@ -675,12 +710,17 @@ class _OnePieceLibraryScreenState extends ConsumerState<OnePieceLibraryScreen> {
                       ),
                       const TabBar(
                         tabs: [
-                          Tab(text: 'Cores'),
-                          Tab(text: 'Avancado'),
+                          Tab(
+                            icon: Icon(Icons.palette_outlined),
+                            text: 'Cores',
+                          ),
+                          Tab(
+                            icon: Icon(Icons.manage_search_outlined),
+                            text: 'Detalhes',
+                          ),
                         ],
                       ),
-                      SizedBox(
-                        height: 390,
+                      Expanded(
                         child: TabBarView(
                           children: [
                             _buildColorsTab(sheetSetState),
@@ -691,6 +731,48 @@ class _OnePieceLibraryScreenState extends ConsumerState<OnePieceLibraryScreen> {
                               sets: sets,
                               rarities: rarities,
                               attributes: attributes,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerLow,
+                          border: Border(
+                            top: BorderSide(
+                              color: theme.colorScheme.outlineVariant,
+                            ),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                activeCount == 0
+                                    ? 'Nenhum filtro adicional ativo'
+                                    : '$activeCount ${activeCount == 1 ? 'filtro ativo' : 'filtros ativos'}',
+                                style: theme.textTheme.labelLarge?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            if (activeCount > 0) ...[
+                              TextButton.icon(
+                                onPressed: () => _setFilterState(
+                                  sheetSetState,
+                                  _resetAdvancedFilters,
+                                ),
+                                icon: const Icon(Icons.refresh, size: 18),
+                                label: const Text('Limpar'),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
+                            FilledButton.icon(
+                              onPressed: () => Navigator.of(context).pop(),
+                              icon: const Icon(Icons.check, size: 18),
+                              label: const Text('Ver resultados'),
                             ),
                           ],
                         ),
@@ -740,29 +822,55 @@ class _OnePieceLibraryScreenState extends ConsumerState<OnePieceLibraryScreen> {
   }
 
   Widget _buildColorsTab(StateSetter sheetSetState) {
+    final theme = Theme.of(context);
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final color in _libraryColorFilters.keys)
-              FilterChip(
-                label: Text(color),
-                selected: _selectedColors.contains(color),
-                onSelected: (_) {
-                  _setFilterState(sheetSetState, () {
-                    if (_selectedColors.contains(color)) {
-                      _selectedColors.remove(color);
-                    } else {
-                      _selectedColors.add(color);
-                    }
-                    _visibleCount = _pageSize;
-                  });
-                },
-              ),
-          ],
+        Text(
+          'Cores da carta',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Selecione uma ou mais cores. Cartas que correspondam a qualquer uma delas serao exibidas.',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 18),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: theme.colorScheme.outlineVariant),
+          ),
+          child: Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              for (final color in _libraryColorFilters.keys)
+                _LibraryColorFilterChip(
+                  label: color,
+                  swatches:
+                      _libraryColorSwatches[color] ??
+                      const <Color>[Colors.grey, Colors.blueGrey],
+                  selected: _selectedColors.contains(color),
+                  onSelected: (_) {
+                    _setFilterState(sheetSetState, () {
+                      if (_selectedColors.contains(color)) {
+                        _selectedColors.remove(color);
+                      } else {
+                        _selectedColors.add(color);
+                      }
+                      _visibleCount = _pageSize;
+                    });
+                  },
+                ),
+            ],
+          ),
         ),
       ],
     );
@@ -781,6 +889,7 @@ class _OnePieceLibraryScreenState extends ConsumerState<OnePieceLibraryScreen> {
       children: [
         _LibraryDropdown(
           label: 'Categoria',
+          icon: Icons.category_outlined,
           value: _selectedType,
           options: types,
           onChanged: (value) {
@@ -794,6 +903,7 @@ class _OnePieceLibraryScreenState extends ConsumerState<OnePieceLibraryScreen> {
         const SizedBox(height: 12),
         _LibraryDropdown(
           label: 'Tipo da carta',
+          icon: Icons.account_tree_outlined,
           value: _selectedSubtype,
           options: subtypes,
           onChanged: (value) {
@@ -807,6 +917,7 @@ class _OnePieceLibraryScreenState extends ConsumerState<OnePieceLibraryScreen> {
         const SizedBox(height: 12),
         _LibraryDropdown(
           label: 'Edicao',
+          icon: Icons.collections_bookmark_outlined,
           value: _selectedSet,
           options: <String>['Todas', ...sets],
           onChanged: (value) {
@@ -820,6 +931,7 @@ class _OnePieceLibraryScreenState extends ConsumerState<OnePieceLibraryScreen> {
         const SizedBox(height: 12),
         _LibraryDropdown(
           label: 'Raridade',
+          icon: Icons.diamond_outlined,
           value: _selectedRarity,
           options: <String>['Todas', ...rarities],
           displayLabel: _rarityLabel,
@@ -834,6 +946,7 @@ class _OnePieceLibraryScreenState extends ConsumerState<OnePieceLibraryScreen> {
         const SizedBox(height: 12),
         _LibraryDropdown(
           label: 'Atributo',
+          icon: Icons.auto_awesome_outlined,
           value: _selectedAttribute,
           options: attributes,
           onChanged: (value) {
@@ -847,6 +960,7 @@ class _OnePieceLibraryScreenState extends ConsumerState<OnePieceLibraryScreen> {
         const SizedBox(height: 12),
         _LibraryDropdown(
           label: 'Ordenar por',
+          icon: Icons.sort,
           value: _selectedSort,
           options: const <String>[
             'Codigo',
@@ -889,34 +1003,26 @@ class _OnePieceLibraryScreenState extends ConsumerState<OnePieceLibraryScreen> {
     return '$rarity - $label';
   }
 
-  int _activeFilterCount() {
+  int _activeAdvancedFilterCount() {
     var count = 0;
-    if (_query.isNotEmpty) count++;
     if (_selectedColors.isNotEmpty) count++;
     if (_selectedType != 'Todos') count++;
     if (_selectedSubtype != 'Todos') count++;
     if (_selectedSet != 'Todas') count++;
     if (_selectedRarity != 'Todas') count++;
     if (_selectedAttribute != 'Todos') count++;
-    if (_favoritesOnly) count++;
     return count;
   }
 
-  void _resetFilters() {
-    setState(() {
-      _searchController.clear();
-      _query = '';
-      _selectedColors.clear();
-      _selectedType = 'Todos';
-      _selectedSubtype = 'Todos';
-      _selectedSet = 'Todas';
-      _selectedRarity = 'Todas';
-      _selectedAttribute = 'Todos';
-      _selectedSort = 'Codigo';
-      _favoritesOnly = false;
-      _largeCards = false;
-      _visibleCount = _pageSize;
-    });
+  void _resetAdvancedFilters() {
+    _selectedColors.clear();
+    _selectedType = 'Todos';
+    _selectedSubtype = 'Todos';
+    _selectedSet = 'Todas';
+    _selectedRarity = 'Todas';
+    _selectedAttribute = 'Todos';
+    _selectedSort = 'Codigo';
+    _visibleCount = _pageSize;
   }
 
   bool _matchesSelectedColors(String cardColor) {
@@ -1235,6 +1341,7 @@ class _AdvancedFiltersButton extends StatelessWidget {
 
 class _LibraryDropdown extends StatelessWidget {
   final String label;
+  final IconData icon;
   final String value;
   final List<String> options;
   final String Function(String option)? displayLabel;
@@ -1242,6 +1349,7 @@ class _LibraryDropdown extends StatelessWidget {
 
   const _LibraryDropdown({
     required this.label,
+    required this.icon,
     required this.value,
     required this.options,
     required this.onChanged,
@@ -1252,7 +1360,13 @@ class _LibraryDropdown extends StatelessWidget {
   Widget build(BuildContext context) {
     return DropdownButtonFormField<String>(
       initialValue: value,
-      decoration: InputDecoration(labelText: label),
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, size: 20),
+        filled: true,
+        fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+      ),
       items: options.map((option) {
         return DropdownMenuItem<String>(
           value: option,
@@ -1263,6 +1377,59 @@ class _LibraryDropdown extends StatelessWidget {
         );
       }).toList(),
       onChanged: onChanged,
+    );
+  }
+}
+
+class _LibraryColorFilterChip extends StatelessWidget {
+  final String label;
+  final List<Color> swatches;
+  final bool selected;
+  final ValueChanged<bool> onSelected;
+
+  const _LibraryColorFilterChip({
+    required this.label,
+    required this.swatches,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return FilterChip(
+      selected: selected,
+      onSelected: onSelected,
+      showCheckmark: true,
+      avatar: Container(
+        width: 22,
+        height: 22,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(colors: swatches),
+          border: Border.all(
+            color: theme.colorScheme.outline.withValues(alpha: 0.45),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: swatches.first.withValues(alpha: 0.24),
+              blurRadius: 6,
+            ),
+          ],
+        ),
+      ),
+      label: Text(label),
+      labelStyle: theme.textTheme.labelLarge?.copyWith(
+        fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      selectedColor: theme.colorScheme.primaryContainer,
+      side: BorderSide(
+        color: selected
+            ? theme.colorScheme.primary.withValues(alpha: 0.65)
+            : theme.colorScheme.outlineVariant,
+      ),
     );
   }
 }
