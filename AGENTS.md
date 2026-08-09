@@ -1916,3 +1916,18 @@ git diff --stat
 - A verificacao do endpoint em producao retornou 5.195 cartas e confirmou cinco
   codigos novos com imagem em cada uma das edicoes ST31, ST32, ST33, ST34,
   ST35 e ST36. Health check e banco responderam como saudaveis.
+
+### 09/08/2026 - Carga antecipada parcial de OP-17
+
+- A Liga ja publica parcialmente `OP-17 - The World's Strongest Warriors`, com
+  lancamento previsto para o fim de agosto de 2026.
+- A pagina da edicao continha 45 linhas. Destas, 34 impressoes tinham codigo e
+  imagem validos, incluindo 30 codigos iniciados por `OP17-`; nenhuma possuia
+  preco publico no momento da carga.
+- O atualizador direcionado gravou 90 chaves no cache de precos, por manter as
+  chaves geral e por edicao, e 34 variantes unicas no catalogo proprio.
+- A verificacao de producao confirmou 34 linhas com imagem no Supabase e 30
+  cartas OP17 visiveis em `/api/optcg-cards`. A resposta total passou de 5.195
+  para 5.229 cartas sem exigir novo deploy.
+- As futuras execucoes automaticas da edicao completarao o catalogo e os precos
+  conforme a Liga publicar novas cartas e ofertas.
