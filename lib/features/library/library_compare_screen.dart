@@ -151,7 +151,7 @@ class _ComparisonCard extends StatelessWidget {
             const SizedBox(height: 14),
             _CompareRow(label: 'Categoria', value: card.type),
             _CompareRow(label: 'Tipo da carta', value: card.subTypes),
-            _CompareRow(label: 'Cor', value: card.color),
+            _CompareRow(label: 'Cor', value: card.localizedColor),
             _CompareRow(label: 'Raridade', value: card.rarity),
             _CompareRow(label: 'Atributo', value: card.attribute),
             _CompareRow(label: 'Edicao', value: card.setName),

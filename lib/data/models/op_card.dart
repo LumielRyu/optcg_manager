@@ -1,4 +1,13 @@
 class OpCard {
+  static const Map<String, String> _localizedColorLabels = <String, String>{
+    'red': 'Vermelho',
+    'green': 'Verde',
+    'blue': 'Azul',
+    'purple': 'Roxo',
+    'black': 'Preto',
+    'yellow': 'Amarelo',
+  };
+
   final String code;
   final String name;
   final String image;
@@ -22,6 +31,28 @@ class OpCard {
     required this.text,
     required this.attribute,
   });
+
+  List<String> get colorCodes {
+    final normalized = color.trim().toLowerCase();
+    if (normalized.isEmpty) return const <String>[];
+
+    final matches = RegExp(r'[a-z]+')
+        .allMatches(normalized)
+        .map((match) => match.group(0) ?? '')
+        .where(_localizedColorLabels.containsKey);
+    return matches.toSet().toList(growable: false);
+  }
+
+  bool get isMulticolor {
+    final normalized = color.trim().toLowerCase();
+    return colorCodes.length > 1 || normalized.contains('multi');
+  }
+
+  String get localizedColor {
+    final codes = colorCodes;
+    if (codes.isEmpty) return color;
+    return codes.map((code) => _localizedColorLabels[code]!).join(' / ');
+  }
 
   factory OpCard.fromJson(Map<String, dynamic> json) {
     return OpCard(

@@ -1991,3 +1991,18 @@ git diff --stat
 - O endpoint Web recebeu um identificador de catalogo e requisicao `no-cache`.
   O shell PWA passou para `optcg-shell-v6` e o marcador do `index.html` foi
   alterado para desregistrar o worker e apagar os caches antigos uma vez.
+
+### 09/08/2026 - Identificacao de cartas multicoloridas
+
+- A API usa combinacoes como `Blue Purple`, `Green Red` e `Blue Yellow`; o
+  filtro `Multicolor` procurava apenas a palavra literal `Multi` e, por isso,
+  nao encontrava essas cartas.
+- Foram identificadas 17 combinacoes multicoloridas no catalogo atual.
+  Hannyabal `EB01-021`, em todas as tres artes, possui `Blue Purple` na origem.
+- `OpCard` agora separa as seis cores oficiais, reconhece uma carta como
+  multicolorida quando encontra duas ou mais cores e disponibiliza o nome
+  localizado para exibicao.
+- A biblioteca continua permitindo filtrar cada cor individual de uma carta
+  multicolorida e o filtro `Multicolor` passa a inclui-la corretamente.
+- Biblioteca, detalhes e comparador exibem combinacoes em portugues, como
+  `Azul / Roxo`.

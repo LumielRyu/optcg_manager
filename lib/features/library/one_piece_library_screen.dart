@@ -227,7 +227,7 @@ class _OnePieceLibraryScreenState extends ConsumerState<OnePieceLibraryScreen> {
                         card.attribute.toLowerCase().contains(_query) ||
                         card.type.toLowerCase().contains(_query) ||
                         card.subTypes.toLowerCase().contains(_query);
-                    final matchesColor = _matchesSelectedColors(card.color);
+                    final matchesColor = _matchesSelectedColors(card);
                     final matchesType =
                         _selectedType == 'Todos' || card.type == _selectedType;
                     final matchesSubtype =
@@ -512,7 +512,9 @@ class _OnePieceLibraryScreenState extends ConsumerState<OnePieceLibraryScreen> {
                                   metadata: [
                                     card.type.isEmpty ? '-' : card.type,
                                     card.subTypes.isEmpty ? '-' : card.subTypes,
-                                    card.color.isEmpty ? '-' : card.color,
+                                    card.color.isEmpty
+                                        ? '-'
+                                        : card.localizedColor,
                                   ],
                                   maxMetadataItems: layout.maxMetadataItems,
                                   textScale: layout.textScale,
@@ -1025,16 +1027,19 @@ class _OnePieceLibraryScreenState extends ConsumerState<OnePieceLibraryScreen> {
     _visibleCount = _pageSize;
   }
 
-  bool _matchesSelectedColors(String cardColor) {
+  bool _matchesSelectedColors(OpCard card) {
     if (_selectedColors.isEmpty) return true;
 
-    final normalizedCardColor = cardColor.trim().toLowerCase();
-    if (normalizedCardColor.isEmpty) return false;
+    final colorCodes = card.colorCodes;
+    if (colorCodes.isEmpty && !card.isMulticolor) return false;
 
     for (final selectedLabel in _selectedColors) {
+      if (selectedLabel == 'Multicolor' && card.isMulticolor) {
+        return true;
+      }
       final apiColor = _libraryColorFilters[selectedLabel];
       if (apiColor == null) continue;
-      if (normalizedCardColor.contains(apiColor.toLowerCase())) {
+      if (colorCodes.contains(apiColor.toLowerCase())) {
         return true;
       }
     }

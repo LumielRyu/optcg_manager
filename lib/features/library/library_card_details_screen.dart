@@ -527,7 +527,7 @@ class _DetailsInfo extends StatelessWidget {
       children: [
         _infoRow('Set', card.setName),
         _infoRow('Raridade', card.rarity),
-        _infoRow('Cor', card.color),
+        _infoRow('Cor', card.localizedColor),
         _infoRow('Categoria', card.type),
         _infoRow('Tipo', card.subTypes),
         _infoRow('Atributo', card.attribute),

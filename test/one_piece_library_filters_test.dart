@@ -12,6 +12,10 @@ void main() {
     expect(source, contains("'Multicolor': 'Multi'"));
     expect(source, contains('_LibraryColorFilterChip('));
     expect(source, contains('Icons.palette_outlined'));
+    expect(
+      source,
+      contains("selectedLabel == 'Multicolor' && card.isMulticolor"),
+    );
   });
 
   test('search query is not counted as an advanced filter', () {
