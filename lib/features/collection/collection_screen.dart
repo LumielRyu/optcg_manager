@@ -581,14 +581,10 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                 'foram publicadas no marketplace por 7 dias.'
           : '${plan.totalQuantity} cópias de ${plan.addedVariantCount} cartas '
                 'foram adicionadas às vendas.';
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(message),
-          action: SnackBarAction(
-            label: 'ABRIR VENDAS',
-            onPressed: () => context.go('/sales'),
-          ),
-        ),
+      _showSalesImportSnackBar(
+        context: context,
+        messenger: messenger,
+        message: message,
       );
     } catch (_) {
       if (!mounted) return;
@@ -1606,18 +1602,12 @@ Future<bool> _importCardToSales(
     }
 
     if (!context.mounted) return true;
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          quantity == 1
-              ? 'Carta adicionada a Cartas à venda.'
-              : '$quantity cartas adicionadas a Cartas à venda.',
-        ),
-        action: SnackBarAction(
-          label: 'ABRIR VENDAS',
-          onPressed: () => context.go('/sales'),
-        ),
-      ),
+    _showSalesImportSnackBar(
+      context: context,
+      messenger: messenger,
+      message: quantity == 1
+          ? 'Carta adicionada a Cartas à venda.'
+          : '$quantity cartas adicionadas a Cartas à venda.',
     );
     return true;
   } catch (_) {
@@ -1631,6 +1621,32 @@ Future<bool> _importCardToSales(
     );
     return false;
   }
+}
+
+void _showSalesImportSnackBar({
+  required BuildContext context,
+  required ScaffoldMessengerState messenger,
+  required String message,
+}) {
+  final router = GoRouter.of(context);
+  messenger
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 5),
+        persist: false,
+        action: SnackBarAction(
+          label: 'ABRIR VENDAS',
+          onPressed: () {
+            messenger.removeCurrentSnackBar(
+              reason: SnackBarClosedReason.action,
+            );
+            router.go('/sales');
+          },
+        ),
+      ),
+    );
 }
 
 class _VirtualizedStandardLibraryView extends ConsumerWidget {

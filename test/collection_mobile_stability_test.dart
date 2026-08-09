@@ -56,4 +56,19 @@ void main() {
     expect(source, contains('api.searchCardsByName(query, limit: 40)'));
     expect(source, contains("hintText: 'Ex.: OP02-001 ou Nami'"));
   });
+
+  test('sales import notice expires and opens the sales route safely', () {
+    final source = File(
+      'lib/features/collection/collection_screen.dart',
+    ).readAsStringSync();
+
+    expect(
+      RegExp(r'_showSalesImportSnackBar\(').allMatches(source),
+      hasLength(3),
+    );
+    expect(source, contains('duration: const Duration(seconds: 5)'));
+    expect(source, contains('persist: false'));
+    expect(source, contains('messenger.removeCurrentSnackBar('));
+    expect(source, contains("router.go('/sales')"));
+  });
 }

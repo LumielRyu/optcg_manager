@@ -2030,3 +2030,16 @@ git diff --stat
   usuario selecionar a impressao correta antes de adicionar.
 - O identificador do endpoint Web foi atualizado para `catalog=v7`, impedindo
   que navegadores reutilizem a resposta duplicada em cache.
+
+### 09/08/2026 - Aviso ao importar cartas para vendas
+
+- O aviso exibido depois de importar uma pasta ou carta da colecao para vendas
+  permanecia indefinidamente porque o Flutter define `persist = true` por
+  padrao sempre que um `SnackBar` possui uma acao.
+- Os dois fluxos agora usam o mesmo helper, com encerramento automatico apos
+  cinco segundos e substituicao segura de qualquer aviso anterior.
+- A acao `ABRIR VENDAS` captura o roteador antes da mudanca de tela, remove o
+  aviso imediatamente e navega para `/sales`, sem depender de um `BuildContext`
+  que pode ter sido desmontado.
+- Testes direcionados da colecao e da importacao para vendas foram aprovados,
+  junto da analise estatica sem alertas.
