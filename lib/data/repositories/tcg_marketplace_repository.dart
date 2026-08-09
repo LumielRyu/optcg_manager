@@ -25,6 +25,7 @@ class TcgMarketplaceRepository {
       'sale_status, card_condition, sale_expires_at, sale_pricing_mode, '
       'sale_liga_percentage, sale_liga_rounding, sale_liga_base_price_cents, '
       'sale_liga_price_updated_at, sale_liga_price_source';
+  static const _mineColumns = '$_columns, sale_folder_id';
   static const _priceMaxAge = Duration(hours: 24);
 
   final SupabaseClient _client;
@@ -45,7 +46,7 @@ class TcgMarketplaceRepository {
     final user = _requireUser();
     final rows = await _client
         .from('collection_items')
-        .select(_columns)
+        .select(_mineColumns)
         .eq('user_id', user.id)
         .eq('game_slug', gameSlug)
         .eq('collection_type', 'forSale')
@@ -142,6 +143,7 @@ class TcgMarketplaceRepository {
     required String saleStatus,
     required String cardCondition,
     required String notes,
+    String? saleFolderId,
   }) async {
     final user = _requireUser();
     final ownedRows = await _client
@@ -221,6 +223,7 @@ class TcgMarketplaceRepository {
           'sale_liga_price_updated_at': priceUpdatedAt?.toIso8601String(),
           'sale_liga_price_source': source,
           'sale_expires_at': expiresAt?.toIso8601String(),
+          'sale_folder_id': saleFolderId,
         })
         .eq('id', listing.id);
   }

@@ -28,6 +28,7 @@ class MarketplaceListing {
   final DateTime? ligaPriceUpdatedAt;
   final String ligaPriceSource;
   final DateTime? saleExpiresAt;
+  final String? saleFolderId;
 
   const MarketplaceListing({
     required this.id,
@@ -59,6 +60,7 @@ class MarketplaceListing {
     required this.ligaPriceUpdatedAt,
     required this.ligaPriceSource,
     required this.saleExpiresAt,
+    this.saleFolderId,
   });
 
   MarketplaceListing copyWith({

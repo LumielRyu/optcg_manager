@@ -1853,3 +1853,24 @@ git diff --stat
 - Validacoes direcionadas: 16 testes Flutter e 3 testes Python passaram; a
   analise estatica nao encontrou problemas. O quality gate completo e o build
   devem ser repetidos antes da publicacao.
+
+### 09/08/2026 - Pastas independentes em Cartas a venda
+
+- Foi preparada uma estrutura de pastas exclusiva para o estoque de vendas,
+  sem misturar as pastas pessoais da colecao.
+- A funcionalidade atende One Piece, Pokemon, Digimon, Magic, Riftbound e
+  Yu-Gi-Oh sobre a tabela compartilhada `collection_items`.
+- Cada tela de vendas permite criar, selecionar, renomear e excluir pastas. Os
+  cards das pastas mostram anuncios diferentes, quantidade total e valor total
+  anunciado.
+- O editor de cada anuncio permite mover a carta para uma pasta ou devolve-la a
+  `Sem pasta`. Excluir uma pasta nao remove anuncios; a chave estrangeira usa
+  `on delete set null`.
+- One Piece passou a filtrar explicitamente `game_slug = one-piece` nas
+  consultas e operacoes de vitrine, evitando misturar anuncios de outros TCGs.
+- A migracao `sql/sale_folders.sql` foi executada e validada: a tabela
+  `sale_folders` e a coluna `collection_items.sale_folder_id` respondem pela
+  API, nao havia pastas residuais e uma insercao anonima foi bloqueada com HTTP
+  401 pelas politicas de acesso.
+- Validacoes aprovadas: quality gate completo com 160 testes Flutter, 19 testes
+  Python e 15 testes Node/API, analise estatica limpa e build web de producao.

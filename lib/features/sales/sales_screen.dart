@@ -19,14 +19,17 @@ import '../../core/widgets/catalog_list_card.dart';
 import '../../core/widgets/summary_stat_card.dart';
 import '../../data/models/marketplace_listing.dart';
 import '../../data/models/marketplace_order.dart';
+import '../../data/models/sale_folder.dart';
 import '../../data/repositories/marketplace_repository.dart';
 import '../../data/repositories/marketplace_order_repository.dart';
+import '../../data/repositories/sale_folder_repository.dart';
 import '../../data/services/liga_one_piece_service.dart';
 import '../../data/services/op_api_service.dart';
 import '../../data/services/translation_service.dart';
 import '../collection/manual_add_dialog.dart';
 import '../../core/widgets/home_navigation_button.dart';
 import '../../core/widgets/primary_bottom_navigation.dart';
+import 'widgets/sale_folders_section.dart';
 
 class SalesScreen extends ConsumerStatefulWidget {
   const SalesScreen({super.key});
@@ -48,12 +51,17 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   int _cachedTotalUnique = 0;
   int _cachedTotalCards = 0;
   int _cachedPricedItems = 0;
+  List<SaleFolder> _saleFolders = const [];
+  String _selectedSaleFolder = saleAllFolders;
+  String _cachedSaleFolder = saleAllFolders;
+  bool _saleFoldersLoading = true;
 
   @override
   void initState() {
     super.initState();
     _listingsFuture = _loadListings();
     _pendingOrdersFuture = _loadPendingOrders();
+    _loadSaleFolders();
     _searchController.addListener(() {
       setState(() {
         _query = _searchController.text.trim().toLowerCase();
@@ -80,15 +88,26 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   void _updateSalesDerivedData(List<MarketplaceListing> allItems) {
     final sourceChanged = !identical(_cachedSourceItems, allItems);
     final queryChanged = _cachedQuery != _query;
+    final folderChanged = _cachedSaleFolder != _selectedSaleFolder;
 
-    if (!sourceChanged && !queryChanged) {
+    if (!sourceChanged && !queryChanged && !folderChanged) {
       return;
     }
 
     _cachedSourceItems = allItems;
     _cachedQuery = _query;
+    _cachedSaleFolder = _selectedSaleFolder;
     _cachedFilteredItems = allItems
         .where((card) {
+          if (_selectedSaleFolder == saleUnfiledFolder &&
+              (card.saleFolderId ?? '').isNotEmpty) {
+            return false;
+          }
+          if (_selectedSaleFolder != saleAllFolders &&
+              _selectedSaleFolder != saleUnfiledFolder &&
+              card.saleFolderId != _selectedSaleFolder) {
+            return false;
+          }
           if (_query.isEmpty) return true;
 
           return card.name.toLowerCase().contains(_query) ||
@@ -115,6 +134,120 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       _listingsFuture = _loadListings();
       _pendingOrdersFuture = _loadPendingOrders();
     });
+    _loadSaleFolders();
+  }
+
+  Future<void> _loadSaleFolders() async {
+    try {
+      final folders = await ref
+          .read(saleFolderRepositoryProvider)
+          .listFolders('one-piece');
+      if (!mounted) return;
+      setState(() {
+        _saleFolders = folders;
+        _saleFoldersLoading = false;
+        if (_selectedSaleFolder != saleAllFolders &&
+            _selectedSaleFolder != saleUnfiledFolder &&
+            !folders.any((folder) => folder.id == _selectedSaleFolder)) {
+          _selectedSaleFolder = saleUnfiledFolder;
+        }
+      });
+    } catch (_) {
+      if (mounted) setState(() => _saleFoldersLoading = false);
+    }
+  }
+
+  Future<String?> _askFolderName(
+    String title, {
+    String initialValue = '',
+  }) async {
+    final controller = TextEditingController(text: initialValue);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 60,
+          decoration: const InputDecoration(labelText: 'Nome da pasta'),
+          onSubmitted: (value) {
+            if (value.trim().isNotEmpty) {
+              Navigator.of(dialogContext).pop(value.trim());
+            }
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = controller.text.trim();
+              if (value.isNotEmpty) Navigator.of(dialogContext).pop(value);
+            },
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return result;
+  }
+
+  Future<void> _createSaleFolder() async {
+    final name = await _askFolderName('Nova pasta de vendas');
+    if (name == null || !mounted) return;
+    try {
+      final folder = await ref
+          .read(saleFolderRepositoryProvider)
+          .createFolder('one-piece', name);
+      await _loadSaleFolders();
+      if (mounted) setState(() => _selectedSaleFolder = folder.id);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Nao foi possivel criar a pasta: $error')),
+      );
+    }
+  }
+
+  Future<void> _renameSaleFolder(SaleFolder folder) async {
+    final name = await _askFolderName(
+      'Renomear pasta',
+      initialValue: folder.name,
+    );
+    if (name == null || !mounted) return;
+    await ref.read(saleFolderRepositoryProvider).renameFolder(folder.id, name);
+    await _loadSaleFolders();
+  }
+
+  Future<void> _deleteSaleFolder(SaleFolder folder) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Excluir pasta de vendas?'),
+        content: Text(
+          'Os anuncios de “${folder.name}” nao serao excluidos. '
+          'Eles voltarao para “Sem pasta”.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.tonal(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Excluir pasta'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await ref.read(saleFolderRepositoryProvider).deleteFolder(folder.id);
+    if (mounted) setState(() => _selectedSaleFolder = saleUnfiledFolder);
+    _reloadListings();
   }
 
   Future<void> _resolvePendingOrder(
@@ -433,8 +566,31 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                   onCopyLink: _copyStoreLink,
                   onDisableLink: _disableStoreLink,
                 ),
+                SaleFoldersSection(
+                  folders: _saleFolders,
+                  selectedFolderId: _selectedSaleFolder,
+                  loading: _saleFoldersLoading,
+                  allMetrics: _saleMetrics(allItems),
+                  unfiledMetrics: _saleMetrics(
+                    allItems.where((item) => (item.saleFolderId ?? '').isEmpty),
+                  ),
+                  folderMetrics: {
+                    for (final folder in _saleFolders)
+                      folder.id: _saleMetrics(
+                        allItems.where(
+                          (item) => item.saleFolderId == folder.id,
+                        ),
+                      ),
+                  },
+                  onSelect: (value) =>
+                      setState(() => _selectedSaleFolder = value),
+                  onCreate: _createSaleFolder,
+                  onRename: _renameSaleFolder,
+                  onDelete: _deleteSaleFolder,
+                ),
                 _SalesLibraryView(
                   items: filteredItems,
+                  folders: _saleFolders,
                   viewMode: viewMode,
                   onChanged: _reloadListings,
                 ),
@@ -1059,11 +1215,13 @@ class _SalesHeaderSection extends StatelessWidget {
 
 class _SalesLibraryView extends ConsumerWidget {
   final List<MarketplaceListing> items;
+  final List<SaleFolder> folders;
   final CollectionViewMode viewMode;
   final VoidCallback onChanged;
 
   const _SalesLibraryView({
     required this.items,
+    required this.folders,
     required this.viewMode,
     required this.onChanged,
   });
@@ -1109,6 +1267,7 @@ class _SalesLibraryView extends ConsumerWidget {
               item.expirationLabel,
               'Condição: ${item.conditionLabel}',
               'Quantidade: ${item.quantity}x',
+              'Pasta: ${_saleFolderName(item.saleFolderId, folders)}',
               if (item.hasContactInfo) 'Contato configurado',
             ],
             image: _SalesResolvedCardImage(
@@ -1122,8 +1281,11 @@ class _SalesLibraryView extends ConsumerWidget {
             onTap: () {
               showDialog(
                 context: context,
-                builder: (_) =>
-                    _SalesCardDetailsDialog(card: item, onChanged: onChanged),
+                builder: (_) => _SalesCardDetailsDialog(
+                  card: item,
+                  folders: folders,
+                  onChanged: onChanged,
+                ),
               );
             },
           );
@@ -1157,6 +1319,7 @@ class _SalesLibraryView extends ConsumerWidget {
             item.expirationLabel,
             item.conditionLabel,
             item.formattedPrice,
+            _saleFolderName(item.saleFolderId, folders),
           ],
           footer: item.hasContactInfo
               ? const Text(
@@ -1175,14 +1338,41 @@ class _SalesLibraryView extends ConsumerWidget {
           onTap: () {
             showDialog(
               context: context,
-              builder: (_) =>
-                  _SalesCardDetailsDialog(card: item, onChanged: onChanged),
+              builder: (_) => _SalesCardDetailsDialog(
+                card: item,
+                folders: folders,
+                onChanged: onChanged,
+              ),
             );
           },
         );
       },
     );
   }
+}
+
+SaleFolderMetrics _saleMetrics(Iterable<MarketplaceListing> items) {
+  var listings = 0;
+  var cards = 0;
+  var value = 0;
+  for (final item in items) {
+    listings++;
+    cards += item.quantity;
+    value += (item.priceInCents ?? 0) * item.quantity;
+  }
+  return SaleFolderMetrics(
+    uniqueListings: listings,
+    totalCards: cards,
+    totalValueInCents: value,
+  );
+}
+
+String _saleFolderName(String? folderId, List<SaleFolder> folders) {
+  if (folderId == null || folderId.isEmpty) return 'Sem pasta';
+  for (final folder in folders) {
+    if (folder.id == folderId) return folder.name;
+  }
+  return 'Sem pasta';
 }
 
 class _SalesResolvedCardImage extends ConsumerWidget {
@@ -1519,9 +1709,14 @@ class _SalesSkeletonBox extends StatelessWidget {
 
 class _SalesCardDetailsDialog extends ConsumerStatefulWidget {
   final MarketplaceListing card;
+  final List<SaleFolder> folders;
   final VoidCallback onChanged;
 
-  const _SalesCardDetailsDialog({required this.card, required this.onChanged});
+  const _SalesCardDetailsDialog({
+    required this.card,
+    required this.folders,
+    required this.onChanged,
+  });
 
   @override
   ConsumerState<_SalesCardDetailsDialog> createState() =>
@@ -1538,6 +1733,7 @@ class _SalesCardDetailsDialogState
   late String _cardCondition;
   late String _pricingMode;
   late String _ligaRounding;
+  String? _saleFolderId;
   late Future<LigaOnePieceCardSnapshot?> _ligaSnapshotFuture;
 
   bool _isTranslating = false;
@@ -1563,6 +1759,7 @@ class _SalesCardDetailsDialogState
     _cardCondition = widget.card.cardCondition;
     _pricingMode = widget.card.pricingMode;
     _ligaRounding = widget.card.ligaRounding;
+    _saleFolderId = widget.card.saleFolderId;
     _ligaSnapshotFuture = _loadLigaSnapshot();
     _ligaPercentageController.addListener(() {
       if (mounted) setState(() {});
@@ -1725,6 +1922,7 @@ class _SalesCardDetailsDialogState
                 ? null
                 : (ligaBasePrice * 100).round(),
             ligaPriceSource: ligaSnapshot?.sourceUrl,
+            saleFolderId: _saleFolderId,
           );
 
       widget.onChanged();
@@ -1877,6 +2075,30 @@ class _SalesCardDetailsDialogState
                             ? 'O WhatsApp deste anúncio vem automaticamente do seu cadastro: ${card.contactInfo}'
                             : 'Cadastre seu WhatsApp no perfil para que ele seja usado automaticamente nos anúncios.',
                       ),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      initialValue: _saleFolderId ?? saleUnfiledFolder,
+                      decoration: const InputDecoration(
+                        labelText: 'Pasta de vendas',
+                        prefixIcon: Icon(Icons.folder_outlined),
+                      ),
+                      items: [
+                        const DropdownMenuItem(
+                          value: saleUnfiledFolder,
+                          child: Text('Sem pasta'),
+                        ),
+                        for (final folder in widget.folders)
+                          DropdownMenuItem(
+                            value: folder.id,
+                            child: Text(folder.name),
+                          ),
+                      ],
+                      onChanged: (value) => setState(() {
+                        _saleFolderId = value == saleUnfiledFolder
+                            ? null
+                            : value;
+                      }),
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(

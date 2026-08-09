@@ -9,8 +9,11 @@ import '../../core/widgets/catalog_grid_card.dart';
 import '../../core/widgets/home_navigation_button.dart';
 import '../../data/models/tcg_marketplace_listing.dart';
 import '../../data/models/marketplace_order.dart';
+import '../../data/models/sale_folder.dart';
 import '../../data/repositories/marketplace_order_repository.dart';
+import '../../data/repositories/sale_folder_repository.dart';
 import '../../data/repositories/tcg_marketplace_repository.dart';
+import 'widgets/sale_folders_section.dart';
 
 class TcgSalesScreen extends ConsumerStatefulWidget {
   final TcgGame game;
@@ -27,6 +30,8 @@ class _TcgSalesScreenState extends ConsumerState<TcgSalesScreen> {
   String? _error;
   List<MarketplaceOrder> _pendingOrders = const [];
   final Set<String> _resolvingOrderIds = {};
+  List<SaleFolder> _folders = const [];
+  String _selectedFolder = saleAllFolders;
 
   @override
   void initState() {
@@ -45,13 +50,21 @@ class _TcgSalesScreenState extends ConsumerState<TcgSalesScreen> {
         ref
             .read(marketplaceOrderRepositoryProvider)
             .getSellerOrders(gameSlug: widget.game.slug),
+        ref.read(saleFolderRepositoryProvider).listFolders(widget.game.slug),
       ]);
       final items = results[0] as List<TcgMarketplaceListing>;
       final orders = results[1] as List<MarketplaceOrder>;
+      final folders = results[2] as List<SaleFolder>;
       if (!mounted) return;
       setState(() {
         _items = items;
         _pendingOrders = orders;
+        _folders = folders;
+        if (_selectedFolder != saleAllFolders &&
+            _selectedFolder != saleUnfiledFolder &&
+            !folders.any((folder) => folder.id == _selectedFolder)) {
+          _selectedFolder = saleUnfiledFolder;
+        }
         _loading = false;
       });
     } catch (error) {
@@ -66,7 +79,11 @@ class _TcgSalesScreenState extends ConsumerState<TcgSalesScreen> {
   Future<void> _edit(TcgMarketplaceListing listing) async {
     final changed = await showDialog<bool>(
       context: context,
-      builder: (_) => _TcgSaleEditorDialog(game: widget.game, listing: listing),
+      builder: (_) => _TcgSaleEditorDialog(
+        game: widget.game,
+        listing: listing,
+        folders: _folders,
+      ),
     );
     if (changed == true) await _load();
   }
@@ -115,6 +132,94 @@ class _TcgSalesScreenState extends ConsumerState<TcgSalesScreen> {
       ),
       mode: LaunchMode.externalApplication,
     );
+  }
+
+  Future<String?> _askFolderName(
+    String title, {
+    String initialValue = '',
+  }) async {
+    final controller = TextEditingController(text: initialValue);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 60,
+          decoration: const InputDecoration(labelText: 'Nome da pasta'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = controller.text.trim();
+              if (value.isNotEmpty) Navigator.of(dialogContext).pop(value);
+            },
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return result;
+  }
+
+  Future<void> _createFolder() async {
+    final name = await _askFolderName('Nova pasta de vendas');
+    if (name == null || !mounted) return;
+    try {
+      final folder = await ref
+          .read(saleFolderRepositoryProvider)
+          .createFolder(widget.game.slug, name);
+      setState(() => _selectedFolder = folder.id);
+      await _load();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Nao foi possivel criar a pasta: $error')),
+      );
+    }
+  }
+
+  Future<void> _renameFolder(SaleFolder folder) async {
+    final name = await _askFolderName(
+      'Renomear pasta',
+      initialValue: folder.name,
+    );
+    if (name == null || !mounted) return;
+    await ref.read(saleFolderRepositoryProvider).renameFolder(folder.id, name);
+    await _load();
+  }
+
+  Future<void> _deleteFolder(SaleFolder folder) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Excluir pasta de vendas?'),
+        content: Text(
+          'Os anuncios de “${folder.name}” nao serao excluidos e voltarao '
+          'para “Sem pasta”.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.tonal(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Excluir pasta'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await ref.read(saleFolderRepositoryProvider).deleteFolder(folder.id);
+    setState(() => _selectedFolder = saleUnfiledFolder);
+    await _load();
   }
 
   Widget _buildPendingOrdersPanel() {
@@ -196,8 +301,19 @@ class _TcgSalesScreenState extends ConsumerState<TcgSalesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final published = _items.where((item) => item.isVisible).length;
-    final inventory = _items.fold<int>(
+    final visibleItems = _items
+        .where((item) {
+          if (_selectedFolder == saleUnfiledFolder) {
+            return (item.saleFolderId ?? '').isEmpty;
+          }
+          if (_selectedFolder != saleAllFolders) {
+            return item.saleFolderId == _selectedFolder;
+          }
+          return true;
+        })
+        .toList(growable: false);
+    final published = visibleItems.where((item) => item.isVisible).length;
+    final inventory = visibleItems.fold<int>(
       0,
       (total, item) => total + item.quantity,
     );
@@ -226,12 +342,20 @@ class _TcgSalesScreenState extends ConsumerState<TcgSalesScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: _load,
-        child: _buildBody(published: published, inventory: inventory),
+        child: _buildBody(
+          items: visibleItems,
+          published: published,
+          inventory: inventory,
+        ),
       ),
     );
   }
 
-  Widget _buildBody({required int published, required int inventory}) {
+  Widget _buildBody({
+    required List<TcgMarketplaceListing> items,
+    required int published,
+    required int inventory,
+  }) {
     if (_loading) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -317,11 +441,30 @@ class _TcgSalesScreenState extends ConsumerState<TcgSalesScreen> {
                   const SizedBox(height: 12),
                   _buildPendingOrdersPanel(),
                 ],
+                SaleFoldersSection(
+                  folders: _folders,
+                  selectedFolderId: _selectedFolder,
+                  loading: false,
+                  allMetrics: _tcgSaleMetrics(_items),
+                  unfiledMetrics: _tcgSaleMetrics(
+                    _items.where((item) => (item.saleFolderId ?? '').isEmpty),
+                  ),
+                  folderMetrics: {
+                    for (final folder in _folders)
+                      folder.id: _tcgSaleMetrics(
+                        _items.where((item) => item.saleFolderId == folder.id),
+                      ),
+                  },
+                  onSelect: (value) => setState(() => _selectedFolder = value),
+                  onCreate: _createFolder,
+                  onRename: _renameFolder,
+                  onDelete: _deleteFolder,
+                ),
               ],
             ),
           ),
         ),
-        if (_items.isEmpty)
+        if (items.isEmpty)
           SliverFillRemaining(
             hasScrollBody: false,
             child: Center(
@@ -359,7 +502,7 @@ class _TcgSalesScreenState extends ConsumerState<TcgSalesScreen> {
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 100),
             sliver: SliverGrid(
               delegate: SliverChildBuilderDelegate((context, index) {
-                final item = _items[index];
+                final item = items[index];
                 return CatalogGridCard(
                   code: _displayCode(item.cardCode),
                   title: item.name,
@@ -388,7 +531,7 @@ class _TcgSalesScreenState extends ConsumerState<TcgSalesScreen> {
                   ),
                   onTap: () => _edit(item),
                 );
-              }, childCount: _items.length),
+              }, childCount: items.length),
               gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                 maxCrossAxisExtent: 230,
                 crossAxisSpacing: 12,
@@ -412,8 +555,13 @@ class _TcgSalesScreenState extends ConsumerState<TcgSalesScreen> {
 class _TcgSaleEditorDialog extends ConsumerStatefulWidget {
   final TcgGame game;
   final TcgMarketplaceListing listing;
+  final List<SaleFolder> folders;
 
-  const _TcgSaleEditorDialog({required this.game, required this.listing});
+  const _TcgSaleEditorDialog({
+    required this.game,
+    required this.listing,
+    required this.folders,
+  });
 
   @override
   ConsumerState<_TcgSaleEditorDialog> createState() =>
@@ -430,6 +578,7 @@ class _TcgSaleEditorDialogState extends ConsumerState<_TcgSaleEditorDialog> {
   late String _rounding;
   late String _status;
   late String _condition;
+  String? _folderId;
   bool _saving = false;
 
   @override
@@ -442,6 +591,7 @@ class _TcgSaleEditorDialogState extends ConsumerState<_TcgSaleEditorDialog> {
     _rounding = item.ligaRounding;
     _status = item.saleStatus;
     _condition = item.cardCondition;
+    _folderId = item.saleFolderId;
     _priceController = TextEditingController(
       text: item.priceInCents == null
           ? ''
@@ -488,6 +638,7 @@ class _TcgSaleEditorDialogState extends ConsumerState<_TcgSaleEditorDialog> {
             saleStatus: _status,
             cardCondition: _condition,
             notes: _notesController.text,
+            saleFolderId: _folderId,
           );
       if (mounted) Navigator.of(context).pop(true);
     } catch (error) {
@@ -659,6 +810,30 @@ class _TcgSaleEditorDialogState extends ConsumerState<_TcgSaleEditorDialog> {
               ],
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
+                initialValue: _folderId ?? saleUnfiledFolder,
+                decoration: const InputDecoration(
+                  labelText: 'Pasta de vendas',
+                  prefixIcon: Icon(Icons.folder_outlined),
+                ),
+                items: [
+                  const DropdownMenuItem(
+                    value: saleUnfiledFolder,
+                    child: Text('Sem pasta'),
+                  ),
+                  for (final folder in widget.folders)
+                    DropdownMenuItem(
+                      value: folder.id,
+                      child: Text(folder.name),
+                    ),
+                ],
+                onChanged: _saving
+                    ? null
+                    : (value) => setState(() {
+                        _folderId = value == saleUnfiledFolder ? null : value;
+                      }),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
                 initialValue: _condition,
                 decoration: const InputDecoration(labelText: 'Condição'),
                 items: const [
@@ -765,4 +940,20 @@ class _SaleStat extends StatelessWidget {
   Widget build(BuildContext context) {
     return Chip(avatar: Icon(icon, size: 18), label: Text('$value $label'));
   }
+}
+
+SaleFolderMetrics _tcgSaleMetrics(Iterable<TcgMarketplaceListing> items) {
+  var listings = 0;
+  var cards = 0;
+  var value = 0;
+  for (final item in items) {
+    listings++;
+    cards += item.quantity;
+    value += (item.priceInCents ?? 0) * item.quantity;
+  }
+  return SaleFolderMetrics(
+    uniqueListings: listings,
+    totalCards: cards,
+    totalValueInCents: value,
+  );
 }

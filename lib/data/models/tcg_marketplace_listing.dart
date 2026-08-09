@@ -28,6 +28,7 @@ class TcgMarketplaceListing {
   final String ligaPriceSource;
   final DateTime? saleExpiresAt;
   final DateTime createdAt;
+  final String? saleFolderId;
 
   const TcgMarketplaceListing({
     required this.id,
@@ -59,6 +60,7 @@ class TcgMarketplaceListing {
     required this.ligaPriceSource,
     required this.saleExpiresAt,
     required this.createdAt,
+    this.saleFolderId,
   });
 
   factory TcgMarketplaceListing.fromRow(
@@ -101,6 +103,7 @@ class TcgMarketplaceListing {
       createdAt:
           DateTime.tryParse((row['created_at'] ?? '').toString()) ??
           DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      saleFolderId: row['sale_folder_id']?.toString(),
     );
   }
 

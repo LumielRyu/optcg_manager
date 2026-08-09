@@ -25,7 +25,7 @@ class MarketplaceRepository {
       'id, user_id, card_code, quantity, is_favorite, is_public, share_code, '
       'created_at, image_url, name, set_name, rarity, color, type, text, '
       'attribute, sale_price_cents, sale_contact_info, sale_notes, '
-      'sale_status, card_condition, sale_expires_at';
+      'sale_status, card_condition, sale_expires_at, sale_folder_id';
   static const String _dynamicPricingColumns =
       'sale_pricing_mode, sale_liga_percentage, sale_liga_rounding, '
       'sale_liga_base_price_cents, sale_liga_price_updated_at, '
@@ -34,7 +34,7 @@ class MarketplaceRepository {
       'id, user_id, card_code, quantity, is_favorite, is_public, share_code, '
       'created_at, image_url, name, set_name, rarity, color, type, text, '
       'attribute, sale_price_cents, sale_notes, sale_status, card_condition, '
-      'sale_expires_at';
+      'sale_expires_at, sale_folder_id';
   static const Duration _dynamicPriceMaxAge = Duration(hours: 24);
   final Map<String, OpCard?> _apiCardCache = {};
   final Map<String, String> _sellerNameCache = {};
@@ -149,6 +149,7 @@ class MarketplaceRepository {
           .from('collection_items')
           .update(payload)
           .eq('user_id', user.id)
+          .eq('game_slug', 'one-piece')
           .eq('collection_type', 'forSale')
           .eq('sale_status', MarketplaceListing.activeStatus);
     } on PostgrestException catch (error) {
@@ -158,6 +159,7 @@ class MarketplaceRepository {
           .from('collection_items')
           .update(payload)
           .eq('user_id', user.id)
+          .eq('game_slug', 'one-piece')
           .eq('collection_type', 'forSale')
           .eq('sale_status', MarketplaceListing.activeStatus);
     }
@@ -223,6 +225,7 @@ class MarketplaceRepository {
           .from('collection_items')
           .update({'is_public': false, 'sale_expires_at': null})
           .eq('user_id', user.id)
+          .eq('game_slug', 'one-piece')
           .eq('collection_type', 'forSale');
     } on PostgrestException catch (error) {
       if (!_looksLikeMissingListingExpirationSchema(error)) rethrow;
@@ -230,6 +233,7 @@ class MarketplaceRepository {
           .from('collection_items')
           .update({'is_public': false})
           .eq('user_id', user.id)
+          .eq('game_slug', 'one-piece')
           .eq('collection_type', 'forSale');
     }
   }
@@ -245,6 +249,7 @@ class MarketplaceRepository {
     required String ligaRounding,
     int? ligaBasePriceCents,
     String? ligaPriceSource,
+    String? saleFolderId,
   }) async {
     final whatsAppPhone = await _prefs.getCurrentWhatsAppPhone();
 
@@ -263,6 +268,7 @@ class MarketplaceRepository {
           ? DateTime.now().toUtc().toIso8601String()
           : null,
       'sale_liga_price_source': ligaPriceSource,
+      'sale_folder_id': saleFolderId,
       'sale_expires_at': saleStatus == MarketplaceListing.activeStatus
           ? MarketplaceListing.newExpirationDate().toIso8601String()
           : null,
@@ -283,6 +289,9 @@ class MarketplaceRepository {
           ..remove('sale_liga_base_price_cents')
           ..remove('sale_liga_price_updated_at')
           ..remove('sale_liga_price_source');
+      }
+      if (_looksLikeMissingSaleFolderSchema(error)) {
+        payload.remove('sale_folder_id');
       }
       await _client.from('collection_items').update(payload).eq('id', id);
     }
@@ -359,6 +368,7 @@ class MarketplaceRepository {
       var query = _client
           .from('collection_items')
           .select(columns)
+          .eq('game_slug', 'one-piece')
           .eq('collection_type', 'forSale');
 
       if (userId != null) {
@@ -392,6 +402,7 @@ class MarketplaceRepository {
         '',
       );
       fallbackColumns = fallbackColumns.replaceAll(', sale_expires_at', '');
+      fallbackColumns = fallbackColumns.replaceAll(', sale_folder_id', '');
       return run(fallbackColumns, filterExpiration: false);
     }
   }
@@ -588,12 +599,14 @@ class MarketplaceRepository {
       saleExpiresAt: DateTime.tryParse(
         (map['sale_expires_at'] ?? '').toString(),
       ),
+      saleFolderId: map['sale_folder_id']?.toString(),
     );
   }
 
   bool _looksLikeMissingOptionalListingSchema(PostgrestException error) {
     return _looksLikeMissingDynamicPricingSchema(error) ||
-        _looksLikeMissingListingExpirationSchema(error);
+        _looksLikeMissingListingExpirationSchema(error) ||
+        _looksLikeMissingSaleFolderSchema(error);
   }
 
   bool _looksLikeMissingDynamicPricingSchema(PostgrestException error) {
@@ -613,6 +626,13 @@ class MarketplaceRepository {
         '${error.message} ${error.details ?? ''} ${error.hint ?? ''}'
             .toLowerCase();
     return message.contains('sale_expires_at');
+  }
+
+  bool _looksLikeMissingSaleFolderSchema(PostgrestException error) {
+    final message =
+        '${error.message} ${error.details ?? ''} ${error.hint ?? ''}'
+            .toLowerCase();
+    return message.contains('sale_folder_id');
   }
 
   static int calculateLigaPercentagePriceInCents({
