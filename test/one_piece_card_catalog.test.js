@@ -67,6 +67,77 @@ test('enriches Liga variants from an existing base card and removes cache duplic
   assert.equal(merged[1].catalog_source, 'liga');
 });
 
+test('removes Liga copies of the same upstream printing without merging valid variants', () => {
+  const upstream = [
+    {
+      card_set_id: 'OP09-093',
+      card_name: 'Marshall.D.Teach (093) (Alternate Art)',
+      card_image: 'https://api.example/OP09-093_p1.jpg',
+      set_id: 'OP-09',
+      set_name: 'Emperors in the New World',
+    },
+    {
+      card_set_id: 'OP09-093',
+      card_name: 'Marshall.D.Teach (093) (Manga)',
+      card_image: 'https://api.example/OP09-093_p2.jpg',
+      set_id: 'OP-09',
+      set_name: 'Emperors in the New World',
+    },
+  ];
+
+  const merged = mergeCatalogCards(upstream, [
+    {
+      card_code: 'OP09-093-AA',
+      card_name: 'Marshall.D.Teach (093) (Alternate Art)',
+      image_url: 'https://liga.example/alternate.jpg',
+      edition_code: 'OP-09',
+      edition_name: 'Emperors in the New World',
+    },
+    {
+      card_code: 'OP09-093-P',
+      card_name: 'Marshall.D.Teach (093) (Parallel)',
+      image_url: 'https://liga.example/manga.jpg',
+      edition_code: 'OP-09',
+      edition_name: 'Emperors in the New World',
+    },
+    {
+      card_code: 'OP09-093-WP',
+      card_name: 'Marshall.D.Teach (093) (Wanted Poster)',
+      image_url: 'https://liga.example/wanted.jpg',
+      edition_code: 'OP-09',
+      edition_name: 'Emperors in the New World',
+    },
+  ]);
+
+  assert.equal(merged.length, 3);
+  assert.equal(merged[2].card_set_id, 'OP09-093-WP');
+});
+
+test('keeps same-named printings from different editions', () => {
+  const merged = mergeCatalogCards(
+    [
+      {
+        card_set_id: 'OP04-031',
+        card_name: 'Donquixote Doflamingo (031) (Alternate Art)',
+        card_image: 'https://api.example/original.jpg',
+        set_id: 'OP-04',
+        set_name: 'Kingdoms of Intrigue',
+      },
+    ],
+    [
+      {
+        card_code: 'OP04-031-AA',
+        card_name: 'Donquixote Doflamingo (Alternate Art)',
+        image_url: 'https://liga.example/reprint.jpg',
+        edition_code: 'PRB01',
+        edition_name: 'Premium Booster -The Best-',
+      },
+    ],
+  );
+
+  assert.equal(merged.length, 2);
+});
+
 test('reads every public catalog page from Supabase', async () => {
   const requests = [];
   const rows = await fetchCatalogCards({

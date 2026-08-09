@@ -885,13 +885,16 @@ class LigaOnePieceService {
         continue;
       }
 
-      score +=
-          ligaVariantKindsCompatible(
-            requestedVariant.kind,
-            candidateVariant.kind,
-          )
-          ? 900
-          : 700;
+      if (requestedVariant.kind == candidateVariant.kind) {
+        score += 1100;
+      } else if (ligaVariantKindsCompatible(
+        requestedVariant.kind,
+        candidateVariant.kind,
+      )) {
+        score += 900;
+      } else {
+        score += 700;
+      }
       if (requestedImage.isNotEmpty && rowImage == requestedImage) {
         score += 1200;
       } else if (requestedImageIdentity.isNotEmpty &&

@@ -72,7 +72,7 @@ export default async function handler(request, response) {
         supabaseUrl: process.env.SUPABASE_URL,
         supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
       });
-      mergedCards = mergeCatalogCards(cards, catalogRows);
+      mergedCards = mergeCatalogCards(mergedCards, catalogRows);
     } catch (error) {
       observation.error(error, 'optcg_card_catalog_fetch_failed');
     }

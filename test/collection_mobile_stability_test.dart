@@ -46,4 +46,14 @@ void main() {
     expect(source, contains('Pastas da coleção'));
     expect(source, contains('LigaCollectionValueText('));
   });
+
+  test('library import accepts either card code or card name', () {
+    final source = File(
+      'lib/features/collection/manual_add_dialog.dart',
+    ).readAsStringSync();
+
+    expect(source, contains("labelText: 'Código ou nome da carta'"));
+    expect(source, contains('api.searchCardsByName(query, limit: 40)'));
+    expect(source, contains("hintText: 'Ex.: OP02-001 ou Nami'"));
+  });
 }

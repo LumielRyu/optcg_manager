@@ -2006,3 +2006,27 @@ git diff --stat
   multicolorida e o filtro `Multicolor` passa a inclui-la corretamente.
 - Biblioteca, detalhes e comparador exibem combinacoes em portugues, como
   `Azul / Roxo`.
+
+### 09/08/2026 - Duplicatas do catalogo, preco da colecao e busca por nome
+
+- A API oficial e o catalogo derivado da Liga estavam publicando novamente a
+  mesma impressao com URLs de imagem diferentes. Como a URL fazia parte da
+  identidade anterior, a biblioteca exibia as duas copias.
+- A mesclagem agora compara codigo base, nome normalizado da impressao, edicao
+  e colecao. Artes validas de outras edicoes continuam separadas; os aliases
+  `Manga` e `Parallel` tambem sao reconhecidos quando representam a mesma arte.
+- Uma auditoria sobre a resposta de producao reduziu a simulacao de 11.791 para
+  7.309 registros, removendo 4.482 copias de catalogo. `OP09-093` ficou com as
+  oito impressoes reais: normal, alternate art, wanted poster, manga, gold,
+  silver, reprint e aniversario.
+- A mesclagem final passou a usar o resultado que ja inclui promocionais, em vez
+  de recomecar pela lista bruta e descartar a etapa anterior.
+- O preco da Alternate Art na colecao falhava porque `AA` e `Parallel` empatavam
+  quando as imagens da API e da Liga tinham URLs diferentes. A variante de tipo
+  exato agora vence uma variante apenas compativel, fazendo `OP09-093-AA`
+  recuperar os R$ 229,99 armazenados no cache.
+- `Importar carta pela biblioteca` passou a aceitar codigo ou nome. A busca por
+  nome mostra ate 40 resultados com codigo, imagem, edicao e raridade para o
+  usuario selecionar a impressao correta antes de adicionar.
+- O identificador do endpoint Web foi atualizado para `catalog=v7`, impedindo
+  que navegadores reutilizem a resposta duplicada em cache.

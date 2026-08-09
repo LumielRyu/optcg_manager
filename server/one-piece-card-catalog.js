@@ -4,7 +4,25 @@ function normalizeText(value) {
   return String(value ?? '')
     .trim()
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ');
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function normalizeCardName(value) {
+  return normalizeText(
+    String(value ?? '')
+      .replace(/[A-Z]{1,4}\d{2}-\d{3}(?:-[A-Z0-9]+)?/gi, ' ')
+      .replace(/\(\d{3}\)/g, ' '),
+  );
+}
+
+function normalizeEditionCode(value) {
+  const normalized = String(value ?? '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
+  const match = /^([A-Z]+)0*(\d+)$/.exec(normalized);
+  return match ? `${match[1]}${Number(match[2])}` : normalized;
 }
 
 function baseCardCode(value) {
@@ -13,12 +31,54 @@ function baseCardCode(value) {
   return match?.[1] ?? code;
 }
 
-function cardFingerprint(card) {
-  return [
-    String(card?.card_set_id ?? '').trim().toUpperCase(),
-    normalizeText(card?.card_name),
-    String(card?.card_image ?? '').trim(),
-  ].join('|');
+function printingNames(card) {
+  const name = normalizeCardName(card?.card_name);
+  const names = new Set([name]);
+
+  // A Liga chama a variante manga de "Parallel" em algumas edicoes,
+  // enquanto a API oficial a identifica como "Manga".
+  if (name.endsWith(' manga')) {
+    names.add(name.replace(/ manga$/, ' parallel'));
+  } else if (name.endsWith(' parallel')) {
+    names.add(name.replace(/ parallel$/, ' manga'));
+  }
+
+  return names;
+}
+
+function printingIndexKeys(card) {
+  const baseCode = baseCardCode(card?.card_set_id);
+  return [...printingNames(card)].map((name) => `${baseCode}|${name}`);
+}
+
+function samePrintingEdition(first, second) {
+  const firstEdition = normalizeEditionCode(first?.set_id);
+  const secondEdition = normalizeEditionCode(second?.set_id);
+  if (firstEdition && secondEdition && firstEdition === secondEdition) {
+    return true;
+  }
+
+  const firstSet = normalizeText(first?.set_name);
+  const secondSet = normalizeText(second?.set_name);
+  return Boolean(firstSet && secondSet && firstSet === secondSet);
+}
+
+function hasEquivalentPrinting(card, printingIndex) {
+  for (const key of printingIndexKeys(card)) {
+    const candidates = printingIndex.get(key) ?? [];
+    if (candidates.some((candidate) => samePrintingEdition(candidate, card))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function indexPrinting(card, printingIndex) {
+  for (const key of printingIndexKeys(card)) {
+    const candidates = printingIndex.get(key) ?? [];
+    candidates.push(card);
+    printingIndex.set(key, candidates);
+  }
 }
 
 function toCatalogCard(row, cardsByCode) {
@@ -48,22 +108,21 @@ function toCatalogCard(row, cardsByCode) {
 function mergeCatalogCards(cards, catalogRows) {
   const merged = Array.isArray(cards) ? [...cards] : [];
   const cardsByCode = new Map();
-  const fingerprints = new Set();
+  const printingIndex = new Map();
 
   for (const card of merged) {
     const code = String(card?.card_set_id ?? '').trim().toUpperCase();
     if (code && !cardsByCode.has(code)) cardsByCode.set(code, card);
-    fingerprints.add(cardFingerprint(card));
+    indexPrinting(card, printingIndex);
   }
 
   for (const row of catalogRows ?? []) {
     const catalogCard = toCatalogCard(row, cardsByCode);
     if (!catalogCard.card_set_id || !catalogCard.card_image) continue;
 
-    const fingerprint = cardFingerprint(catalogCard);
-    if (fingerprints.has(fingerprint)) continue;
+    if (hasEquivalentPrinting(catalogCard, printingIndex)) continue;
 
-    fingerprints.add(fingerprint);
+    indexPrinting(catalogCard, printingIndex);
     merged.push(catalogCard);
   }
 
@@ -122,5 +181,7 @@ module.exports = {
   baseCardCode,
   fetchCatalogCards,
   mergeCatalogCards,
+  normalizeCardName,
+  normalizeEditionCode,
   toCatalogCard,
 };

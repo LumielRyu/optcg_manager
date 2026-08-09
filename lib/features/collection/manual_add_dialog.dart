@@ -52,6 +52,7 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
   bool _manualFallbackEnabled = false;
   String? _error;
   String? _lookupMessage;
+  String _lookupQuery = '';
   List<OpCard> _lookupVariants = const [];
   OpCard? _selectedCard;
   Timer? _lookupDebounce;
@@ -82,10 +83,12 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
 
   Future<void> _lookupCard() async {
     final api = ref.read(opApiServiceProvider);
-    final code = api.normalizeCode(_codeController.text);
-    if (code.isEmpty) {
+    final query = _codeController.text.trim();
+    final normalizedQuery = query.toLowerCase();
+    if (query.isEmpty) {
       if (!mounted) return;
       setState(() {
+        _lookupQuery = '';
         _lookupVariants = const [];
         _selectedCard = null;
         _lookupMessage = null;
@@ -101,20 +104,32 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
     });
     try {
       await api.preload();
-      final variants = await api.findAllByCode(code);
-      if (!mounted || api.normalizeCode(_codeController.text) != code) return;
+      final code = api.normalizeCode(query);
+      var variants = await api.findAllByCode(code);
+      final foundByName = variants.isEmpty;
+      if (foundByName && query.length >= 2) {
+        variants = await api.searchCardsByName(query, limit: 40);
+      }
+      if (!mounted ||
+          _codeController.text.trim().toLowerCase() != normalizedQuery) {
+        return;
+      }
       setState(() {
+        _lookupQuery = normalizedQuery;
         _lookupVariants = variants;
         _selectedCard = variants.length == 1 ? variants.first : null;
         _lookupMessage = variants.isEmpty
             ? 'Nenhuma carta encontrada na biblioteca.'
             : variants.length == 1
             ? 'Carta encontrada. Confira a imagem antes de adicionar.'
+            : foundByName
+            ? '${variants.length} resultados encontrados. Escolha a carta e a arte corretas.'
             : '${variants.length} versões encontradas. Escolha a imagem correta.';
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
+        _lookupQuery = normalizedQuery;
         _lookupVariants = const [];
         _selectedCard = null;
         _lookupMessage = 'Não foi possível consultar a biblioteca agora.';
@@ -128,11 +143,12 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
     final api = ref.read(opApiServiceProvider);
     final repo = ref.read(collectionRepositoryProvider);
 
-    final code = api.normalizeCode(_codeController.text);
+    final query = _codeController.text.trim();
+    final manualCode = api.normalizeCode(query);
     final quantity = int.tryParse(_quantityController.text.trim()) ?? 1;
 
-    if (code.isEmpty) {
-      setState(() => _error = 'Informe o código da carta.');
+    if (query.isEmpty) {
+      setState(() => _error = 'Informe o código ou o nome da carta.');
       return;
     }
 
@@ -165,12 +181,15 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
 
     try {
       await api.preload();
-      final cachedVariants = _lookupVariants
-          .where((card) => api.normalizeCode(card.code) == code)
-          .toList(growable: false);
-      final variants = cachedVariants.isNotEmpty
-          ? cachedVariants
-          : await api.findAllByCode(code);
+      var variants = _lookupQuery == query.toLowerCase()
+          ? _lookupVariants
+          : const <OpCard>[];
+      if (variants.isEmpty) {
+        variants = await api.findAllByCode(manualCode);
+      }
+      if (variants.isEmpty && query.length >= 2) {
+        variants = await api.searchCardsByName(query, limit: 40);
+      }
 
       if (variants.isEmpty) {
         if (!_manualFallbackEnabled) {
@@ -183,16 +202,23 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
           return;
         }
 
-        await _saveManualCard(repo: repo, code: code, quantity: quantity);
+        await _saveManualCard(
+          repo: repo,
+          code: manualCode,
+          quantity: quantity,
+        );
 
         await ref.read(collectionControllerProvider.notifier).load();
         if (mounted) Navigator.of(context).pop();
         return;
       }
 
-      OpCard? selectedCard =
-          _selectedCard != null &&
-              api.normalizeCode(_selectedCard!.code) == code
+      OpCard? selectedCard = _selectedCard != null &&
+              variants.any(
+                (card) =>
+                    card.code == _selectedCard!.code &&
+                    card.image == _selectedCard!.image,
+              )
           ? _selectedCard
           : null;
 
@@ -426,12 +452,12 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
           children: [
             TextField(
               controller: _codeController,
-              textCapitalization: TextCapitalization.characters,
+              textCapitalization: TextCapitalization.words,
               decoration: const InputDecoration(
-                labelText: 'Código da carta',
-                hintText: 'Ex.: OP02-001',
+                labelText: 'Código ou nome da carta',
+                hintText: 'Ex.: OP02-001 ou Nami',
                 helperText:
-                    'A biblioteca será consultada automaticamente enquanto você digita.',
+                    'Pesquise pelo código ou nome e escolha a arte correta.',
               ),
             ),
             if (_isLookingUp) ...[
@@ -488,7 +514,7 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
                                   ),
                                 ),
                                 Text(
-                                  _variantLabel(card),
+                                  '${card.code} • ${_variantLabel(card)}',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(fontSize: 10),

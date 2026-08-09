@@ -21,7 +21,7 @@ class OpApiService {
       'https://www.optcgapi.com/api/allSTCards/?format=json';
   static const String _promosUrl =
       'https://www.optcgapi.com/api/allPromos/?format=json';
-  static const String _webProxyUrl = '/api/optcg-cards?catalog=v6';
+  static const String _webProxyUrl = '/api/optcg-cards?catalog=v7';
   static const String _assetCachePath = 'assets/one_piece_cards_cache.json';
   static const String _cachedCardsKey = 'all_cards_v6';
   static const String _cachedAtKey = 'all_cards_v6_cached_at';
