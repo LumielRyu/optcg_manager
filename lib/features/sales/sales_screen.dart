@@ -539,10 +539,11 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
           final totalCards = _cachedTotalCards;
           final pricedItems = _cachedPricedItems;
 
-          return SingleChildScrollView(
-            child: Column(
-              children: [
-                _PendingMarketplaceOrdersPanel(
+          return CustomScrollView(
+            cacheExtent: 500,
+            slivers: [
+              SliverToBoxAdapter(
+                child: _PendingMarketplaceOrdersPanel(
                   ordersFuture: _pendingOrdersFuture,
                   resolvingOrderIds: _resolvingOrderIds,
                   onConfirm: (order) =>
@@ -551,7 +552,9 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                       _resolvePendingOrder(order, confirm: false),
                   onWhatsApp: _openBuyerWhatsApp,
                 ),
-                _SalesHeaderSection(
+              ),
+              SliverToBoxAdapter(
+                child: _SalesHeaderSection(
                   totalUnique: totalUnique,
                   totalCards: totalCards,
                   pricedItems: pricedItems,
@@ -566,7 +569,9 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                   onCopyLink: _copyStoreLink,
                   onDisableLink: _disableStoreLink,
                 ),
-                SaleFoldersSection(
+              ),
+              SliverToBoxAdapter(
+                child: SaleFoldersSection(
                   folders: _saleFolders,
                   selectedFolderId: _selectedSaleFolder,
                   loading: _saleFoldersLoading,
@@ -588,14 +593,14 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                   onRename: _renameSaleFolder,
                   onDelete: _deleteSaleFolder,
                 ),
-                _SalesLibraryView(
-                  items: filteredItems,
-                  folders: _saleFolders,
-                  viewMode: viewMode,
-                  onChanged: _reloadListings,
-                ),
-              ],
-            ),
+              ),
+              _SalesLibraryView(
+                items: filteredItems,
+                folders: _saleFolders,
+                viewMode: viewMode,
+                onChanged: _reloadListings,
+              ),
+            ],
           );
         },
       ),
@@ -1233,10 +1238,13 @@ class _SalesLibraryView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
-      return const _SalesEmptyState(
-        title: 'Nenhuma carta \u00E0 venda encontrada.',
-        subtitle:
-            'Adicione cartas na biblioteca de vendas para visualizar aqui.',
+      return const SliverFillRemaining(
+        hasScrollBody: false,
+        child: _SalesEmptyState(
+          title: 'Nenhuma carta \u00E0 venda encontrada.',
+          subtitle:
+              'Adicione cartas na biblioteca de vendas para visualizar aqui.',
+        ),
       );
     }
 
@@ -1245,108 +1253,114 @@ class _SalesLibraryView extends ConsumerWidget {
         .join('|');
 
     if (viewMode == CollectionViewMode.list) {
-      return ListView.separated(
+      return SliverPadding(
         key: ValueKey('sales-list-$itemsSignature'),
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
-        itemCount: items.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 10),
-        itemBuilder: (context, index) {
-          final item = items[index];
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate((context, index) {
+            if (index.isOdd) return const SizedBox(height: 10);
+            final item = items[index ~/ 2];
 
-          return CatalogListCard(
-            key: ValueKey('sales-list-card-${item.id}-${item.cardCode}'),
-            title: item.name,
-            code: item.cardCode,
-            metadata: [
-              if (item.hasSellerName) 'Vendedor: ${item.sellerName}',
-              'Set: ${item.setName.isEmpty ? '-' : item.setName}',
-              item.formattedPrice,
-              'Status: ${item.statusLabel}',
-              item.expirationLabel,
-              'Condição: ${item.conditionLabel}',
-              'Quantidade: ${item.quantity}x',
-              'Pasta: ${_saleFolderName(item.saleFolderId, folders)}',
-              if (item.hasContactInfo) 'Contato configurado',
-            ],
-            image: _SalesResolvedCardImage(
-              key: ValueKey(
-                'sales-list-image-${item.id}-${item.cardCode}-${item.imageUrl}',
-              ),
-              imageUrl: item.imageUrl,
-              cardCode: item.cardCode,
-              fit: BoxFit.contain,
-            ),
-            onTap: () {
-              showDialog(
-                context: context,
-                builder: (_) => _SalesCardDetailsDialog(
-                  card: item,
-                  folders: folders,
-                  onChanged: onChanged,
+            return CatalogListCard(
+              key: ValueKey('sales-list-card-${item.id}-${item.cardCode}'),
+              title: item.name,
+              code: item.cardCode,
+              metadata: [
+                if (item.hasSellerName) 'Vendedor: ${item.sellerName}',
+                'Set: ${item.setName.isEmpty ? '-' : item.setName}',
+                item.formattedPrice,
+                'Status: ${item.statusLabel}',
+                item.expirationLabel,
+                'Condição: ${item.conditionLabel}',
+                'Quantidade: ${item.quantity}x',
+                'Pasta: ${_saleFolderName(item.saleFolderId, folders)}',
+                if (item.hasContactInfo) 'Contato configurado',
+              ],
+              image: _SalesResolvedCardImage(
+                key: ValueKey(
+                  'sales-list-image-${item.id}-${item.cardCode}-${item.imageUrl}',
                 ),
-              );
-            },
-          );
-        },
+                imageUrl: item.imageUrl,
+                cardCode: item.cardCode,
+                fit: BoxFit.contain,
+              ),
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (_) => _SalesCardDetailsDialog(
+                    card: item,
+                    folders: folders,
+                    onChanged: onChanged,
+                  ),
+                );
+              },
+            );
+          }, childCount: (items.length * 2) - 1),
+        ),
       );
     }
 
-    return GridView.builder(
+    return SliverPadding(
       key: ValueKey('sales-grid-$itemsSignature'),
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: _cardMaxWidth,
-        crossAxisSpacing: _cardSpacing,
-        mainAxisSpacing: _cardSpacing,
-        childAspectRatio: _gridAspectRatio,
-      ),
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final item = items[index];
+      sliver: SliverGrid(
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: _cardMaxWidth,
+          crossAxisSpacing: _cardSpacing,
+          mainAxisSpacing: _cardSpacing,
+          childAspectRatio: _gridAspectRatio,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final item = items[index];
 
-        return CatalogGridCard(
-          key: ValueKey('sales-grid-card-${item.id}-${item.cardCode}'),
-          code: item.cardCode,
-          title: item.name,
-          metadata: [
-            if (item.hasSellerName) 'Vendedor: ${item.sellerName}',
-            'Quantidade: ${item.quantity}x',
-            item.statusLabel,
-            item.expirationLabel,
-            item.conditionLabel,
-            item.formattedPrice,
-            _saleFolderName(item.saleFolderId, folders),
-          ],
-          footer: item.hasContactInfo
-              ? const Text(
-                  'Contato configurado',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                )
-              : null,
-          image: _SalesResolvedCardImage(
-            key: ValueKey(
-              'sales-grid-image-${item.id}-${item.cardCode}-${item.imageUrl}',
-            ),
-            imageUrl: item.imageUrl,
-            cardCode: item.cardCode,
-            fit: BoxFit.contain,
-          ),
-          onTap: () {
-            showDialog(
-              context: context,
-              builder: (_) => _SalesCardDetailsDialog(
-                card: item,
-                folders: folders,
-                onChanged: onChanged,
+            return CatalogGridCard(
+              key: ValueKey('sales-grid-card-${item.id}-${item.cardCode}'),
+              code: item.cardCode,
+              title: item.name,
+              metadata: [
+                if (item.hasSellerName) 'Vendedor: ${item.sellerName}',
+                'Quantidade: ${item.quantity}x',
+                item.statusLabel,
+                item.expirationLabel,
+                item.conditionLabel,
+                item.formattedPrice,
+                _saleFolderName(item.saleFolderId, folders),
+              ],
+              footer: item.hasContactInfo
+                  ? const Text(
+                      'Contato configurado',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    )
+                  : null,
+              image: _SalesResolvedCardImage(
+                key: ValueKey(
+                  'sales-grid-image-${item.id}-${item.cardCode}-${item.imageUrl}',
+                ),
+                imageUrl: item.imageUrl,
+                cardCode: item.cardCode,
+                fit: BoxFit.contain,
               ),
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (_) => _SalesCardDetailsDialog(
+                    card: item,
+                    folders: folders,
+                    onChanged: onChanged,
+                  ),
+                );
+              },
             );
           },
-        );
-      },
+          childCount: items.length,
+          addRepaintBoundaries: false,
+          addAutomaticKeepAlives: false,
+        ),
+      ),
     );
   }
 }
@@ -1392,6 +1406,7 @@ class _SalesResolvedCardImage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final directUrl = imageUrl.trim();
+    final decodeWidth = _salesThumbnailDecodeWidth(context);
 
     if (directUrl.isNotEmpty) {
       return Image.network(
@@ -1399,8 +1414,10 @@ class _SalesResolvedCardImage extends ConsumerWidget {
         key: ValueKey('sales-direct-image-$cardCode-$directUrl'),
         height: height,
         fit: fit,
+        cacheWidth: decodeWidth,
         gaplessPlayback: false,
-        webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+        webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
+        filterQuality: FilterQuality.low,
         errorBuilder: (_, _, _) {
           return _SalesResolvedCardImageFromApi(
             key: ValueKey('sales-fallback-api-$cardCode'),
@@ -1436,6 +1453,7 @@ class _SalesResolvedCardImageFromApi extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final api = ref.read(opApiServiceProvider);
+    final decodeWidth = _salesThumbnailDecodeWidth(context);
 
     return FutureBuilder(
       key: ValueKey('sales-future-image-$cardCode'),
@@ -1469,8 +1487,10 @@ class _SalesResolvedCardImageFromApi extends ConsumerWidget {
           key: ValueKey('sales-resolved-image-$cardCode-$resolvedUrl'),
           height: height,
           fit: fit,
+          cacheWidth: decodeWidth,
           gaplessPlayback: false,
-          webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+          webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
+          filterQuality: FilterQuality.low,
           errorBuilder: (_, _, _) {
             return SizedBox(
               height: height,
@@ -1484,6 +1504,12 @@ class _SalesResolvedCardImageFromApi extends ConsumerWidget {
       },
     );
   }
+}
+
+int _salesThumbnailDecodeWidth(BuildContext context) {
+  final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+  final logicalWidth = MediaQuery.sizeOf(context).width < 600 ? 180.0 : 240.0;
+  return (logicalWidth * devicePixelRatio).round().clamp(180, 600);
 }
 
 class _SalesZoomableCardImage extends ConsumerWidget {

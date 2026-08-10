@@ -2198,3 +2198,18 @@ git diff --stat
   usuarios autenticados. Isso remove respostas 401 e trabalho inutil durante o
   carregamento publico da Biblioteca; a resolucao publica por variante continua
   funcionando normalmente.
+
+### 10/08/2026 - Estabilidade da tela de vendas no iPhone
+
+- Um video real mostrou o Chrome do iPhone reiniciando a aba de `Cartas a venda`
+  e depois exibindo `Nao e possivel abrir essa pagina`. Nao houve erro no
+  servidor nem chamada de recarregamento no site: o processo grafico estava
+  sendo encerrado por pressao de memoria.
+- A tela montava todas as cartas dentro de `SingleChildScrollView` com uma grade
+  `shrinkWrap`, mantendo todas as imagens em alta resolucao vivas. Agora usa
+  `CustomScrollView`, `SliverList` e `SliverGrid`, construindo apenas os itens
+  proximos da area visivel.
+- Miniaturas de vendas passam a ser decodificadas no tamanho necessario, com
+  qualidade leve e fallback HTML apenas quando CORS exigir. O cache web de
+  imagens foi limitado a 120 entradas e 48 MB para evitar novo encerramento da
+  aba em aparelhos com pouca memoria.

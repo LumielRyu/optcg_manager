@@ -1,5 +1,4 @@
-import 'dart:ui';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -22,6 +21,12 @@ Future<void> main() async {
     AppErrorReporter.report(error, stackTrace, context: 'platform-dispatcher');
     return true;
   };
+
+  if (kIsWeb) {
+    final imageCache = PaintingBinding.instance.imageCache;
+    imageCache.maximumSize = 120;
+    imageCache.maximumSizeBytes = 48 * 1024 * 1024;
+  }
 
   await HiveInit.init();
 

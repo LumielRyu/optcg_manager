@@ -61,6 +61,30 @@ void main() {
     expect(source, contains('CollectionLoadPhase.details'));
   });
 
+  test('sales uses virtualized slivers and memory-sized thumbnails', () {
+    final source = File(
+      'lib/features/sales/sales_screen.dart',
+    ).readAsStringSync();
+
+    expect(source, contains('return CustomScrollView('));
+    expect(source, contains('sliver: SliverGrid('));
+    expect(source, contains('addAutomaticKeepAlives: false'));
+    expect(source, contains('cacheWidth: decodeWidth'));
+    expect(
+      source,
+      contains('webHtmlElementStrategy: WebHtmlElementStrategy.fallback'),
+    );
+    expect(source, isNot(contains('return SingleChildScrollView(')));
+    expect(source, isNot(contains('shrinkWrap: true')));
+  });
+
+  test('web image cache has a conservative memory ceiling', () {
+    final source = File('lib/main.dart').readAsStringSync();
+
+    expect(source, contains('imageCache.maximumSize = 120'));
+    expect(source, contains('imageCache.maximumSizeBytes = 48 * 1024 * 1024'));
+  });
+
   test('library import accepts either card code or card name', () {
     final source = File(
       'lib/features/collection/manual_add_dialog.dart',
