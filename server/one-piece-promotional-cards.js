@@ -87,6 +87,7 @@ async function fetchPromotionalCards({
   fetchImpl = fetch,
   supabaseUrl,
   supabaseAnonKey,
+  retryDelayMs = 250,
 }) {
   if (!supabaseUrl || !supabaseAnonKey) return [];
 
@@ -105,12 +106,11 @@ async function fetchPromotionalCards({
     url.searchParams.set('limit', String(PAGE_SIZE));
     url.searchParams.set('offset', String(offset));
 
-    const response = await fetchImpl(url, {
-      headers: {
-        Accept: 'application/json',
-        apikey: supabaseAnonKey,
-        Authorization: `Bearer ${supabaseAnonKey}`,
-      },
+    const response = await fetchSupabasePageWithRetry({
+      fetchImpl,
+      url,
+      supabaseAnonKey,
+      retryDelayMs,
     });
     if (!response.ok) {
       throw new Error(
@@ -126,6 +126,37 @@ async function fetchPromotionalCards({
     if (page.length < PAGE_SIZE) break;
   }
   return rows;
+}
+
+async function fetchSupabasePageWithRetry({
+  fetchImpl,
+  url,
+  supabaseAnonKey,
+  retryDelayMs,
+}) {
+  let lastError;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const response = await fetchImpl(url, {
+        headers: {
+          Accept: 'application/json',
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${supabaseAnonKey}`,
+        },
+      });
+      const retryable = response.status === 429 || response.status >= 500;
+      if (!retryable || attempt === 2) return response;
+    } catch (error) {
+      lastError = error;
+      if (attempt === 2) throw error;
+    }
+    if (retryDelayMs > 0) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, retryDelayMs * (attempt + 1)),
+      );
+    }
+  }
+  throw lastError ?? new Error('Supabase promotional catalog request failed');
 }
 
 module.exports = {

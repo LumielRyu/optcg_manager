@@ -163,3 +163,24 @@ test('reads every public catalog page from Supabase', async () => {
   assert.equal(requests[0].searchParams.get('image_url'), 'neq.');
   assert.equal(requests[1].searchParams.get('offset'), '1000');
 });
+
+test('retries a temporary Supabase failure before returning catalog cards', async () => {
+  let attempts = 0;
+  const rows = await fetchCatalogCards({
+    supabaseUrl: 'https://example.supabase.co',
+    supabaseAnonKey: 'public-key',
+    retryDelayMs: 0,
+    fetchImpl: async () => {
+      attempts += 1;
+      if (attempts === 1) return { ok: false, status: 500 };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => [{ card_code: 'OP12-028-WP' }],
+      };
+    },
+  });
+
+  assert.equal(attempts, 2);
+  assert.equal(rows[0].card_code, 'OP12-028-WP');
+});

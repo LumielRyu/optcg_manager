@@ -2170,5 +2170,8 @@ git diff --stat
 - A colecao, os decks e as vitrines agora recuperam a impressao por codigo,
   nome e set. Registros antigos salvos com o codigo ou a imagem base passam a
   exibir automaticamente a arte canonica da variante sem precisar ser refeitos.
-- O cache web do catalogo foi versionado como `v8`. Testes cobrem a fusao da
+- As leituras dos dois catalogos no Supabase repetem automaticamente respostas
+  429/5xx e falhas de rede antes de usar o catalogo de contingencia. Isso evita
+  que uma indisponibilidade transitoria recoloque a variante incompleta em cache.
+- O cache web do catalogo foi versionado como `v9`. Testes cobrem a fusao da
   imagem Winner, a inferencia `OP12-028-WP` e a selecao do preco especifico.

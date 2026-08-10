@@ -39,7 +39,7 @@ void main() {
     expect(preload, contains('if (kIsWeb)'));
     expect(preload, contains('await _refreshFromApi()'));
     expect(preload, contains('_setMemoryCache(cachedCards)'));
-    expect(source, contains("'/api/optcg-cards?catalog=v8'"));
+    expect(source, contains("'/api/optcg-cards?catalog=v9'"));
     expect(source, contains("'Cache-Control': 'no-cache'"));
   });
 
