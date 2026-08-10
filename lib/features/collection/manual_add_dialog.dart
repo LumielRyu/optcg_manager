@@ -41,6 +41,7 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
   final _codeController = TextEditingController();
   final _quantityController = TextEditingController(text: '1');
   final _manualNameController = TextEditingController();
+  final _resultsScrollController = ScrollController();
 
   late String _destination;
   String? _deckName;
@@ -73,6 +74,7 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
     _codeController.dispose();
     _quantityController.dispose();
     _manualNameController.dispose();
+    _resultsScrollController.dispose();
     super.dispose();
   }
 
@@ -444,10 +446,22 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.sizeOf(context);
+    final dialogWidth = min(920.0, max(280.0, screenSize.width - 32));
+    final dialogContentHeight = min(
+      760.0,
+      max(300.0, screenSize.height * 0.72),
+    );
+
     return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       title: const Text('Importar carta pela biblioteca'),
-      content: SingleChildScrollView(
-        child: Column(
+      content: SizedBox(
+        width: dialogWidth,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: dialogContentHeight),
+          child: SingleChildScrollView(
+            child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
@@ -473,74 +487,156 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
             ],
             if (_lookupVariants.isNotEmpty) ...[
               const SizedBox(height: 12),
-              SizedBox(
-                height: 238,
-                width: 520,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _lookupVariants.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 10),
-                  itemBuilder: (context, index) {
-                    final card = _lookupVariants[index];
-                    final selected = identical(card, _selectedCard);
-                    return SizedBox(
-                      width: 142,
-                      child: Card(
-                        clipBehavior: Clip.antiAlias,
-                        color: selected
-                            ? Theme.of(context).colorScheme.primaryContainer
-                            : null,
-                        child: InkWell(
-                          onTap: () => setState(() => _selectedCard = card),
-                          child: Padding(
-                            padding: const EdgeInsets.all(8),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Expanded(
-                                  child: _VariantPreviewImage(
-                                    imageUrl: card.image,
-                                    fit: BoxFit.contain,
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final availableWidth = constraints.maxWidth;
+                  final columns = availableWidth >= 800
+                      ? 5
+                      : availableWidth >= 640
+                      ? 4
+                      : availableWidth >= 460
+                      ? 3
+                      : 2;
+                  const spacing = 10.0;
+                  const aspectRatio = 0.60;
+                  final cardWidth =
+                      (availableWidth - (columns - 1) * spacing) / columns;
+                  final cardHeight = cardWidth / aspectRatio;
+                  final rows = (_lookupVariants.length / columns).ceil();
+                  final resultsHeight = min(
+                    460.0,
+                    rows * cardHeight + max(0, rows - 1) * spacing,
+                  );
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.touch_app_outlined, size: 18),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Clique na carta desejada. Use a roda do mouse ou arraste para baixo para ver mais.',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        height: resultsHeight,
+                        child: Scrollbar(
+                          controller: _resultsScrollController,
+                          thumbVisibility: rows > 1,
+                          trackVisibility: rows > 1,
+                          child: GridView.builder(
+                            controller: _resultsScrollController,
+                            primary: false,
+                            padding: const EdgeInsets.only(right: 10),
+                            itemCount: _lookupVariants.length,
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: columns,
+                                  crossAxisSpacing: spacing,
+                                  mainAxisSpacing: spacing,
+                                  childAspectRatio: aspectRatio,
+                                ),
+                            itemBuilder: (context, index) {
+                              final card = _lookupVariants[index];
+                              final selected = identical(card, _selectedCard);
+                              final colors = Theme.of(context).colorScheme;
+
+                              return Card(
+                                clipBehavior: Clip.antiAlias,
+                                margin: EdgeInsets.zero,
+                                color: selected
+                                    ? colors.primaryContainer
+                                    : null,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: BorderSide(
+                                    color: selected
+                                        ? colors.primary
+                                        : colors.outlineVariant,
+                                    width: selected ? 3 : 1,
                                   ),
                                 ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  card.name,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                                Text(
-                                  '${card.code} • ${_variantLabel(card)}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontSize: 10),
-                                ),
-                                if (selected)
-                                  const Padding(
-                                    padding: EdgeInsets.only(top: 4),
-                                    child: Row(
+                                child: InkWell(
+                                  onTap: () =>
+                                      setState(() => _selectedCard = card),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
                                       children: [
-                                        Icon(Icons.check_circle, size: 14),
-                                        SizedBox(width: 4),
-                                        Text(
-                                          'Selecionada',
-                                          style: TextStyle(fontSize: 10),
+                                        Expanded(
+                                          child: Stack(
+                                            fit: StackFit.expand,
+                                            children: [
+                                              _VariantPreviewImage(
+                                                imageUrl: card.image,
+                                                fit: BoxFit.contain,
+                                              ),
+                                              if (selected)
+                                                Align(
+                                                  alignment: Alignment.topRight,
+                                                  child: CircleAvatar(
+                                                    radius: 14,
+                                                    backgroundColor:
+                                                        colors.primary,
+                                                    foregroundColor:
+                                                        colors.onPrimary,
+                                                    child: const Icon(
+                                                      Icons.check,
+                                                      size: 18,
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
                                         ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          card.name,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '${card.code} • ${_variantLabel(card)}',
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(fontSize: 10),
+                                        ),
+                                        if (selected)
+                                          const Padding(
+                                            padding: EdgeInsets.only(top: 4),
+                                            child: Text(
+                                              'Carta selecionada',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 10,
+                                              ),
+                                            ),
+                                          ),
                                       ],
                                     ),
                                   ),
-                              ],
-                            ),
+                                ),
+                              );
+                            },
                           ),
                         ),
                       ),
-                    );
-                  },
-                ),
+                    ],
+                  );
+                },
               ),
             ],
             const SizedBox(height: 12),
@@ -667,7 +763,9 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
               const SizedBox(height: 12),
               Text(_error!, style: const TextStyle(color: Colors.red)),
             ],
-          ],
+              ],
+            ),
+          ),
         ),
       ),
       actions: [

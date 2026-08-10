@@ -2063,3 +2063,15 @@ git diff --stat
   da acao de copiar o link; em telas maiores, as duas acoes ficam lado a lado.
 - Os dois atalhos levam diretamente para `/home`, inclusive quando a vitrine e
   aberta por um link externo sem historico de navegacao no navegador.
+
+### 09/08/2026 - Seletor de cartas mais facil na importacao
+
+- Os resultados de `Importar carta pela biblioteca` deixaram de usar uma faixa
+  horizontal estreita, que exigia clicar e arrastar com precisao no desktop.
+- O dialogo agora aproveita melhor a largura da tela e mostra uma grade vertical
+  responsiva com duas a cinco colunas, conforme o espaco disponivel.
+- A grade possui barra de rolagem visivel e pode ser navegada pela roda do mouse
+  ou por gesto vertical. Ate duas linhas ficam visiveis antes da rolagem.
+- A carta escolhida recebe borda destacada, selo de confirmacao e o texto
+  `Carta selecionada`, reduzindo o risco de adicionar a arte errada.
+- Um teste de interface cobre a busca, a grade vertical e a selecao visual.
