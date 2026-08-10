@@ -51,6 +51,7 @@ class SaleFoldersSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 600;
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
       child: Card(
@@ -71,11 +72,18 @@ class SaleFoldersSection extends StatelessWidget {
                       ),
                     ),
                   ),
-                  FilledButton.tonalIcon(
-                    onPressed: loading ? null : onCreate,
-                    icon: const Icon(Icons.create_new_folder_outlined),
-                    label: const Text('Nova pasta'),
-                  ),
+                  if (compact)
+                    IconButton.filledTonal(
+                      tooltip: 'Nova pasta',
+                      onPressed: loading ? null : onCreate,
+                      icon: const Icon(Icons.create_new_folder_outlined),
+                    )
+                  else
+                    FilledButton.tonalIcon(
+                      onPressed: loading ? null : onCreate,
+                      icon: const Icon(Icons.create_new_folder_outlined),
+                      label: const Text('Nova pasta'),
+                    ),
                 ],
               ),
               const SizedBox(height: 4),
@@ -95,6 +103,7 @@ class SaleFoldersSection extends StatelessWidget {
                         icon: Icons.inventory_2_outlined,
                         metrics: allMetrics,
                         selected: selectedFolderId == saleAllFolders,
+                        compact: compact,
                         onTap: () => onSelect(saleAllFolders),
                       ),
                       _FolderCard(
@@ -102,6 +111,7 @@ class SaleFoldersSection extends StatelessWidget {
                         icon: Icons.folder_off_outlined,
                         metrics: unfiledMetrics,
                         selected: selectedFolderId == saleUnfiledFolder,
+                        compact: compact,
                         onTap: () => onSelect(saleUnfiledFolder),
                       ),
                       for (final folder in folders)
@@ -112,6 +122,7 @@ class SaleFoldersSection extends StatelessWidget {
                               folderMetrics[folder.id] ??
                               SaleFolderMetrics.empty,
                           selected: selectedFolderId == folder.id,
+                          compact: compact,
                           onTap: () => onSelect(folder.id),
                           onRename: () => onRename(folder),
                           onDelete: () => onDelete(folder),
@@ -132,6 +143,7 @@ class _FolderCard extends StatelessWidget {
   final IconData icon;
   final SaleFolderMetrics metrics;
   final bool selected;
+  final bool compact;
   final VoidCallback onTap;
   final VoidCallback? onRename;
   final VoidCallback? onDelete;
@@ -141,6 +153,7 @@ class _FolderCard extends StatelessWidget {
     required this.icon,
     required this.metrics,
     required this.selected,
+    required this.compact,
     required this.onTap,
     this.onRename,
     this.onDelete,
@@ -156,8 +169,8 @@ class _FolderCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
-          width: 205,
-          padding: const EdgeInsets.all(12),
+          width: compact ? 178 : 205,
+          padding: EdgeInsets.all(compact ? 10 : 12),
           decoration: BoxDecoration(
             color: selected
                 ? color.withValues(alpha: 0.14)

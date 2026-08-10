@@ -40,8 +40,10 @@ class SalesScreen extends ConsumerStatefulWidget {
 
 class _SalesScreenState extends ConsumerState<SalesScreen> {
   final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
   String _query = '';
   bool _isSharingBusy = false;
+  bool _isSalesHeaderCollapsed = false;
   late Future<List<MarketplaceListing>> _listingsFuture;
   late Future<List<MarketplaceOrder>> _pendingOrdersFuture;
   final Set<String> _resolvingOrderIds = {};
@@ -51,6 +53,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   int _cachedTotalUnique = 0;
   int _cachedTotalCards = 0;
   int _cachedPricedItems = 0;
+  _SaleMetricsSnapshot _cachedSaleMetrics = _SaleMetricsSnapshot.empty;
   List<SaleFolder> _saleFolders = const [];
   String _selectedSaleFolder = saleAllFolders;
   String _cachedSaleFolder = saleAllFolders;
@@ -62,17 +65,25 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     _listingsFuture = _loadListings();
     _pendingOrdersFuture = _loadPendingOrders();
     _loadSaleFolders();
-    _searchController.addListener(() {
-      setState(() {
-        _query = _searchController.text.trim().toLowerCase();
-      });
-    });
+    _searchController.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged() {
+    final nextQuery = _searchController.text.trim().toLowerCase();
+    if (nextQuery == _query) return;
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 220), () {
+      if (!mounted) return;
+      setState(() => _query = nextQuery);
+    });
   }
 
   Future<List<MarketplaceListing>> _loadListings() {
@@ -126,6 +137,9 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     _cachedPricedItems = _cachedFilteredItems
         .where((item) => item.hasPrice)
         .length;
+    if (sourceChanged) {
+      _cachedSaleMetrics = _saleMetricsSnapshot(allItems);
+    }
   }
 
   void _reloadListings() {
@@ -494,23 +508,6 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
             },
             icon: const Icon(Icons.content_paste_outlined),
           ),
-          IconButton(
-            tooltip: 'Adicionar carta',
-            onPressed: () async {
-              if (!requireSignedIn(context)) {
-                return;
-              }
-
-              await showDialog(
-                context: context,
-                builder: (_) => const ManualAddDialog(
-                  initialDestination: CollectionTypes.forSale,
-                ),
-              );
-              _reloadListings();
-            },
-            icon: const Icon(Icons.add),
-          ),
         ],
       ),
       body: FutureBuilder<List<MarketplaceListing>>(
@@ -561,11 +558,13 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                   searchController: _searchController,
                   viewMode: viewMode,
                   isSharingBusy: _isSharingBusy,
-                  isCollapsed: false,
+                  isCollapsed: _isSalesHeaderCollapsed,
                   onViewModeChanged: (mode) {
                     ref.read(collectionViewModeProvider.notifier).setMode(mode);
                   },
-                  onToggleCollapsed: () {},
+                  onToggleCollapsed: () => setState(
+                    () => _isSalesHeaderCollapsed = !_isSalesHeaderCollapsed,
+                  ),
                   onCopyLink: _copyStoreLink,
                   onDisableLink: _disableStoreLink,
                 ),
@@ -575,18 +574,9 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                   folders: _saleFolders,
                   selectedFolderId: _selectedSaleFolder,
                   loading: _saleFoldersLoading,
-                  allMetrics: _saleMetrics(allItems),
-                  unfiledMetrics: _saleMetrics(
-                    allItems.where((item) => (item.saleFolderId ?? '').isEmpty),
-                  ),
-                  folderMetrics: {
-                    for (final folder in _saleFolders)
-                      folder.id: _saleMetrics(
-                        allItems.where(
-                          (item) => item.saleFolderId == folder.id,
-                        ),
-                      ),
-                  },
+                  allMetrics: _cachedSaleMetrics.all,
+                  unfiledMetrics: _cachedSaleMetrics.unfiled,
+                  folderMetrics: _cachedSaleMetrics.byFolder,
                   onSelect: (value) =>
                       setState(() => _selectedSaleFolder = value),
                   onCreate: _createSaleFolder,
@@ -1088,12 +1078,32 @@ class _SalesLoadingView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.all(16),
-      children: const [
-        _SalesSkeletonBox(height: 150, radius: 24),
-        SizedBox(height: 16),
-        _SalesSkeletonBox(height: 220, radius: 20),
-        SizedBox(height: 12),
-        _SalesSkeletonBox(height: 220, radius: 20),
+      children: [
+        Semantics(
+          liveRegion: true,
+          label: 'Carregando suas vendas',
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 10),
+              Text(
+                'Carregando suas vendas...',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        const _SalesSkeletonBox(height: 150, radius: 24),
+        const SizedBox(height: 16),
+        const _SalesSkeletonBox(height: 220, radius: 20),
+        const SizedBox(height: 12),
+        const _SalesSkeletonBox(height: 220, radius: 20),
       ],
     );
   }
@@ -1149,6 +1159,98 @@ class _SalesHeaderSection extends StatelessWidget {
       },
     );
 
+    if (isCompact) {
+      return DashboardHeaderPanel(
+        top: Row(
+          children: [
+            const Icon(Icons.inventory_2_outlined, size: 22),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Resumo das vendas',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  Text(
+                    '$totalCards cartas em $totalUnique anúncios',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: isCollapsed ? 'Mostrar resumo' : 'Recolher resumo',
+              onPressed: onToggleCollapsed,
+              icon: AnimatedRotation(
+                turns: isCollapsed ? 0.5 : 0,
+                duration: const Duration(milliseconds: 180),
+                child: const Icon(Icons.keyboard_arrow_up),
+              ),
+            ),
+          ],
+        ),
+        stats: AnimatedCrossFade(
+          duration: const Duration(milliseconds: 180),
+          crossFadeState: isCollapsed
+              ? CrossFadeState.showSecond
+              : CrossFadeState.showFirst,
+          firstChild: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: _CompactSalesStat(
+                      label: 'Únicas',
+                      value: '$totalUnique',
+                      icon: Icons.style_outlined,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _CompactSalesStat(
+                      label: 'Total',
+                      value: '$totalCards',
+                      icon: Icons.format_list_numbered,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _CompactSalesStat(
+                      label: 'Com preço',
+                      value: '$pricedItems',
+                      icon: Icons.sell_outlined,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              StoreShareActions(
+                isBusy: isSharingBusy,
+                isCompact: true,
+                onCopyLink: onCopyLink,
+                onDisableLink: onDisableLink,
+              ),
+            ],
+          ),
+          secondChild: const SizedBox.shrink(),
+        ),
+        search: Column(
+          children: [
+            CatalogSearchField(
+              controller: searchController,
+              hintText: 'Buscar por nome, código ou set',
+            ),
+            const SizedBox(height: 10),
+            Row(children: [Expanded(child: segmentedControl)]),
+          ],
+        ),
+      );
+    }
+
     return DashboardHeaderPanel(
       stats: Column(
         children: [
@@ -1172,48 +1274,68 @@ class _SalesHeaderSection extends StatelessWidget {
                 value: '$pricedItems',
                 icon: Icons.sell_outlined,
               ),
-              if (!isCompact) segmentedControl,
+              segmentedControl,
             ],
           ),
-          if (isCompact) ...[
-            const SizedBox(height: 12),
-            Row(children: [Expanded(child: segmentedControl)]),
-          ],
         ],
       ),
-      search: isCompact
-          ? Column(
-              children: [
-                CatalogSearchField(
-                  controller: searchController,
-                  hintText: 'Buscar por nome, c\u00F3digo ou set',
-                ),
-                const SizedBox(height: 10),
-                StoreShareActions(
-                  isBusy: isSharingBusy,
-                  isCompact: true,
-                  onCopyLink: onCopyLink,
-                  onDisableLink: onDisableLink,
-                ),
-              ],
-            )
-          : Row(
-              children: [
-                Expanded(
-                  child: CatalogSearchField(
-                    controller: searchController,
-                    hintText: 'Buscar por nome, c\u00F3digo ou set',
-                  ),
-                ),
-                const SizedBox(width: 8),
-                StoreShareActions(
-                  isBusy: isSharingBusy,
-                  isCompact: false,
-                  onCopyLink: onCopyLink,
-                  onDisableLink: onDisableLink,
-                ),
-              ],
+      search: Row(
+        children: [
+          Expanded(
+            child: CatalogSearchField(
+              controller: searchController,
+              hintText: 'Buscar por nome, c\u00F3digo ou set',
             ),
+          ),
+          const SizedBox(width: 8),
+          StoreShareActions(
+            isBusy: isSharingBusy,
+            isCompact: false,
+            onCopyLink: onCopyLink,
+            onDisableLink: onDisableLink,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactSalesStat extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+
+  const _CompactSalesStat({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface.withValues(alpha: 0.78),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 20, color: theme.colorScheme.primary),
+          const SizedBox(height: 3),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w900)),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1248,13 +1370,9 @@ class _SalesLibraryView extends ConsumerWidget {
       );
     }
 
-    final itemsSignature = items
-        .map((item) => '${item.id}-${item.cardCode}-${item.imageUrl}')
-        .join('|');
-
     if (viewMode == CollectionViewMode.list) {
       return SliverPadding(
-        key: ValueKey('sales-list-$itemsSignature'),
+        key: const ValueKey('sales-list'),
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
         sliver: SliverList(
           delegate: SliverChildBuilderDelegate((context, index) {
@@ -1301,7 +1419,7 @@ class _SalesLibraryView extends ConsumerWidget {
     }
 
     return SliverPadding(
-      key: ValueKey('sales-grid-$itemsSignature'),
+      key: const ValueKey('sales-grid'),
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
       sliver: SliverGrid(
         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -1324,18 +1442,9 @@ class _SalesLibraryView extends ConsumerWidget {
                 item.statusLabel,
                 item.expirationLabel,
                 item.conditionLabel,
-                item.formattedPrice,
                 _saleFolderName(item.saleFolderId, folders),
               ],
-              footer: item.hasContactInfo
-                  ? const Text(
-                      'Contato configurado',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    )
-                  : null,
+              footer: _SalesCardFooter(card: item),
               image: _SalesResolvedCardImage(
                 key: ValueKey(
                   'sales-grid-image-${item.id}-${item.cardCode}-${item.imageUrl}',
@@ -1365,19 +1474,113 @@ class _SalesLibraryView extends ConsumerWidget {
   }
 }
 
-SaleFolderMetrics _saleMetrics(Iterable<MarketplaceListing> items) {
-  var listings = 0;
-  var cards = 0;
-  var value = 0;
-  for (final item in items) {
-    listings++;
-    cards += item.quantity;
-    value += (item.priceInCents ?? 0) * item.quantity;
+class _SalesCardFooter extends StatelessWidget {
+  final MarketplaceListing card;
+
+  const _SalesCardFooter({required this.card});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final priceColor = card.hasPrice
+        ? theme.colorScheme.primary
+        : theme.colorScheme.onSurfaceVariant;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.sell_outlined, size: 16, color: priceColor),
+            const SizedBox(width: 5),
+            Expanded(
+              child: Text(
+                card.formattedPrice,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: priceColor,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (card.hasContactInfo) ...[
+          const SizedBox(height: 4),
+          Text(
+            'Contato configurado',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall,
+          ),
+        ],
+      ],
+    );
   }
-  return SaleFolderMetrics(
-    uniqueListings: listings,
-    totalCards: cards,
-    totalValueInCents: value,
+}
+
+class _SaleMetricsSnapshot {
+  final SaleFolderMetrics all;
+  final SaleFolderMetrics unfiled;
+  final Map<String, SaleFolderMetrics> byFolder;
+
+  const _SaleMetricsSnapshot({
+    required this.all,
+    required this.unfiled,
+    required this.byFolder,
+  });
+
+  static const empty = _SaleMetricsSnapshot(
+    all: SaleFolderMetrics.empty,
+    unfiled: SaleFolderMetrics.empty,
+    byFolder: <String, SaleFolderMetrics>{},
+  );
+}
+
+_SaleMetricsSnapshot _saleMetricsSnapshot(Iterable<MarketplaceListing> items) {
+  var allListings = 0;
+  var allCards = 0;
+  var allValue = 0;
+  var unfiledListings = 0;
+  var unfiledCards = 0;
+  var unfiledValue = 0;
+  final byFolder = <String, SaleFolderMetrics>{};
+
+  for (final item in items) {
+    final itemValue = (item.priceInCents ?? 0) * item.quantity;
+    allListings++;
+    allCards += item.quantity;
+    allValue += itemValue;
+
+    final folderId = item.saleFolderId?.trim() ?? '';
+    if (folderId.isEmpty) {
+      unfiledListings++;
+      unfiledCards += item.quantity;
+      unfiledValue += itemValue;
+      continue;
+    }
+
+    final current = byFolder[folderId] ?? SaleFolderMetrics.empty;
+    byFolder[folderId] = SaleFolderMetrics(
+      uniqueListings: current.uniqueListings + 1,
+      totalCards: current.totalCards + item.quantity,
+      totalValueInCents: current.totalValueInCents + itemValue,
+    );
+  }
+
+  return _SaleMetricsSnapshot(
+    all: SaleFolderMetrics(
+      uniqueListings: allListings,
+      totalCards: allCards,
+      totalValueInCents: allValue,
+    ),
+    unfiled: SaleFolderMetrics(
+      uniqueListings: unfiledListings,
+      totalCards: unfiledCards,
+      totalValueInCents: unfiledValue,
+    ),
+    byFolder: Map.unmodifiable(byFolder),
   );
 }
 

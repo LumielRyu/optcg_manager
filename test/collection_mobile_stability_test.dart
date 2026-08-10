@@ -78,6 +78,34 @@ void main() {
     expect(source, isNot(contains('shrinkWrap: true')));
   });
 
+  test('sales search and metrics avoid repeated full-page work', () {
+    final source = File(
+      'lib/features/sales/sales_screen.dart',
+    ).readAsStringSync();
+
+    expect(source, contains('Timer(const Duration(milliseconds: 220)'));
+    expect(source, contains('_cachedSaleMetrics = _saleMetricsSnapshot'));
+    expect(source, contains('Map.unmodifiable(byFolder)'));
+    expect(source, isNot(contains('itemsSignature')));
+  });
+
+  test('sales mobile header is compact and prices remain visible', () {
+    final source = File(
+      'lib/features/sales/sales_screen.dart',
+    ).readAsStringSync();
+    final foldersSource = File(
+      'lib/features/sales/widgets/sale_folders_section.dart',
+    ).readAsStringSync();
+
+    expect(source, contains("'Resumo das vendas'"));
+    expect(source, contains("'Recolher resumo'"));
+    expect(source, contains('class _CompactSalesStat'));
+    expect(source, contains('footer: _SalesCardFooter(card: item)'));
+    expect(source, contains("'Carregando suas vendas...'"));
+    expect(foldersSource, contains('width: compact ? 178 : 205'));
+    expect(foldersSource, contains("tooltip: 'Nova pasta'"));
+  });
+
   test('web image cache has a conservative memory ceiling', () {
     final source = File('lib/main.dart').readAsStringSync();
 

@@ -2213,3 +2213,18 @@ git diff --stat
   qualidade leve e fallback HTML apenas quando CORS exigir. O cache web de
   imagens foi limitado a 120 entradas e 48 MB para evitar novo encerramento da
   aba em aparelhos com pouca memoria.
+
+### 10/08/2026 - Segunda rodada de performance e visual das vendas
+
+- A busca em `Cartas a venda` agora espera 220 ms apos a digitacao antes de
+  filtrar, evitando reconstruir cabecalho, pastas e grade em toda tecla.
+- Contagens e valores de todas as pastas sao calculados em uma unica passagem
+  pelos anuncios e reutilizados. A grade deixou de criar uma chave gigante com
+  IDs, codigos e URLs em toda renderizacao.
+- No celular, o resumo usa indicadores compactos e pode ser recolhido, mantendo
+  busca e seletor Grade/Lista acessiveis. Pastas ocupam menos largura e o botao
+  `Nova pasta` vira um icone com dica, liberando espaco.
+- O preco passou a ter uma linha destacada e sempre visivel em cada carta. O
+  botao duplicado de adicionar no topo foi removido; o botao flutuante permanece.
+- A carga inicial das vendas agora informa `Carregando suas vendas...` junto aos
+  esqueletos, inclusive para leitores de tela.
