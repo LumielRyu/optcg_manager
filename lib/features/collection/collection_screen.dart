@@ -78,6 +78,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
   @override
   Widget build(BuildContext context) {
     final allItems = ref.watch(collectionControllerProvider);
+    final loadPhase = ref.watch(collectionLoadPhaseProvider);
     final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
     final viewMode = ref.watch(collectionViewModeProvider);
 
@@ -180,6 +181,8 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
     final collectionContent = CustomScrollView(
       slivers: [
         SliverToBoxAdapter(child: header),
+        if (loadPhase == CollectionLoadPhase.details)
+          const SliverToBoxAdapter(child: _CollectionDetailsLoadingBanner()),
         if (_selectedLibrary == CollectionTypes.owned)
           SliverToBoxAdapter(
             child: _CollectionFoldersSection(
@@ -245,7 +248,9 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
           ),
         ],
       ),
-      body: _selectedLibrary == CollectionTypes.deck
+      body: loadPhase == CollectionLoadPhase.initial && allItems.isEmpty
+          ? const _CollectionInitialLoadingView()
+          : _selectedLibrary == CollectionTypes.deck
           ? collectionContent
           : LigaPriceScope(
               cards: unfilteredLibraryItems
@@ -259,11 +264,14 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                   .toList(growable: false),
               child: collectionContent,
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openAddCardsSheet(destination),
-        icon: const Icon(Icons.add_photo_alternate_outlined),
-        label: const Text('Adicionar cartas'),
-      ),
+      floatingActionButton:
+          loadPhase == CollectionLoadPhase.initial && allItems.isEmpty
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _openAddCardsSheet(destination),
+              icon: const Icon(Icons.add_photo_alternate_outlined),
+              label: const Text('Adicionar cartas'),
+            ),
       bottomNavigationBar: const PrimaryBottomNavigation(
         currentRoute: '/collection',
       ),
@@ -842,6 +850,79 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
       default:
         return a.cardCode.compareTo(b.cardCode);
     }
+  }
+}
+
+class _CollectionInitialLoadingView extends StatelessWidget {
+  const _CollectionInitialLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 34,
+              height: 34,
+              child: CircularProgressIndicator(strokeWidth: 3),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              'Carregando sua cole\u00e7\u00e3o...',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Buscando suas cartas. Os detalhes e pre\u00e7os aparecem em seguida.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CollectionDetailsLoadingBanner extends StatelessWidget {
+  const _CollectionDetailsLoadingBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Semantics(
+      liveRegion: true,
+      label: 'Carregando detalhes das cartas',
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: colors.primaryContainer.withValues(alpha: 0.55),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: colors.primary.withValues(alpha: 0.25)),
+        ),
+        child: const Row(
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2.2),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Cartas carregadas. Atualizando imagens e detalhes...',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

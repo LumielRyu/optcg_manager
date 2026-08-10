@@ -7,7 +7,7 @@ const endpoints = [
 const jsonHeaders = {
   'Content-Type': 'application/json; charset=utf-8',
   'Cache-Control':
-    'public, max-age=60, s-maxage=300, stale-while-revalidate=1800',
+    'public, max-age=300, s-maxage=900, stale-while-revalidate=86400',
 };
 
 import observability from '../server/api-observability.js';
@@ -57,25 +57,56 @@ export default async function handler(request, response) {
 
     const cards = payloads.flat();
     let mergedCards = cards;
-    try {
-      const promotionalRows = await fetchPromotionalCards({
+    const catalogStartedAt = Date.now();
+    const [promotionalResult, catalogResult] = await Promise.allSettled([
+      fetchPromotionalCards({
         supabaseUrl: process.env.SUPABASE_URL,
         supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
-      });
-      mergedCards = mergePromotionalCards(mergedCards, promotionalRows);
-    } catch (error) {
-      observation.error(error, 'optcg_promotional_catalog_fetch_failed');
+      }),
+      fetchCatalogCards({
+        supabaseUrl: process.env.SUPABASE_URL,
+        supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
+      }),
+    ]);
+
+    if (promotionalResult.status === 'fulfilled') {
+      mergedCards = mergePromotionalCards(
+        mergedCards,
+        promotionalResult.value,
+      );
+    } else {
+      observation.error(
+        promotionalResult.reason,
+        'optcg_promotional_catalog_fetch_failed',
+      );
     }
 
-    try {
-      const catalogRows = await fetchCatalogCards({
-        supabaseUrl: process.env.SUPABASE_URL,
-        supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
-      });
-      mergedCards = mergeCatalogCards(mergedCards, catalogRows);
-    } catch (error) {
-      observation.error(error, 'optcg_card_catalog_fetch_failed');
+    if (catalogResult.status === 'fulfilled') {
+      mergedCards = mergeCatalogCards(mergedCards, catalogResult.value);
+    } else {
+      observation.error(
+        catalogResult.reason,
+        'optcg_card_catalog_fetch_failed',
+      );
     }
+
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        message: 'optcg_catalog_loaded',
+        durationMs: Date.now() - catalogStartedAt,
+        upstreamCards: cards.length,
+        promotionalCards:
+          promotionalResult.status === 'fulfilled'
+            ? promotionalResult.value.length
+            : null,
+        catalogCards:
+          catalogResult.status === 'fulfilled'
+            ? catalogResult.value.length
+            : null,
+        mergedCards: mergedCards.length,
+      }),
+    );
 
     response.setHeader('Cache-Control', jsonHeaders['Cache-Control']);
     response.status(200).json(mergedCards);

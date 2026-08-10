@@ -2178,3 +2178,19 @@ git diff --stat
   que uma indisponibilidade transitoria recoloque a variante incompleta em cache.
 - O cache web do catalogo foi versionado como `v9`. Testes cobrem a fusao da
   imagem Winner, a inferencia `OP12-028-WP` e a selecao do preco especifico.
+
+### 10/08/2026 - Carregamento progressivo da colecao
+
+- O F5 iniciava a colecao como uma lista vazia e aguardava a carga integral de
+  `/api/optcg-cards` antes de consultar e mostrar os registros do usuario. Nesse
+  intervalo a tela exibia incorretamente zero cartas e `Nenhuma carta`.
+- A carga agora tem duas fases: primeiro consulta colecao e decks diretamente
+  no Supabase e os exibe; depois atualiza imagens e metadados com o catalogo em
+  segundo plano. A consulta ao banco e a do catalogo tambem rodam em paralelo.
+- Sem dados iniciais, a pagina mostra `Carregando sua colecao...`. Com as cartas
+  ja visiveis, um aviso informa que imagens e detalhes ainda estao sendo
+  atualizados. Falha nessa segunda fase preserva os itens salvos na tela.
+- O endpoint carrega os catalogos promocional e geral em paralelo, registra a
+  duracao da operacao e usa cache HTTP de 5 minutos no navegador e 15 minutos
+  no CDN, com revalidacao em segundo plano. O cliente nao envia mais `no-cache`
+  ao proxy web em todo F5.

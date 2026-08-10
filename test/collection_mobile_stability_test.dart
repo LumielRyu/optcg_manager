@@ -47,6 +47,20 @@ void main() {
     expect(source, contains('LigaCollectionValueText('));
   });
 
+  test('collection distinguishes initial loading from an empty result', () {
+    final source = File(
+      'lib/features/collection/collection_screen.dart',
+    ).readAsStringSync();
+
+    expect(source, contains('Carregando sua cole\\u00e7\\u00e3o...'));
+    expect(
+      source,
+      contains('Cartas carregadas. Atualizando imagens e detalhes...'),
+    );
+    expect(source, contains('CollectionLoadPhase.initial'));
+    expect(source, contains('CollectionLoadPhase.details'));
+  });
+
   test('library import accepts either card code or card name', () {
     final source = File(
       'lib/features/collection/manual_add_dialog.dart',

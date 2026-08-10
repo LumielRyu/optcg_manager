@@ -31,7 +31,7 @@ void main() {
     expect(source, contains('Duration _cacheMaxAge = Duration(minutes: 5)'));
   });
 
-  test('web catalog is network first and keeps disk only as fallback', () {
+  test('web catalog uses HTTP cache and keeps disk as fallback', () {
     final start = source.indexOf('Future<void> _preloadInternal()');
     final end = source.indexOf('Future<void> _refreshFromApi()', start);
     final preload = source.substring(start, end);
@@ -40,6 +40,7 @@ void main() {
     expect(preload, contains('await _refreshFromApi()'));
     expect(preload, contains('_setMemoryCache(cachedCards)'));
     expect(source, contains("'/api/optcg-cards?catalog=v9'"));
+    expect(source, contains('if (!isWebProxy)'));
     expect(source, contains("'Cache-Control': 'no-cache'"));
   });
 

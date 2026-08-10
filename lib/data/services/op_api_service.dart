@@ -505,14 +505,14 @@ class OpApiService {
   }
 
   Future<List<Map<String, dynamic>>> _getJson(String url) async {
-    final uri = Uri.parse(url).hasScheme
-        ? Uri.parse(url)
-        : Uri.base.resolve(url);
+    final parsedUrl = Uri.parse(url);
+    final isWebProxy = !parsedUrl.hasScheme;
+    final uri = isWebProxy ? Uri.base.resolve(url) : parsedUrl;
     final response = await http.get(
       uri,
-      headers: const {
+      headers: {
         'Accept': 'application/json',
-        'Cache-Control': 'no-cache',
+        if (!isWebProxy) 'Cache-Control': 'no-cache',
       },
     );
 

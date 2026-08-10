@@ -77,16 +77,17 @@ class CollectionRepository {
     return list;
   }
 
-  Future<void> refreshAll() async {
+  Future<void> refreshAll({bool loadCatalog = true}) async {
     await _migrateLegacyLocalCollectionIfNeeded();
     await _migrateLegacyLocalDecksIfNeeded();
-    await _opApi.preload();
 
     final user = _client.auth.currentUser;
     if (user == null) {
       _cache = [];
       return;
     }
+
+    final catalogFuture = loadCatalog ? _opApi.preload() : null;
 
     final collectionFuture = _client
         .from('collection_items')
@@ -106,6 +107,8 @@ class CollectionRepository {
 
     final collectionResponse = results[0] as List;
     final decksResponse = results[1] as List;
+
+    if (catalogFuture != null) await catalogFuture;
 
     final uniqueCodes = <String>{};
 
@@ -133,7 +136,7 @@ class CollectionRepository {
       }
     }
 
-    await _warmUpApiCards(uniqueCodes);
+    if (loadCatalog) await _warmUpApiCards(uniqueCodes);
 
     final all = <CardRecord>[];
 
