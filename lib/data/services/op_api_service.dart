@@ -15,6 +15,13 @@ final opApiServiceProvider = Provider<OpApiService>((ref) {
 });
 
 class OpApiService {
+  OpApiService();
+
+  @visibleForTesting
+  OpApiService.withCardsForTesting(List<OpCard> cards) {
+    _setMemoryCache(cards);
+  }
+
   static const String _mainSetUrl =
       'https://www.optcgapi.com/api/allSetCards/?format=json';
   static const String _starterDeckUrl =
@@ -33,6 +40,7 @@ class OpApiService {
 
   List<OpCard>? _cache;
   Map<String, List<OpCard>>? _byCodeMulti;
+  Map<String, List<OpCard>>? _byBaseCodeMulti;
   List<_IndexedOpCard>? _searchIndex;
   Future<void>? _preloadFuture;
 
@@ -112,7 +120,10 @@ class OpApiService {
   };
 
   Future<void> preload() {
-    if (_cache != null && _byCodeMulti != null && _searchIndex != null) {
+    if (_cache != null &&
+        _byCodeMulti != null &&
+        _byBaseCodeMulti != null &&
+        _searchIndex != null) {
       return Future.value();
     }
 
@@ -189,7 +200,19 @@ class OpApiService {
     for (final candidate in _normalizeCodeCandidates(code)) {
       final matches = _byCodeMulti![candidate];
       if (matches != null && matches.isNotEmpty) {
+        final baseCode = _baseCardCode(candidate);
+        if (candidate == baseCode) {
+          final baseMatches = _byBaseCodeMulti![baseCode];
+          if (baseMatches != null && baseMatches.isNotEmpty) {
+            return List<OpCard>.from(baseMatches);
+          }
+        }
         return List<OpCard>.from(matches);
+      }
+
+      final baseMatches = _byBaseCodeMulti![candidate];
+      if (baseMatches != null && baseMatches.isNotEmpty) {
+        return List<OpCard>.from(baseMatches);
       }
     }
 
@@ -538,31 +561,46 @@ class OpApiService {
       ..sort((a, b) => a.code.compareTo(b.code));
 
     final grouped = <String, List<OpCard>>{};
+    final groupedByBaseCode = <String, List<OpCard>>{};
 
     for (final card in sortedCards) {
       final key = _normalizeCode(card.code);
       if (key.isEmpty) continue;
 
       grouped.putIfAbsent(key, () => <OpCard>[]).add(card);
+      final baseCode = _baseCardCode(key);
+      groupedByBaseCode.putIfAbsent(baseCode, () => <OpCard>[]).add(card);
     }
 
-    for (final entry in grouped.entries) {
-      entry.value.sort((a, b) {
-        final aHasImage = a.image.trim().isNotEmpty;
-        final bHasImage = b.image.trim().isNotEmpty;
+    void sortVariants(Map<String, List<OpCard>> variantsByCode) {
+      for (final entry in variantsByCode.entries) {
+        entry.value.sort((a, b) {
+          final aUsesExactCode = _normalizeCode(a.code) == entry.key;
+          final bUsesExactCode = _normalizeCode(b.code) == entry.key;
+          if (aUsesExactCode != bUsesExactCode) {
+            return aUsesExactCode ? -1 : 1;
+          }
 
-        if (aHasImage != bHasImage) {
-          return bHasImage ? 1 : -1;
-        }
+          final aHasImage = a.image.trim().isNotEmpty;
+          final bHasImage = b.image.trim().isNotEmpty;
 
-        final aRarity = a.rarity.trim().toLowerCase();
-        final bRarity = b.rarity.trim().toLowerCase();
-        return aRarity.compareTo(bRarity);
-      });
+          if (aHasImage != bHasImage) {
+            return bHasImage ? 1 : -1;
+          }
+
+          final aRarity = a.rarity.trim().toLowerCase();
+          final bRarity = b.rarity.trim().toLowerCase();
+          return aRarity.compareTo(bRarity);
+        });
+      }
     }
+
+    sortVariants(grouped);
+    sortVariants(groupedByBaseCode);
 
     _cache = sortedCards;
     _byCodeMulti = grouped;
+    _byBaseCodeMulti = groupedByBaseCode;
     _searchIndex = sortedCards
         .map(_IndexedOpCard.fromCard)
         .toList(growable: false);
@@ -652,26 +690,52 @@ class OpApiService {
 
     if (code.isEmpty) return '';
 
-    if (RegExp(r'^[A-Z]{1,4}\d{1,2}-\d{3}[A-Z]{0,2}$').hasMatch(code)) {
-      return code;
+    final separatedSetStyle = RegExp(
+      r'^([A-Z]{1,4}\d{1,2})-(\d{3})(?:-?([A-Z0-9]+))?$',
+    ).firstMatch(code);
+    if (separatedSetStyle != null) {
+      final suffix = separatedSetStyle.group(3) ?? '';
+      final base =
+          '${separatedSetStyle.group(1)}-${separatedSetStyle.group(2)}';
+      return '$base${suffix.isEmpty ? '' : '-$suffix'}';
+    }
+
+    final separatedPromoStyle = RegExp(
+      r'^([A-Z]{1,4})-(\d{3})(?:-?([A-Z0-9]+))?$',
+    ).firstMatch(code);
+    if (separatedPromoStyle != null) {
+      final suffix = separatedPromoStyle.group(3) ?? '';
+      final base =
+          '${separatedPromoStyle.group(1)}-${separatedPromoStyle.group(2)}';
+      return '$base${suffix.isEmpty ? '' : '-$suffix'}';
     }
 
     final compact = code.replaceAll('-', '');
 
-    final setStyle = RegExp(r'^([A-Z]{1,4}\d{1,2})(\d{3})([A-Z]{0,2})$');
+    final setStyle = RegExp(r'^([A-Z]{1,4}\d{1,2})(\d{3})([A-Z0-9]*)$');
     final setMatch = setStyle.firstMatch(compact);
     if (setMatch != null) {
       final suffix = setMatch.group(3) ?? '';
-      return '${setMatch.group(1)}-${setMatch.group(2)}$suffix';
+      final base = '${setMatch.group(1)}-${setMatch.group(2)}';
+      return '$base${suffix.isEmpty ? '' : '-$suffix'}';
     }
 
-    final promoStyle = RegExp(r'^([A-Z]{1,3})(\d{3})$');
+    final promoStyle = RegExp(r'^([A-Z]{1,4})(\d{3})([A-Z0-9]*)$');
     final promoMatch = promoStyle.firstMatch(compact);
     if (promoMatch != null) {
-      return '${promoMatch.group(1)}-${promoMatch.group(2)}';
+      final suffix = promoMatch.group(3) ?? '';
+      final base = '${promoMatch.group(1)}-${promoMatch.group(2)}';
+      return '$base${suffix.isEmpty ? '' : '-$suffix'}';
     }
 
     return '';
+  }
+
+  String _baseCardCode(String normalizedCode) {
+    final match = RegExp(
+      r'^(.+-\d{3})(?:-[A-Z0-9]+)?$',
+    ).firstMatch(normalizedCode);
+    return match?.group(1) ?? normalizedCode;
   }
 
   String _fixCommonOcrCodeMistakes(String compact) {

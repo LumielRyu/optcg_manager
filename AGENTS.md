@@ -2099,3 +2099,19 @@ git diff --stat
   apresenta uma orientacao clara quando nenhuma carta corresponde a cor.
 - Se uma carta selecionada deixar de pertencer ao filtro escolhido, a selecao e
   limpa para impedir que uma arte oculta seja adicionada por engano.
+
+### 10/08/2026 - Variantes com sufixo na busca por codigo
+
+- A Biblioteca encontrava variantes como `OP09-119-3A` por substring, mas o
+  importador agrupava somente as cartas cuja chave era exatamente `OP09-119`.
+  Por isso mostrava quatro das seis impressoes desse codigo.
+- A normalizacao anterior tambem descartava varios sufixos alfanumericos com
+  hifen. A auditoria do catalogo de producao encontrou 655 codigos-base afetados
+  e 1.883 variantes que nao apareciam na busca exata do importador.
+- O catalogo em memoria agora mantem um indice exato e outro por codigo-base.
+  Digitar o codigo-base retorna todas as impressoes; digitar um codigo completo
+  com sufixo continua retornando apenas aquela variante.
+- Sufixos de sets, promocionais e DON, como `AA`, `SP`, `3A` e `TTC`, passaram
+  a ser normalizados e indexados sem perder sua identidade.
+- Testes cobrem as seis impressoes de `OP09-119`, a consulta especifica de
+  `OP09-119-3A` e formatos com e sem hifen.
