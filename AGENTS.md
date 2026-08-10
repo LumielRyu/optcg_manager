@@ -2128,3 +2128,16 @@ git diff --stat
   edicao, categoria e cor, alem do codigo, nome e preco que ja eram exibidos.
 - Um teste estrutural garante que a identificacao da edicao continue presente
   nos resultados da Biblioteca.
+
+### 10/08/2026 - Confirmacao ao repetir carta em Cartas a venda
+
+- O fluxo da colecao ja consolidava silenciosamente uma carta em seu registro
+  de venda existente, mas nao informava ao usuario que aquela impressao ja
+  estava anunciada.
+- Quando encontra a mesma impressao por codigo e imagem, o dialogo agora mostra
+  a quantidade atual em Cartas a venda, o saldo ainda disponivel na colecao e
+  pergunta se o usuario deseja acrescentar mais copias.
+- A confirmacao usa o texto `Adicionar mais`; depois da operacao, o aviso mostra
+  a quantidade adicionada e o novo total anunciado daquela impressao.
+- Se todas as copias ja estiverem anunciadas, nenhuma alteracao e feita e o
+  aviso informa quantas cartas ja existem em Cartas a venda.

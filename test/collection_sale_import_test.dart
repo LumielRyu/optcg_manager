@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:optcg_manager/core/constants/collection_types.dart';
 import 'package:optcg_manager/data/models/card_record.dart';
@@ -71,6 +73,22 @@ void main() {
         ),
         throwsArgumentError,
       );
+    });
+
+    test('avisa e pede confirmação antes de incrementar uma venda', () {
+      final source = File(
+        'lib/features/collection/collection_screen.dart',
+      ).readAsStringSync();
+
+      expect(source, contains('Carta já está nas vendas'));
+      expect(source, contains('já possui'));
+      expect(source, contains('Deseja acrescentar mais cartas da coleção?'));
+      expect(source, contains("'Adicionar mais'"));
+      expect(
+        source,
+        contains('existingSaleQuantity: existingSale?.quantity ?? 0'),
+      );
+      expect(source, contains('Agora existem'));
     });
   });
 }

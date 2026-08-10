@@ -1488,9 +1488,11 @@ Future<int?> _showSaleQuantityDialog(
   BuildContext context, {
   required CardRecord card,
   required int maximum,
+  required int existingSaleQuantity,
 }) async {
   final quantityController = TextEditingController(text: '1');
   String? errorText;
+  final hasExistingSale = existingSaleQuantity > 0;
 
   final quantity = await showDialog<int>(
     context: context,
@@ -1509,7 +1511,11 @@ Future<int?> _showSaleQuantityDialog(
           }
 
           return AlertDialog(
-            title: const Text('Adicionar às vendas'),
+            title: Text(
+              hasExistingSale
+                  ? 'Carta já está nas vendas'
+                  : 'Adicionar às vendas',
+            ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1518,6 +1524,33 @@ Future<int?> _showSaleQuantityDialog(
                   '${card.name} • ${card.cardCode}',
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
+                if (hasExistingSale) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primaryContainer.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.info_outline),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Esta impressão já possui '
+                            '$existingSaleQuantity carta(s) em Cartas à venda. '
+                            'Deseja acrescentar mais cartas da coleção?',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 TextField(
                   controller: quantityController,
@@ -1527,7 +1560,9 @@ Future<int?> _showSaleQuantityDialog(
                   onSubmitted: (_) => submit(),
                   decoration: InputDecoration(
                     labelText: 'Quantidade',
-                    helperText: 'Disponível para venda: $maximum',
+                    helperText: hasExistingSale
+                        ? 'Ainda disponível na coleção: $maximum'
+                        : 'Disponível para venda: $maximum',
                     errorText: errorText,
                     border: const OutlineInputBorder(),
                   ),
@@ -1539,7 +1574,10 @@ Future<int?> _showSaleQuantityDialog(
                 onPressed: () => Navigator.of(dialogContext).pop(),
                 child: const Text('Cancelar'),
               ),
-              FilledButton(onPressed: submit, child: const Text('Adicionar')),
+              FilledButton(
+                onPressed: submit,
+                child: Text(hasExistingSale ? 'Adicionar mais' : 'Adicionar'),
+              ),
             ],
           );
         },
@@ -1569,10 +1607,15 @@ Future<bool> _importCardToSales(
   );
 
   if (available <= 0) {
+    final existingQuantity = existingSale?.quantity ?? 0;
     messenger.showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Text(
-          'Todas as cópias desta carta já estão em Cartas à venda.',
+          existingQuantity > 0
+              ? 'Esta carta já possui $existingQuantity carta(s) em Cartas '
+                    'à venda e todas as cópias da coleção já foram '
+                    'anunciadas.'
+              : 'Todas as cópias desta carta já estão em Cartas à venda.',
         ),
       ),
     );
@@ -1583,6 +1626,7 @@ Future<bool> _importCardToSales(
     context,
     card: card,
     maximum: available,
+    existingSaleQuantity: existingSale?.quantity ?? 0,
   );
   if (quantity == null || !context.mounted) return false;
 
@@ -1605,9 +1649,13 @@ Future<bool> _importCardToSales(
     _showSalesImportSnackBar(
       context: context,
       messenger: messenger,
-      message: quantity == 1
-          ? 'Carta adicionada a Cartas à venda.'
-          : '$quantity cartas adicionadas a Cartas à venda.',
+      message: existingSale == null
+          ? quantity == 1
+                ? 'Carta adicionada a Cartas à venda.'
+                : '$quantity cartas adicionadas a Cartas à venda.'
+          : '$quantity carta(s) adicionada(s). Agora existem '
+                '${existingSale.quantity + quantity} carta(s) desta impressão '
+                'em Cartas à venda.',
     );
     return true;
   } catch (_) {
