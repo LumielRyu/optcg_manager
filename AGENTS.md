@@ -2026,8 +2026,8 @@ git diff --stat
   exato agora vence uma variante apenas compativel, fazendo `OP09-093-AA`
   recuperar os R$ 229,99 armazenados no cache.
 - `Importar carta pela biblioteca` passou a aceitar codigo ou nome. A busca por
-  nome mostra ate 40 resultados com codigo, imagem, edicao e raridade para o
-  usuario selecionar a impressao correta antes de adicionar.
+  nome mostra os resultados com codigo, imagem, edicao e raridade para o usuario
+  selecionar a impressao correta antes de adicionar.
 - O identificador do endpoint Web foi atualizado para `catalog=v7`, impedindo
   que navegadores reutilizem a resposta duplicada em cache.
 
@@ -2075,3 +2075,16 @@ git diff --stat
 - A carta escolhida recebe borda destacada, selo de confirmacao e o texto
   `Carta selecionada`, reduzindo o risco de adicionar a arte errada.
 - Um teste de interface cobre a busca, a grade vertical e a selecao visual.
+
+### 10/08/2026 - Busca completa ao importar pela biblioteca
+
+- O dialogo de importacao solicitava explicitamente somente 40 resultados,
+  embora o catalogo calculasse e ordenasse todas as cartas correspondentes.
+- As duas consultas do fluxo, durante a digitacao e ao confirmar, passaram a
+  solicitar todos os resultados nos mesmos campos da Biblioteca: nome, codigo,
+  edicao, raridade, atributo, tipo e subtipo. Buscas internas de OCR e
+  conciliacao mantem limites pequenos para preservar seu desempenho.
+- A grade continua virtualizada: mesmo uma busca com mais de 170 correspondencias
+  cria visualmente apenas as cartas necessarias para a area exibida.
+- O teste do dialogo passou a simular 60 cartas e confirma que nenhum limite e
+  enviado ao servico e que a contagem completa aparece para o usuario.

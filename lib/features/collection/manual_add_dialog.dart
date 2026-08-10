@@ -110,7 +110,7 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
       var variants = await api.findAllByCode(code);
       final foundByName = variants.isEmpty;
       if (foundByName && query.length >= 2) {
-        variants = await api.searchCardsByName(query, limit: 40);
+        variants = await api.searchLibraryCards(query);
       }
       if (!mounted ||
           _codeController.text.trim().toLowerCase() != normalizedQuery) {
@@ -190,7 +190,7 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
         variants = await api.findAllByCode(manualCode);
       }
       if (variants.isEmpty && query.length >= 2) {
-        variants = await api.searchCardsByName(query, limit: 40);
+        variants = await api.searchLibraryCards(query);
       }
 
       if (variants.isEmpty) {

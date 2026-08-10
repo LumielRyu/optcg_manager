@@ -254,6 +254,68 @@ class OpApiService {
     return scored.take(limit).map((entry) => entry.card).toList();
   }
 
+  Future<List<OpCard>> searchLibraryCards(
+    String query, {
+    int? limit,
+  }) async {
+    await preload();
+
+    final normalizedQuery = _normalizeText(query);
+    if (normalizedQuery.isEmpty) return const [];
+
+    final normalizedQueryCode = normalizeCode(query).toLowerCase();
+    final scored = <({OpCard card, int score})>[];
+
+    for (final card in _cache!) {
+      final name = _normalizeText(card.name);
+      final code = card.code.toLowerCase();
+      final normalizedCode = normalizeCode(card.code).toLowerCase();
+      final setName = _normalizeText(card.setName);
+      final rarity = _normalizeText(card.rarity);
+      final attribute = _normalizeText(card.attribute);
+      final type = _normalizeText(card.type);
+      final subTypes = _normalizeText(card.subTypes);
+
+      var score = 0;
+      if (name == normalizedQuery) {
+        score = 1000;
+      } else if (name.startsWith(normalizedQuery)) {
+        score = 900;
+      } else if (name.contains(normalizedQuery)) {
+        score = 800;
+      } else if (code == query.trim().toLowerCase() ||
+          normalizedCode == normalizedQueryCode) {
+        score = 700;
+      } else if (code.contains(query.trim().toLowerCase()) ||
+          (normalizedQueryCode.isNotEmpty &&
+              normalizedCode.contains(normalizedQueryCode))) {
+        score = 650;
+      } else if (setName.contains(normalizedQuery)) {
+        score = 500;
+      } else if (rarity.contains(normalizedQuery) ||
+          attribute.contains(normalizedQuery) ||
+          type.contains(normalizedQuery) ||
+          subTypes.contains(normalizedQuery)) {
+        score = 400;
+      }
+
+      if (score > 0) {
+        scored.add((card: card, score: score));
+      }
+    }
+
+    scored.sort((a, b) {
+      final byScore = b.score.compareTo(a.score);
+      if (byScore != 0) return byScore;
+      final byName = a.card.name.compareTo(b.card.name);
+      if (byName != 0) return byName;
+      return a.card.code.compareTo(b.card.code);
+    });
+
+    final matches = limit == null ? scored : scored.take(limit);
+    return matches.map((entry) => entry.card).toList(growable: false);
+  }
+
   Future<OpCard?> findBestCardForManualEntry({
     required String name,
     String? color,

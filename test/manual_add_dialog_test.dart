@@ -13,7 +13,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final cards = List<OpCard>.generate(
-      12,
+      60,
       (index) => OpCard(
         code: 'OP01-${index.toString().padLeft(3, '0')}',
         name: 'Nami versão ${index + 1}',
@@ -28,10 +28,12 @@ void main() {
       ),
     );
 
+    final api = _FakeOpApiService(cards);
+
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          opApiServiceProvider.overrideWithValue(_FakeOpApiService(cards)),
+          opApiServiceProvider.overrideWithValue(api),
         ],
         child: const MaterialApp(
           home: Scaffold(body: ManualAddDialog()),
@@ -50,6 +52,13 @@ void main() {
     expect(find.byType(Scrollbar), findsOneWidget);
     expect(find.byType(ListView), findsNothing);
     expect(
+      find.text(
+        '60 resultados encontrados. Escolha a carta e a arte corretas.',
+      ),
+      findsOneWidget,
+    );
+    expect(api.requestedLimit, isNull);
+    expect(
       find.textContaining('Use a roda do mouse ou arraste para baixo'),
       findsOneWidget,
     );
@@ -64,6 +73,7 @@ void main() {
 
 class _FakeOpApiService extends OpApiService {
   final List<OpCard> cards;
+  int? requestedLimit = 5;
 
   _FakeOpApiService(this.cards);
 
@@ -74,8 +84,13 @@ class _FakeOpApiService extends OpApiService {
   Future<List<OpCard>> findAllByCode(String code) async => const [];
 
   @override
-  Future<List<OpCard>> searchCardsByName(
+  Future<List<OpCard>> searchLibraryCards(
     String query, {
-    int limit = 5,
-  }) async => cards.take(limit).toList(growable: false);
+    int? limit,
+  }) async {
+    requestedLimit = limit;
+    return limit == null
+        ? List<OpCard>.from(cards)
+        : cards.take(limit).toList(growable: false);
+  }
 }

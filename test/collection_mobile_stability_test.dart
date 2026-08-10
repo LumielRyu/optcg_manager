@@ -53,7 +53,8 @@ void main() {
     ).readAsStringSync();
 
     expect(source, contains("labelText: 'Código ou nome da carta'"));
-    expect(source, contains('api.searchCardsByName(query, limit: 40)'));
+    expect(source, contains('api.searchLibraryCards(query)'));
+    expect(source, isNot(contains('limit: 40')));
     expect(source, contains("hintText: 'Ex.: OP02-001 ou Nami'"));
   });
 
