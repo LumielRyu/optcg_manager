@@ -22,7 +22,7 @@ PRICE_TABLE = "liga_card_price_cache"
 PAGE_SIZE = 1000
 UPSERT_BATCH_SIZE = 250
 SUFFIX_PATTERN = re.compile(
-    r"-(AA|DP|FA|G|MA|OP|PA|PAR|PR|RE|RW|SP|TC|TR|E|A|P)$"
+    r"-(AA|DP|FA|G|MA|OP|PA|PAR|PR|RE|RW|SP|TC|TR|WP|E|A|P)$"
 )
 
 
@@ -63,6 +63,10 @@ def classify(name: str, code: str) -> str:
         return "treasure_cup"
     if "treasure rare" in text or code_suffix == "TR":
         return "treasure_rare"
+    if "welcome pack" in text:
+        return "welcome_pack"
+    if "winner pack" in text or code_suffix == "WP":
+        return "winner_pack"
     if "winner" in text or code_suffix == "RW":
         return "winner"
     if "finalist" in text:
@@ -112,6 +116,8 @@ def primary_lookup_code(name: str, code: str) -> str:
         "manga": "MA",
         "treasure_cup": "TC",
         "treasure_rare": "TR",
+        "welcome_pack": "WP",
+        "winner_pack": "WP",
         "winner": "RW",
         "participant": "OP",
         "pre_release": "PR",

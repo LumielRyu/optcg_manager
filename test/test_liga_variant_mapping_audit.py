@@ -10,6 +10,38 @@ import audit_liga_one_piece_variant_mappings as audit
 
 
 class LigaVariantMappingAuditTest(unittest.TestCase):
+    def test_welcome_pack_uses_wp_and_never_matches_normal(self):
+        card = {
+            "card_set_id": "PRB02-012",
+            "card_name": "Nami (Welcome Pack 2026 Vol.1)",
+            "set_name": "One Piece Promotion Cards",
+            "card_image": "https://catalog.example/prb02-012-wp.jpg",
+        }
+        normal = {
+            "lookup_code": "PRB02-012@PRB2",
+            "card_code": "PRB02-012",
+            "card_name": "Nami",
+            "edition_code": "PRB2",
+            "image_url": "https://liga.example/prb02-012.jpg",
+            "minimum_price": 27.75,
+        }
+        welcome = {
+            "lookup_code": "PRB02-012-WP@PC-01",
+            "card_code": "PRB02-012-WP",
+            "card_name": "Nami (Welcome Pack 2026 Vol.1)",
+            "edition_code": "PC-01",
+            "image_url": "https://liga.example/prb02-012-wp.jpg",
+            "minimum_price": 45.0,
+        }
+
+        self.assertEqual("PRB02-012-WP", audit.primary_lookup_code(
+            card["card_name"], card["card_set_id"]
+        ))
+        self.assertEqual("missing", audit.build_mapping(card, [normal])["status"])
+        mapping = audit.build_mapping(card, [normal, welcome])
+        self.assertEqual("confirmed", mapping["status"])
+        self.assertEqual("PRB02-012-WP@PC-01", mapping["liga_lookup_code"])
+
     def test_manga_never_matches_alternate_art(self):
         card = {
             "card_set_id": "EB01-006",

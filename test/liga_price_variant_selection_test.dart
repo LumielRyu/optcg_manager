@@ -114,6 +114,50 @@ void main() {
     expect(selected?['minimum_price'], 28.49);
   });
 
+  test('Welcome Pack usa WP sem herdar o preco da carta normal', () {
+    const welcomePackName = 'Nami (Welcome Pack 2026 Vol.1)';
+
+    expect(
+      inferLigaLookupCode(cardName: welcomePackName, cardCode: 'PRB02-012'),
+      'PRB02-012-WP',
+    );
+
+    final rows = [
+      {
+        'card_code': 'PRB02-012',
+        'card_name': 'Nami',
+        'edition_code': 'PRB2',
+        'image_url': 'https://liga.example/prb02-012.jpg',
+        'minimum_price': 27.75,
+      },
+      {
+        'card_code': 'PRB02-012-WP',
+        'card_name': welcomePackName,
+        'edition_code': 'PC-01',
+        'image_url': 'https://liga.example/prb02-012-wp.jpg',
+        'minimum_price': 45.0,
+      },
+    ];
+    final selected = LigaOnePieceService.selectBestRemoteRow(
+      rows,
+      cardName: welcomePackName,
+      lookupCode: 'PRB02-012-WP',
+      imageUrl: '',
+    );
+
+    expect(selected?['card_code'], 'PRB02-012-WP');
+    expect(selected?['minimum_price'], 45.0);
+    expect(
+      LigaOnePieceService.selectBestRemoteRow(
+        [rows.first],
+        cardName: welcomePackName,
+        lookupCode: 'PRB02-012-WP',
+        imageUrl: '',
+      ),
+      isNull,
+    );
+  });
+
   test('consulta todos os sufixos históricos de arte alternativa', () {
     expect(
       inferLigaLookupCodes(

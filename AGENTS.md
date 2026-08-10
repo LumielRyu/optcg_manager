@@ -2228,3 +2228,17 @@ git diff --stat
   botao duplicado de adicionar no topo foi removido; o botao flutuante permanece.
 - A carga inicial das vendas agora informa `Carregando suas vendas...` junto aos
   esqueletos, inclusive para leitores de tela.
+
+### 10/08/2026 - Welcome Pack separado da carta comum
+
+- `Nami (Welcome Pack 2026 Vol.1)` chegava ao catalogo com o codigo-base
+  `PRB02-012`. Como apenas `Winner Pack` era reconhecido, a impressao especial
+  era classificada como comum e herdava os R$ 27,75 da Nami de `PRB2`.
+- O cache da Liga ja continha a impressao correta como `PRB02-012-WP`, na edicao
+  promocional `PC-01`, com menor preco de R$ 45,00.
+- `Welcome Pack` agora e uma variante estrita propria, usando o sufixo `-WP` sem
+  se confundir com `Winner Pack`. Se a impressao especifica nao existir, o site
+  nao reutiliza silenciosamente o preco da carta comum.
+- O auditor automatico passou a reconhecer `-WP` e a distinguir Welcome Pack,
+  Winner Pack e Winner de evento. Testes cobrem o preco correto e bloqueiam o
+  fallback para a carta normal.

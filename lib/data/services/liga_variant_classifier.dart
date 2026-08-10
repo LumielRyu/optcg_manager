@@ -4,6 +4,7 @@ enum LigaVariantKind {
   manga,
   treasureCup,
   treasureRare,
+  welcomePack,
   winnerPack,
   winner,
   finalist,
@@ -55,6 +56,8 @@ LigaVariantDescriptor classifyLigaVariant({
     kind = LigaVariantKind.treasureCup;
   } else if (name.contains('treasure rare') || suffix == 'TR') {
     kind = LigaVariantKind.treasureRare;
+  } else if (name.contains('welcome pack')) {
+    kind = LigaVariantKind.welcomePack;
   } else if (name.contains('winner pack') || suffix == 'WP') {
     kind = LigaVariantKind.winnerPack;
   } else if (name.contains('winner') || suffix == 'RW') {
@@ -121,6 +124,7 @@ String inferPrimaryLigaVariantCode({
     LigaVariantKind.manga => 'MA',
     LigaVariantKind.treasureCup => 'TC',
     LigaVariantKind.treasureRare => 'TR',
+    LigaVariantKind.welcomePack => 'WP',
     LigaVariantKind.winnerPack => 'WP',
     LigaVariantKind.winner => 'RW',
     LigaVariantKind.participant => 'OP',
@@ -232,6 +236,7 @@ String ligaVariantKindLabel(LigaVariantKind kind) {
     LigaVariantKind.manga => 'Manga',
     LigaVariantKind.treasureCup => 'Treasure Cup',
     LigaVariantKind.treasureRare => 'Treasure Rare',
+    LigaVariantKind.welcomePack => 'Welcome Pack',
     LigaVariantKind.winnerPack => 'Winner Pack',
     LigaVariantKind.winner => 'Winner',
     LigaVariantKind.finalist => 'Finalist',
