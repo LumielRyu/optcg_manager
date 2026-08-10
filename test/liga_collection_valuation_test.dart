@@ -73,6 +73,17 @@ void main() {
     expect(selected?.minimumPrice, 28);
   });
 
+  test('strict variant never falls back to the normal card price', () {
+    final selected = selectLigaPriceSnapshot(
+      snapshots: const {'EB01-001': normalSnapshot},
+      referenceKey: 'EB01-001-AA::IMG::missingjpg',
+      lookupCode: 'EB01-001-AA',
+      cardCode: 'EB01-001',
+    );
+
+    expect(selected, isNull);
+  });
+
   test('collection value multiplies Liga price by owned quantity', () {
     final valuation = calculateLigaCollectionValuation(
       items: const [

@@ -12,9 +12,14 @@ LigaOnePieceCardSnapshot? selectLigaPriceSnapshot({
   required String cardCode,
 }) {
   final normalizedCode = cardCode.trim().toUpperCase();
-  return snapshots[referenceKey] ??
-      snapshots[lookupCode] ??
-      snapshots[normalizedCode];
+  final normalizedLookupCode = lookupCode.trim().toUpperCase();
+  final exact = snapshots[referenceKey] ?? snapshots[normalizedLookupCode];
+  if (exact != null) return exact;
+
+  // Uma variante estrita nunca pode herdar silenciosamente o preço da carta
+  // base. Ex.: OP12-119-3A (3rd Anniversary) não deve usar OP12-119.
+  if (normalizedLookupCode != normalizedCode) return null;
+  return snapshots[normalizedCode];
 }
 
 class LigaPriceCardReference {

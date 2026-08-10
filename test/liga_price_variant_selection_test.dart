@@ -187,6 +187,43 @@ void main() {
     );
   });
 
+  test('3rd Anniversary usa a variante 3A e nunca a carta comum', () {
+    const anniversaryName =
+        'Bartholomew Kuma (Japanese Version 3rd Anniversary Set)';
+
+    expect(
+      inferLigaLookupCode(cardName: anniversaryName, cardCode: 'OP12-119'),
+      'OP12-119-3A',
+    );
+    expect(
+      inferLigaLookupCodes(cardName: anniversaryName, cardCode: 'OP12-119'),
+      <String>['OP12-119-3A', 'OP12-119'],
+    );
+
+    final selected = LigaOnePieceService.selectBestRemoteRow(
+      [
+        {
+          'card_code': 'OP12-119',
+          'card_name': 'Bartholomew Kuma',
+          'edition_code': 'OP-12',
+          'minimum_price': 97.43,
+        },
+        {
+          'card_code': 'OP12-119-3A',
+          'card_name': anniversaryName,
+          'edition_code': 'PC-01',
+          'minimum_price': 359.90,
+        },
+      ],
+      cardName: anniversaryName,
+      lookupCode: 'OP12-119-3A',
+      imageUrl: '',
+    );
+
+    expect(selected?['card_code'], 'OP12-119-3A');
+    expect(selected?['minimum_price'], 359.90);
+  });
+
   test('seleciona variante histórica -E para arte alternativa', () {
     final base = <String, dynamic>{
       'lookup_code': 'OP02-001@ST15',
@@ -213,32 +250,35 @@ void main() {
     expect(selected?['card_code'], 'OP02-001-E');
   });
 
-  test('arte alternativa exata vence variante parallel sem imagem idêntica', () {
-    final selected = LigaOnePieceService.selectBestRemoteRow(
-      [
-        {
-          'card_code': 'OP09-093-AA',
-          'card_name': 'Marshall.D.Teach (093) (Alternate Art)',
-          'edition_code': 'OP-09',
-          'image_url': 'https://liga.example/alternate.jpg',
-          'minimum_price': 229.99,
-        },
-        {
-          'card_code': 'OP09-093-P',
-          'card_name': 'Marshall.D.Teach (093) (Parallel)',
-          'edition_code': 'OP-09',
-          'image_url': 'https://liga.example/parallel.jpg',
-          'minimum_price': 3999.99,
-        },
-      ],
-      cardName: 'Marshall.D.Teach (093) (Alternate Art)',
-      lookupCode: 'OP09-093-AA',
-      imageUrl: 'https://api.example/OP09-093_p1.jpg',
-    );
+  test(
+    'arte alternativa exata vence variante parallel sem imagem idêntica',
+    () {
+      final selected = LigaOnePieceService.selectBestRemoteRow(
+        [
+          {
+            'card_code': 'OP09-093-AA',
+            'card_name': 'Marshall.D.Teach (093) (Alternate Art)',
+            'edition_code': 'OP-09',
+            'image_url': 'https://liga.example/alternate.jpg',
+            'minimum_price': 229.99,
+          },
+          {
+            'card_code': 'OP09-093-P',
+            'card_name': 'Marshall.D.Teach (093) (Parallel)',
+            'edition_code': 'OP-09',
+            'image_url': 'https://liga.example/parallel.jpg',
+            'minimum_price': 3999.99,
+          },
+        ],
+        cardName: 'Marshall.D.Teach (093) (Alternate Art)',
+        lookupCode: 'OP09-093-AA',
+        imageUrl: 'https://api.example/OP09-093_p1.jpg',
+      );
 
-    expect(selected?['card_code'], 'OP09-093-AA');
-    expect(selected?['minimum_price'], 229.99);
-  });
+      expect(selected?['card_code'], 'OP09-093-AA');
+      expect(selected?['minimum_price'], 229.99);
+    },
+  );
 
   test('seleciona edição original para a arte comum', () {
     final reprint = <String, dynamic>{

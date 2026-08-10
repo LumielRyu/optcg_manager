@@ -2141,3 +2141,17 @@ git diff --stat
   a quantidade adicionada e o novo total anunciado daquela impressao.
 - Se todas as copias ja estiverem anunciadas, nenhuma alteracao e feita e o
   aviso informa quantas cartas ja existem em Cartas a venda.
+
+### 10/08/2026 - Preco correto para cartas de aniversario
+
+- `Bartholomew Kuma (Japanese Version 3rd Anniversary Set)` chegava do catalogo
+  com o codigo base `OP12-119`. Como `Anniversary` nao era uma variante
+  reconhecida, o resolvedor selecionava o preco de R$ 97,43 da carta comum.
+- O cache da Liga possui a impressao correta como `OP12-119-3A`, no valor de
+  R$ 359,90. O classificador agora converte nomes como `3rd Anniversary` em
+  sufixos `-3A`, aplicando o mesmo padrao a outros numeros de aniversario.
+- Impressoes de aniversario passaram a exigir correspondencia estrita por
+  variante. Se o preco especifico estiver ausente, a interface mostra a carta
+  como nao verificada em vez de reutilizar silenciosamente o preco comum.
+- Testes cobrem a inferencia do codigo, a selecao entre os dois registros reais
+  do Kuma e a proibicao de fallback de qualquer variante estrita para a base.

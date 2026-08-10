@@ -12,6 +12,7 @@ enum LigaVariantKind {
   dashPack,
   fullArt,
   gold,
+  anniversary,
   special,
   parallel,
   reprint,
@@ -45,7 +46,9 @@ LigaVariantDescriptor classifyLigaVariant({
   final tokens = name.split(' ').where((token) => token.isNotEmpty).toSet();
 
   LigaVariantKind kind;
-  if (name.contains('manga') || suffix == 'MA') {
+  if (name.contains('anniversary') || RegExp(r'^\d+A$').hasMatch(suffix)) {
+    kind = LigaVariantKind.anniversary;
+  } else if (name.contains('manga') || suffix == 'MA') {
     kind = LigaVariantKind.manga;
   } else if (name.contains('treasure cup') || suffix == 'TC') {
     kind = LigaVariantKind.treasureCup;
@@ -122,6 +125,7 @@ String inferPrimaryLigaVariantCode({
     LigaVariantKind.dashPack => 'DP',
     LigaVariantKind.fullArt => 'FA',
     LigaVariantKind.gold => 'G',
+    LigaVariantKind.anniversary => _anniversarySuffix(cardName),
     LigaVariantKind.special => 'SP',
     LigaVariantKind.parallel => 'PA',
     LigaVariantKind.reprint => 'RE',
@@ -200,7 +204,7 @@ bool ligaVariantMatchesEditionHint(
 String baseLigaCardCode(String cardCode) {
   final normalized = cardCode.trim().toUpperCase().split('@').first;
   return normalized.replaceFirst(
-    RegExp(r'-(?:AA|DP|FA|G|MA|OP|PA|PAR|PR|RE|RW|SP|TC|TR|E|A|P)$'),
+    RegExp(r'-(?:\d+A|AA|DP|FA|G|MA|OP|PA|PAR|PR|RE|RW|SP|TC|TR|E|A|P)$'),
     '',
   );
 }
@@ -208,7 +212,7 @@ String baseLigaCardCode(String cardCode) {
 String ligaVariantSuffix(String cardCode) {
   final normalized = cardCode.trim().toUpperCase().split('@').first;
   final match = RegExp(
-    r'-(AA|DP|FA|G|MA|OP|PA|PAR|PR|RE|RW|SP|TC|TR|E|A|P)$',
+    r'-(\d+A|AA|DP|FA|G|MA|OP|PA|PAR|PR|RE|RW|SP|TC|TR|E|A|P)$',
   ).firstMatch(normalized);
   return match?.group(1) ?? '';
 }
@@ -232,11 +236,21 @@ String ligaVariantKindLabel(LigaVariantKind kind) {
     LigaVariantKind.dashPack => 'Dash Pack',
     LigaVariantKind.fullArt => 'Full Art',
     LigaVariantKind.gold => 'Gold',
+    LigaVariantKind.anniversary => 'Anniversary',
     LigaVariantKind.special => 'SP / Special',
     LigaVariantKind.parallel => 'Parallel',
     LigaVariantKind.reprint => 'Reprint',
     LigaVariantKind.promotional => 'Promocional',
   };
+}
+
+String _anniversarySuffix(String cardName) {
+  final normalized = normalizeLigaVariantText(cardName);
+  final match = RegExp(
+    r'\b(\d+)(?:st|nd|rd|th)?\s+anniversary\b',
+  ).firstMatch(normalized);
+  final number = match?.group(1);
+  return number == null || number.isEmpty ? '' : '${number}A';
 }
 
 bool _looksPromotional(String name) {
