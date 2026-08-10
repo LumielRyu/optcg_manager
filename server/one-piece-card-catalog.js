@@ -66,7 +66,16 @@ function samePrintingEdition(first, second) {
 function hasEquivalentPrinting(card, printingIndex) {
   for (const key of printingIndexKeys(card)) {
     const candidates = printingIndex.get(key) ?? [];
-    if (candidates.some((candidate) => samePrintingEdition(candidate, card))) {
+    const cardImage = String(card?.card_image ?? '').trim();
+    if (
+      candidates.some((candidate) => {
+        const candidateImage = String(candidate?.card_image ?? '').trim();
+        return (
+          samePrintingEdition(candidate, card) ||
+          (cardImage && candidateImage === cardImage)
+        );
+      })
+    ) {
       return true;
     }
   }

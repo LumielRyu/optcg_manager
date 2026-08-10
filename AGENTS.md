@@ -2167,6 +2167,9 @@ git diff --stat
 - Ao mesclar o catalogo promocional, a versao canonica da Liga substitui o
   registro incompleto da API quando codigo-base e nome identificam a mesma
   impressao, evitando duas entradas concorrentes para a mesma carta.
+- O catalogo geral tambem descarta a mesma impressao quando codigo, nome e URL
+  da imagem reaparecem sob aliases de set (`P` e `PC-01`), sem unir artes
+  realmente distintas de edicoes diferentes.
 - A colecao, os decks e as vitrines agora recuperam a impressao por codigo,
   nome e set. Registros antigos salvos com o codigo ou a imagem base passam a
   exibir automaticamente a arte canonica da variante sem precisar ser refeitos.

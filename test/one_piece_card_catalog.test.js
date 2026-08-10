@@ -138,6 +138,32 @@ test('keeps same-named printings from different editions', () => {
   assert.equal(merged.length, 2);
 });
 
+test('removes the same promotional image repeated under a set alias', () => {
+  const image = 'https://liga.example/op12-028-wp.jpg';
+  const merged = mergeCatalogCards(
+    [
+      {
+        card_set_id: 'OP12-028-WP',
+        card_name: 'Kouzuki Hiyori (Winner Pack 2026 Vol. 1)',
+        card_image: image,
+        set_id: 'P',
+        set_name: 'Promotion Cards (PC-01)',
+      },
+    ],
+    [
+      {
+        card_code: 'OP12-028-WP',
+        card_name: 'Kouzuki Hiyori (Winner Pack 2026 Vol. 1)',
+        image_url: image,
+        edition_code: 'PC-01',
+        edition_name: 'One Piece Promotion Cards',
+      },
+    ],
+  );
+
+  assert.equal(merged.length, 1);
+});
+
 test('reads every public catalog page from Supabase', async () => {
   const requests = [];
   const rows = await fetchCatalogCards({
