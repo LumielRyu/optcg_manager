@@ -77,6 +77,43 @@ void main() {
     );
   });
 
+  test('Winner Pack usa WP e seleciona imagem e preco da variante', () {
+    const winnerPackName = 'Kouzuki Hiyori (Winner Pack 2026 Vol. 1)';
+
+    expect(
+      inferLigaLookupCode(cardName: winnerPackName, cardCode: 'OP12-028'),
+      'OP12-028-WP',
+    );
+    expect(
+      inferLigaLookupCode(cardName: winnerPackName, cardCode: 'OP12-028-WP'),
+      'OP12-028-WP',
+    );
+
+    final selected = LigaOnePieceService.selectBestRemoteRow(
+      [
+        {
+          'card_code': 'OP12-028',
+          'card_name': 'Kouzuki Hiyori',
+          'edition_code': 'OP-12',
+          'minimum_price': 0.25,
+        },
+        {
+          'card_code': 'OP12-028-WP',
+          'card_name': winnerPackName,
+          'edition_code': 'PC-01',
+          'image_url': 'https://liga.example/op12-028-wp.jpg',
+          'minimum_price': 28.49,
+        },
+      ],
+      cardName: winnerPackName,
+      lookupCode: 'OP12-028-WP',
+      imageUrl: '',
+    );
+
+    expect(selected?['card_code'], 'OP12-028-WP');
+    expect(selected?['minimum_price'], 28.49);
+  });
+
   test('consulta todos os sufixos históricos de arte alternativa', () {
     expect(
       inferLigaLookupCodes(

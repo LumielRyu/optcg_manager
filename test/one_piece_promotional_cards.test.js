@@ -48,6 +48,39 @@ test('adds Liga promotional variants and reuses base card metadata', () => {
   });
 });
 
+test('replaces an incomplete upstream promo with the canonical Liga variant', () => {
+  const cards = [
+    {
+      card_set_id: 'OP12-028',
+      card_name: 'Kouzuki Hiyori',
+      card_image: 'https://api.example/op12-028.jpg',
+      card_color: 'Green',
+      card_type: 'Character',
+      rarity: 'R',
+    },
+    {
+      card_set_id: 'OP12-028',
+      card_name: 'Kouzuki Hiyori (Winner Pack 2026 Vol. 1)',
+      card_image: '',
+      set_name: 'One Piece Promotion Cards',
+    },
+  ];
+
+  const merged = mergePromotionalCards(cards, [
+    {
+      card_code: 'OP12-028-WP',
+      card_name: 'Kouzuki Hiyori (Winner Pack 2026 Vol. 1)',
+      image_url: 'https://repo.example/op12-028-wp.jpg',
+    },
+  ]);
+
+  assert.equal(merged.length, 2);
+  assert.equal(merged[1].card_set_id, 'OP12-028-WP');
+  assert.equal(merged[1].card_image, 'https://repo.example/op12-028-wp.jpg');
+  assert.equal(merged[1].card_color, 'Green');
+  assert.equal(merged[1].card_type, 'Character');
+});
+
 test('reads every Supabase page from the promotional edition', async () => {
   const requests = [];
   const rows = await fetchPromotionalCards({

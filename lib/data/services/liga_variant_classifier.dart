@@ -4,6 +4,7 @@ enum LigaVariantKind {
   manga,
   treasureCup,
   treasureRare,
+  winnerPack,
   winner,
   finalist,
   participant,
@@ -54,6 +55,8 @@ LigaVariantDescriptor classifyLigaVariant({
     kind = LigaVariantKind.treasureCup;
   } else if (name.contains('treasure rare') || suffix == 'TR') {
     kind = LigaVariantKind.treasureRare;
+  } else if (name.contains('winner pack') || suffix == 'WP') {
+    kind = LigaVariantKind.winnerPack;
   } else if (name.contains('winner') || suffix == 'RW') {
     kind = LigaVariantKind.winner;
   } else if (name.contains('finalist')) {
@@ -118,6 +121,7 @@ String inferPrimaryLigaVariantCode({
     LigaVariantKind.manga => 'MA',
     LigaVariantKind.treasureCup => 'TC',
     LigaVariantKind.treasureRare => 'TR',
+    LigaVariantKind.winnerPack => 'WP',
     LigaVariantKind.winner => 'RW',
     LigaVariantKind.participant => 'OP',
     LigaVariantKind.preRelease => 'PR',
@@ -204,7 +208,7 @@ bool ligaVariantMatchesEditionHint(
 String baseLigaCardCode(String cardCode) {
   final normalized = cardCode.trim().toUpperCase().split('@').first;
   return normalized.replaceFirst(
-    RegExp(r'-(?:\d+A|AA|DP|FA|G|MA|OP|PA|PAR|PR|RE|RW|SP|TC|TR|E|A|P)$'),
+    RegExp(r'-(?:\d+A|AA|DP|FA|G|MA|OP|PA|PAR|PR|RE|RW|SP|TC|TR|WP|E|A|P)$'),
     '',
   );
 }
@@ -212,7 +216,7 @@ String baseLigaCardCode(String cardCode) {
 String ligaVariantSuffix(String cardCode) {
   final normalized = cardCode.trim().toUpperCase().split('@').first;
   final match = RegExp(
-    r'-(\d+A|AA|DP|FA|G|MA|OP|PA|PAR|PR|RE|RW|SP|TC|TR|E|A|P)$',
+    r'-(\d+A|AA|DP|FA|G|MA|OP|PA|PAR|PR|RE|RW|SP|TC|TR|WP|E|A|P)$',
   ).firstMatch(normalized);
   return match?.group(1) ?? '';
 }
@@ -228,6 +232,7 @@ String ligaVariantKindLabel(LigaVariantKind kind) {
     LigaVariantKind.manga => 'Manga',
     LigaVariantKind.treasureCup => 'Treasure Cup',
     LigaVariantKind.treasureRare => 'Treasure Rare',
+    LigaVariantKind.winnerPack => 'Winner Pack',
     LigaVariantKind.winner => 'Winner',
     LigaVariantKind.finalist => 'Finalist',
     LigaVariantKind.participant => 'Participante',

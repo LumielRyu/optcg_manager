@@ -2155,3 +2155,20 @@ git diff --stat
   como nao verificada em vez de reutilizar silenciosamente o preco comum.
 - Testes cobrem a inferencia do codigo, a selecao entre os dois registros reais
   do Kuma e a proibicao de fallback de qualquer variante estrita para a base.
+
+### 10/08/2026 - Imagem e preco corretos para Winner Pack
+
+- `Kouzuki Hiyori (Winner Pack 2026 Vol. 1)` chegava da API promocional com o
+  codigo base `OP12-028` e sem URL de imagem. A tela reutilizava a arte comum e
+  procurava o sufixo generico de vencedor `-RW`.
+- A Liga ja mantinha a impressao correta como `OP12-028-WP`, com imagem propria
+  e menor preco de R$ 28,49. `Winner Pack` agora e uma variante estrita separada
+  e usa o sufixo `-WP`; vencedores de Release Event continuam usando `-RW`.
+- Ao mesclar o catalogo promocional, a versao canonica da Liga substitui o
+  registro incompleto da API quando codigo-base e nome identificam a mesma
+  impressao, evitando duas entradas concorrentes para a mesma carta.
+- A colecao, os decks e as vitrines agora recuperam a impressao por codigo,
+  nome e set. Registros antigos salvos com o codigo ou a imagem base passam a
+  exibir automaticamente a arte canonica da variante sem precisar ser refeitos.
+- O cache web do catalogo foi versionado como `v8`. Testes cobrem a fusao da
+  imagem Winner, a inferencia `OP12-028-WP` e a selecao do preco especifico.

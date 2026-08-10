@@ -28,7 +28,7 @@ class OpApiService {
       'https://www.optcgapi.com/api/allSTCards/?format=json';
   static const String _promosUrl =
       'https://www.optcgapi.com/api/allPromos/?format=json';
-  static const String _webProxyUrl = '/api/optcg-cards?catalog=v7';
+  static const String _webProxyUrl = '/api/optcg-cards?catalog=v8';
   static const String _assetCachePath = 'assets/one_piece_cards_cache.json';
   static const String _cachedCardsKey = 'all_cards_v6';
   static const String _cachedAtKey = 'all_cards_v6_cached_at';
@@ -277,10 +277,7 @@ class OpApiService {
     return scored.take(limit).map((entry) => entry.card).toList();
   }
 
-  Future<List<OpCard>> searchLibraryCards(
-    String query, {
-    int? limit,
-  }) async {
+  Future<List<OpCard>> searchLibraryCards(String query, {int? limit}) async {
     await preload();
 
     final normalizedQuery = _normalizeText(query);

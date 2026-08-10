@@ -53,6 +53,24 @@ function mergePromotionalCards(cards, promotionalRows) {
   for (const row of promotionalRows ?? []) {
     const promotionalCard = toPromotionalCard(row, cardsByCode);
     if (!promotionalCard.card_set_id || !promotionalCard.card_image) continue;
+
+    const existingVariantIndex = merged.findIndex(
+      (card) =>
+        baseCardCode(card?.card_set_id) ===
+          baseCardCode(promotionalCard.card_set_id) &&
+        normalizeText(card?.card_name) ===
+          normalizeText(promotionalCard.card_name),
+    );
+    if (existingVariantIndex >= 0) {
+      const canonicalCard = {
+        ...merged[existingVariantIndex],
+        ...promotionalCard,
+      };
+      merged[existingVariantIndex] = canonicalCard;
+      cardsByCode.set(promotionalCard.card_set_id, canonicalCard);
+      continue;
+    }
+
     const fingerprint =
       `${promotionalCard.card_set_id}|${normalizeText(
         promotionalCard.card_name,
