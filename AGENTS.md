@@ -2115,3 +2115,16 @@ git diff --stat
   a ser normalizados e indexados sem perder sua identidade.
 - Testes cobrem as seis impressoes de `OP09-119`, a consulta especifica de
   `OP09-119-3A` e formatos com e sem hifen.
+
+### 10/08/2026 - Edicao visivel nas cartas da Biblioteca One Piece
+
+- Cartas com a mesma arte podem ser impressoes legitimas de edicoes diferentes,
+  como `EB01-006` e `EB01-006-MA`, e devem continuar separadas porque possuem
+  codigo, origem e preco proprios.
+- A grade da Biblioteca agora exibe `Edicao: <nome da edicao>` diretamente em
+  cada carta, sem exigir que o usuario abra os detalhes para identificar a
+  impressao correta.
+- Os cards ficaram ligeiramente mais altos e mostram tres informacoes fixas:
+  edicao, categoria e cor, alem do codigo, nome e preco que ja eram exibidos.
+- Um teste estrutural garante que a identificacao da edicao continue presente
+  nos resultados da Biblioteca.

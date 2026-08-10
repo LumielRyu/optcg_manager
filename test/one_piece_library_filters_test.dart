@@ -35,4 +35,13 @@ void main() {
     expect(source, contains("label: const Text('Ver resultados')"));
     expect(source, contains('Nenhum filtro adicional ativo'));
   });
+
+  test(
+    'library cards identify the printing edition without opening details',
+    () {
+      expect(source, contains("'Edição: \${card.setName}'"));
+      expect(source, contains("'Edição não informada'"));
+      expect(source, contains('maxMetadataItems: 3'));
+    },
+  );
 }

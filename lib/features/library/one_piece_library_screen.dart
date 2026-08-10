@@ -510,8 +510,10 @@ class _OnePieceLibraryScreenState extends ConsumerState<OnePieceLibraryScreen> {
                                   code: card.code,
                                   title: card.name,
                                   metadata: [
+                                    card.setName.isEmpty
+                                        ? 'Edição não informada'
+                                        : 'Edição: ${card.setName}',
                                     card.type.isEmpty ? '-' : card.type,
-                                    card.subTypes.isEmpty ? '-' : card.subTypes,
                                     card.color.isEmpty
                                         ? '-'
                                         : card.localizedColor,
@@ -1100,8 +1102,8 @@ class _OnePieceLibraryScreenState extends ConsumerState<OnePieceLibraryScreen> {
       return const _LibraryGridLayout(
         columns: 0,
         maxCrossAxisExtent: 220,
-        childAspectRatio: 0.53,
-        maxMetadataItems: 2,
+        childAspectRatio: 0.50,
+        maxMetadataItems: 3,
         textScale: 1,
         usesFixedColumns: false,
       );
@@ -1110,8 +1112,8 @@ class _OnePieceLibraryScreenState extends ConsumerState<OnePieceLibraryScreen> {
     return _LibraryGridLayout(
       columns: _largeGridColumns(width),
       maxCrossAxisExtent: 0,
-      childAspectRatio: 0.60,
-      maxMetadataItems: 2,
+      childAspectRatio: 0.56,
+      maxMetadataItems: 3,
       textScale: 1.16,
       usesFixedColumns: true,
     );
