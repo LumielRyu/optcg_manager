@@ -795,6 +795,12 @@ class LigaOnePieceService {
   Future<Map<String, String>> _loadConfirmedMappings(
     Iterable<String> referenceKeys,
   ) async {
+    // A auditoria de variantes contem dados internos e, por politica RLS, so
+    // pode ser lida por usuarios autenticados. Visitantes continuam usando a
+    // resolucao publica por codigo/variante sem disparar requisicoes 401.
+    if (_supabase.auth.currentUser == null) {
+      return const <String, String>{};
+    }
     final keys = referenceKeys
         .map((key) => key.trim())
         .where((key) => key.isNotEmpty)

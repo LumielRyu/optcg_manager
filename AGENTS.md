@@ -2194,3 +2194,7 @@ git diff --stat
   duracao da operacao e usa cache HTTP de 5 minutos no navegador e 15 minutos
   no CDN, com revalidacao em segundo plano. O cliente nao envia mais `no-cache`
   ao proxy web em todo F5.
+- Visitantes nao consultam mais `liga_card_variant_mappings`, protegida para
+  usuarios autenticados. Isso remove respostas 401 e trabalho inutil durante o
+  carregamento publico da Biblioteca; a resolucao publica por variante continua
+  funcionando normalmente.
