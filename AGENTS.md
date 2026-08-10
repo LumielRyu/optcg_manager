@@ -2242,3 +2242,17 @@ git diff --stat
 - O auditor automatico passou a reconhecer `-WP` e a distinguir Welcome Pack,
   Winner Pack e Winner de evento. Testes cobrem o preco correto e bloqueiam o
   fallback para a carta normal.
+
+### 10/08/2026 - Carregamento inicial da vitrine publica
+
+- A primeira visita a uma vitrine aguardava `/api/optcg-cards` antes de buscar
+  os anuncios. Em medicao de producao, esse catalogo completo levou 10,15 s e
+  transferiu 4,73 MB, enquanto o HTML respondeu em 0,08 s.
+- Os anuncios ja persistem nome, imagem, set e demais metadados necessarios.
+  A vitrine agora consulta apenas os anuncios publicos e o perfil do vendedor,
+  executando essas duas operacoes em paralelo.
+- O catalogo completo e a atualizacao de precos dinamicos do proprietario foram
+  removidos do caminho critico da pagina publica. Imagens antigas sem URL ainda
+  podem usar a resolucao tardia, sem impedir que a vitrine apareca.
+- Um teste de regressao garante que `getPublicListingsByUser` nao volte a chamar
+  o carregamento geral de catalogo.

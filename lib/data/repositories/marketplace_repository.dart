@@ -50,12 +50,22 @@ class MarketplaceRepository {
     return _fetchListings(userId: user.id, onlyPublic: false);
   }
 
-  Future<List<MarketplaceListing>> getPublicListingsByUser(String userId) {
-    return _fetchListings(
+  Future<List<MarketplaceListing>> getPublicListingsByUser(
+    String userId,
+  ) async {
+    final rowsFuture = _selectListingRows(
+      selectColumns: '$_listingColumns, $_dynamicPricingColumns',
       userId: userId,
       onlyPublic: true,
-      includeContactInfo: true,
     );
+    final sellerFuture = _warmUpSellerNames({userId});
+    final rows = await rowsFuture;
+    await sellerFuture;
+
+    // Public store rows already persist the card name, image and metadata. Do
+    // not block the first paint on the multi-megabyte One Piece catalog or on
+    // owner-only dynamic price refreshes.
+    return rows.map(_mapRowToListing).toList(growable: false);
   }
 
   Future<List<MarketplaceListing>> getGlobalPublicListings() {

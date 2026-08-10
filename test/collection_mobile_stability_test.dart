@@ -164,4 +164,27 @@ void main() {
     expect(source, contains("label: const Text('Ir para o TCG BH')"));
     expect(source, contains("tooltip: 'Ir para o TCG BH'"));
   });
+
+  test('public store does not wait for the complete card catalog', () {
+    final source = File(
+      'lib/data/repositories/marketplace_repository.dart',
+    ).readAsStringSync();
+    final methodStart = source.indexOf(
+      'Future<List<MarketplaceListing>> getPublicListingsByUser(',
+    );
+    final methodEnd = source.indexOf(
+      'Future<List<MarketplaceListing>> getGlobalPublicListings()',
+      methodStart,
+    );
+    final method = source.substring(methodStart, methodEnd);
+
+    expect(method, contains('_selectListingRows('));
+    expect(method, contains('_warmUpSellerNames({userId})'));
+    expect(method, contains('final rowsFuture ='));
+    expect(method, contains('final sellerFuture ='));
+    expect(method, contains('final rows = await rowsFuture;'));
+    expect(method, contains('await sellerFuture;'));
+    expect(method, isNot(contains('_fetchListings(')));
+    expect(method, isNot(contains('_opApi.preload()')));
+  });
 }
