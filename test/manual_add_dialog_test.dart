@@ -20,7 +20,7 @@ void main() {
         image: '',
         setName: 'Romance Dawn',
         rarity: 'R',
-        color: 'Blue',
+        color: index.isEven ? 'Blue' : 'Red',
         type: 'Character',
         subTypes: 'Straw Hat Crew',
         text: '',
@@ -62,6 +62,15 @@ void main() {
       find.textContaining('Use a roda do mouse ou arraste para baixo'),
       findsOneWidget,
     );
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('Todas as cores'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Azul').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Exibindo 30 de 60 cartas.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
 
     await tester.tap(find.text('Nami versão 1'));
     await tester.pump();

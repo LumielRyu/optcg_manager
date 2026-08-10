@@ -37,6 +37,16 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
     'Red',
     'Yellow',
   ];
+  static const Map<String, String> _lookupColorLabels = <String, String>{
+    '': 'Todas as cores',
+    'red': 'Vermelho',
+    'green': 'Verde',
+    'blue': 'Azul',
+    'purple': 'Roxo',
+    'black': 'Preto',
+    'yellow': 'Amarelo',
+    'multicolor': 'Multicolor',
+  };
 
   final _codeController = TextEditingController();
   final _quantityController = TextEditingController(text: '1');
@@ -54,6 +64,7 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
   String? _error;
   String? _lookupMessage;
   String _lookupQuery = '';
+  String _lookupColorCode = '';
   List<OpCard> _lookupVariants = const [];
   OpCard? _selectedCard;
   Timer? _lookupDebounce;
@@ -438,6 +449,12 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
     return parts.join(' • ');
   }
 
+  bool _matchesLookupColor(OpCard card) {
+    if (_lookupColorCode.isEmpty) return true;
+    if (_lookupColorCode == 'multicolor') return card.isMulticolor;
+    return card.colorCodes.contains(_lookupColorCode);
+  }
+
   String _generateId() {
     final random = Random();
     return DateTime.now().millisecondsSinceEpoch.toString() +
@@ -452,6 +469,9 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
       760.0,
       max(300.0, screenSize.height * 0.72),
     );
+    final visibleLookupVariants = _lookupVariants
+        .where(_matchesLookupColor)
+        .toList(growable: false);
 
     return AlertDialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
@@ -487,7 +507,63 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
             ],
             if (_lookupVariants.isNotEmpty) ...[
               const SizedBox(height: 12),
-              LayoutBuilder(
+              Align(
+                alignment: Alignment.centerLeft,
+                child: SizedBox(
+                  width: 260,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _lookupColorCode,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Cor da carta',
+                      prefixIcon: Icon(Icons.palette_outlined),
+                    ),
+                    items: _lookupColorLabels.entries
+                        .map(
+                          (entry) => DropdownMenuItem<String>(
+                            value: entry.key,
+                            child: Text(entry.value),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: (value) {
+                      setState(() {
+                        _lookupColorCode = value ?? '';
+                        if (_selectedCard != null &&
+                            !_matchesLookupColor(_selectedCard!)) {
+                          _selectedCard = null;
+                        }
+                      });
+                    },
+                  ),
+                ),
+              ),
+              if (_lookupColorCode.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Exibindo ${visibleLookupVariants.length} de ${_lookupVariants.length} cartas.',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 10),
+              if (visibleLookupVariants.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'Nenhuma carta encontrada com esta cor. Escolha outra cor ou volte para Todas as cores.',
+                    textAlign: TextAlign.center,
+                  ),
+                )
+              else
+                LayoutBuilder(
                 builder: (context, constraints) {
                   final availableWidth = constraints.maxWidth;
                   final columns = availableWidth >= 800
@@ -502,7 +578,7 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
                   final cardWidth =
                       (availableWidth - (columns - 1) * spacing) / columns;
                   final cardHeight = cardWidth / aspectRatio;
-                  final rows = (_lookupVariants.length / columns).ceil();
+                  final rows = (visibleLookupVariants.length / columns).ceil();
                   final resultsHeight = min(
                     460.0,
                     rows * cardHeight + max(0, rows - 1) * spacing,
@@ -534,7 +610,7 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
                             controller: _resultsScrollController,
                             primary: false,
                             padding: const EdgeInsets.only(right: 10),
-                            itemCount: _lookupVariants.length,
+                            itemCount: visibleLookupVariants.length,
                             gridDelegate:
                                 SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: columns,
@@ -543,7 +619,7 @@ class _ManualAddDialogState extends ConsumerState<ManualAddDialog> {
                                   childAspectRatio: aspectRatio,
                                 ),
                             itemBuilder: (context, index) {
-                              final card = _lookupVariants[index];
+                              final card = visibleLookupVariants[index];
                               final selected = identical(card, _selectedCard);
                               final colors = Theme.of(context).colorScheme;
 

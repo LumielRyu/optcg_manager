@@ -2088,3 +2088,14 @@ git diff --stat
   cria visualmente apenas as cartas necessarias para a area exibida.
 - O teste do dialogo passou a simular 60 cartas e confirma que nenhum limite e
   enviado ao servico e que a contagem completa aparece para o usuario.
+
+### 10/08/2026 - Filtro de cor na importacao pela biblioteca
+
+- O dialogo de busca ganhou o campo `Cor da carta`, com todas as
+  seis cores oficiais, a opcao `Multicolor` e o retorno para `Todas as cores`.
+- Ao filtrar uma cor individual, cartas multicoloridas que possuem aquela cor
+  tambem permanecem nos resultados; `Multicolor` mostra apenas combinacoes.
+- A interface informa quantas cartas estao sendo exibidas em relacao ao total e
+  apresenta uma orientacao clara quando nenhuma carta corresponde a cor.
+- Se uma carta selecionada deixar de pertencer ao filtro escolhido, a selecao e
+  limpa para impedir que uma arte oculta seja adicionada por engano.
