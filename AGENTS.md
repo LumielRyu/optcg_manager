@@ -2295,3 +2295,18 @@ git diff --stat
   fontes, mas nao substitui mais uma impressao exata da Liga.
 - Testes cobrem a preservacao da Full Art da Liga e a correcao de imagens antigas
   que nao vieram desse repositorio.
+
+### 11/08/2026 - Estabilidade e memoria nas paginas de cartas
+
+- O marketplace global carregava o catalogo completo de mais de 7 mil cartas
+  antes de montar poucos anuncios. Marketplace e `Cartas a venda` agora usam os
+  dados persistidos do anuncio e nao bloqueiam a primeira tela nesse catalogo.
+- No celular, a grade global deixou de usar `GridView` com `shrinkWrap` dentro de
+  outra rolagem. Ela passou a ser um `SliverGrid` virtualizado, sem manter cards
+  fora da tela vivos e com carregamento progressivo ao se aproximar do fim.
+- Miniaturas do marketplace agora limitam a largura decodificada e evitam criar
+  uma visualizacao HTML separada para cada carta. Respostas de preco da Liga sao
+  agrupadas por 120 ms, reduzindo varias reconstrucoes completas em sequencia.
+- O aplicativo limpa imagens decodificadas quando o navegador informa pressao de
+  memoria. Uma auditoria automatizada garante que bibliotecas, colecoes, vendas,
+  procurados, vitrines e marketplaces principais continuem usando grades lazy.

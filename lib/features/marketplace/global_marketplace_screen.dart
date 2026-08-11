@@ -49,6 +49,7 @@ class _GlobalMarketplaceScreenState
   final Map<String, int> _cartQuantities = {};
   final Map<String, String?> _ligaPriceLabels = {};
   final Set<String> _ligaPriceLoadingCodes = {};
+  Timer? _ligaPriceRefreshTimer;
   final Set<String> _reservingSellerIds = {};
   List<MarketplaceListing> _loadedPublicItems = const [];
   late Future<List<MarketplaceListing>> _publicListingsFuture;
@@ -81,6 +82,7 @@ class _GlobalMarketplaceScreenState
 
   @override
   void dispose() {
+    _ligaPriceRefreshTimer?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -150,17 +152,22 @@ class _GlobalMarketplaceScreenState
           : 'Liga: ${_formatMarketplaceCurrency(price)}';
 
       if (!mounted) return;
-      setState(() {
-        _ligaPriceLabels[lookupCode] = label;
-      });
+      _queueLigaPriceLabel(lookupCode, label);
     } catch (_) {
       if (!mounted) return;
-      setState(() {
-        _ligaPriceLabels[lookupCode] = null;
-      });
+      _queueLigaPriceLabel(lookupCode, null);
     } finally {
       _ligaPriceLoadingCodes.remove(lookupCode);
     }
+  }
+
+  void _queueLigaPriceLabel(String lookupCode, String? label) {
+    _ligaPriceLabels[lookupCode] = label;
+    if (_ligaPriceRefreshTimer?.isActive ?? false) return;
+    _ligaPriceRefreshTimer = Timer(const Duration(milliseconds: 120), () {
+      _ligaPriceRefreshTimer = null;
+      if (mounted) setState(() {});
+    });
   }
 
   static String _formatMarketplaceCurrency(double value) {
@@ -1032,65 +1039,157 @@ class _GlobalMarketplaceScreenState
             return const _GlobalMarketplaceLoadMoreCard();
           }
 
-          final item = visibleItems[index];
-          final ligaPriceLabel = _ligaPriceLabelFor(item);
+          return _buildMarketplaceCard(visibleItems[index]);
+        },
+      ),
+    );
+  }
 
-          return CatalogGridCard(
-            key: ValueKey(
-              'global-market-${item.id}-${item.cardCode}-${item.imageUrl}',
-            ),
-            code: item.cardCode,
-            title: item.name,
-            metadata: [
-              if (item.hasSellerName) 'Vendedor: ${item.sellerName}',
-              'Oferta: ${item.formattedPrice}',
-              '${item.statusLabel} - ${item.conditionLabel}',
-              'Quantidade: ${item.quantity}x',
+  Widget _buildMarketplaceCard(MarketplaceListing item) {
+    final ligaPriceLabel = _ligaPriceLabelFor(item);
+
+    return CatalogGridCard(
+      key: ValueKey(
+        'global-market-${item.id}-${item.cardCode}-${item.imageUrl}',
+      ),
+      code: item.cardCode,
+      title: item.name,
+      metadata: [
+        if (item.hasSellerName) 'Vendedor: ${item.sellerName}',
+        'Oferta: ${item.formattedPrice}',
+        '${item.statusLabel} - ${item.conditionLabel}',
+        'Quantidade: ${item.quantity}x',
+      ],
+      footer: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _GlobalMarketplaceLigaPriceBadge(label: ligaPriceLabel),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              SizedBox(
+                width: 52,
+                child: Tooltip(
+                  message: 'Abrir WhatsApp',
+                  child: FilledButton(
+                    onPressed: item.hasWhatsAppContact
+                        ? () => _openWhatsApp(item)
+                        : null,
+                    style: FilledButton.styleFrom(padding: EdgeInsets.zero),
+                    child: const Icon(Icons.open_in_new, size: 18),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: item.ownerUserId.trim().isEmpty
+                      ? null
+                      : () => _openSellerStore(item),
+                  icon: const Icon(Icons.storefront_outlined, size: 16),
+                  label: const Text('Vitrine'),
+                ),
+              ),
             ],
-            footer: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _GlobalMarketplaceLigaPriceBadge(label: ligaPriceLabel),
-                const SizedBox(height: 6),
-                Row(
+          ),
+        ],
+      ),
+      image: _GlobalMarketplaceCardImage(
+        key: ValueKey('global-market-image-${item.id}-${item.imageUrl}'),
+        imageUrl: item.imageUrl,
+        cardCode: item.cardCode,
+      ),
+      onTap: () => _openItemDetails(item, ligaPriceLabel),
+    );
+  }
+
+  Widget _buildMobileEditorialMarketplace({
+    required List<MarketplaceListing> filteredItems,
+    required List<MarketplaceListing> visibleItems,
+    required int totalListings,
+    required int totalCards,
+    required int totalWithPrice,
+  }) {
+    return AppPageShell(
+      maxWidth: 1480,
+      padding: EdgeInsets.zero,
+      scrollable: false,
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (notification) {
+          if (notification.metrics.axis == Axis.vertical &&
+              notification.metrics.pixels >=
+                  notification.metrics.maxScrollExtent - 480) {
+            _loadMoreIfNeeded(filteredItems.length);
+          }
+          return false;
+        },
+        child: CustomScrollView(
+          cacheExtent: 420,
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(14, 16, 14, 0),
+              sliver: SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    SizedBox(
-                      width: 52,
-                      child: Tooltip(
-                        message: 'Abrir WhatsApp',
-                        child: FilledButton(
-                          onPressed: item.hasWhatsAppContact
-                              ? () => _openWhatsApp(item)
-                              : null,
-                          style: FilledButton.styleFrom(
-                            padding: EdgeInsets.zero,
-                          ),
-                          child: const Icon(Icons.open_in_new, size: 18),
-                        ),
-                      ),
+                    _MarketplaceEditorialHero(
+                      featuredItems: filteredItems,
+                      ligaLabelFor: _ligaPriceLabelFor,
+                      totalListings: totalListings,
+                      totalCards: totalCards,
+                      totalWithPrice: totalWithPrice,
+                      onOpenFeatured: _openItemDetails,
+                      onOpenFilters: _showFiltersSheet,
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: item.ownerUserId.trim().isEmpty
-                            ? null
-                            : () => _openSellerStore(item),
-                        icon: const Icon(Icons.storefront_outlined, size: 16),
-                        label: const Text('Vitrine'),
+                    if (filteredItems.isNotEmpty) ...[
+                      const SizedBox(height: 18),
+                      _MarketplaceSpotlightRail(
+                        items: filteredItems,
+                        ligaLabelFor: _ligaPriceLabelFor,
+                        onOpen: _openItemDetails,
                       ),
-                    ),
+                    ],
+                    const SizedBox(height: 18),
                   ],
                 ),
-              ],
+              ),
             ),
-            image: _GlobalMarketplaceCardImage(
-              key: ValueKey('global-market-image-${item.id}-${item.imageUrl}'),
-              imageUrl: item.imageUrl,
-              cardCode: item.cardCode,
+            if (filteredItems.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: _GlobalMarketplaceEmptyState(),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                sliver: SliverGrid(
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: _cardMaxWidth,
+                    crossAxisSpacing: _cardSpacing,
+                    mainAxisSpacing: _cardSpacing,
+                    childAspectRatio: _gridAspectRatio,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) =>
+                        _buildMarketplaceCard(visibleItems[index]),
+                    childCount: visibleItems.length,
+                    addAutomaticKeepAlives: false,
+                    addRepaintBoundaries: false,
+                  ),
+                ),
+              ),
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: visibleItems.length < filteredItems.length ? 96 : 110,
+                child: visibleItems.length < filteredItems.length
+                    ? const Center(
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : null,
+              ),
             ),
-            onTap: () => _openItemDetails(item, ligaPriceLabel),
-          );
-        },
+          ],
+        ),
       ),
     );
   }
@@ -1104,6 +1203,16 @@ class _GlobalMarketplaceScreenState
   }) {
     final width = MediaQuery.sizeOf(context).width;
     final wide = width >= 1040;
+
+    if (!wide) {
+      return _buildMobileEditorialMarketplace(
+        filteredItems: filteredItems,
+        visibleItems: visibleItems,
+        totalListings: totalListings,
+        totalCards: totalCards,
+        totalWithPrice: totalWithPrice,
+      );
+    }
 
     return AppPageShell(
       maxWidth: 1480,
@@ -1129,77 +1238,69 @@ class _GlobalMarketplaceScreenState
             ),
             const SizedBox(height: 18),
           ],
-          if (wide)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: filteredItems.isEmpty
-                      ? const _GlobalMarketplaceEmptyState()
-                      : _buildMarketplaceGrid(
-                          visibleItems,
-                          filteredItems.length,
-                        ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: filteredItems.isEmpty
+                    ? const _GlobalMarketplaceEmptyState()
+                    : _buildMarketplaceGrid(visibleItems, filteredItems.length),
+              ),
+              const SizedBox(width: 18),
+              SizedBox(
+                width: 290,
+                child: _MarketplaceEditorialFilters(
+                  searchController: _searchController,
+                  showOnlyPriced: _showOnlyPriced,
+                  showOnlyActive: _showOnlyActive,
+                  selectedColor: _selectedColor,
+                  selectedType: _selectedType,
+                  selectedRarity: _selectedRarity,
+                  selectedSort: _selectedSort,
+                  colorOptions: _cachedColorOptions,
+                  typeOptions: _cachedTypeOptions,
+                  rarityOptions: _cachedRarityOptions,
+                  onToggleOnlyPriced: () {
+                    setState(() {
+                      _showOnlyPriced = !_showOnlyPriced;
+                      _visibleCount = _pageSize;
+                    });
+                  },
+                  onToggleOnlyActive: () {
+                    setState(() {
+                      _showOnlyActive = !_showOnlyActive;
+                      _visibleCount = _pageSize;
+                    });
+                  },
+                  onColorChanged: (value) {
+                    setState(() {
+                      _selectedColor = value;
+                      _visibleCount = _pageSize;
+                    });
+                  },
+                  onTypeChanged: (value) {
+                    setState(() {
+                      _selectedType = value;
+                      _visibleCount = _pageSize;
+                    });
+                  },
+                  onRarityChanged: (value) {
+                    setState(() {
+                      _selectedRarity = value;
+                      _visibleCount = _pageSize;
+                    });
+                  },
+                  onSortChanged: (value) {
+                    setState(() {
+                      _selectedSort = value;
+                      _visibleCount = _pageSize;
+                    });
+                  },
+                  onReset: _resetFilters,
                 ),
-                const SizedBox(width: 18),
-                SizedBox(
-                  width: 290,
-                  child: _MarketplaceEditorialFilters(
-                    searchController: _searchController,
-                    showOnlyPriced: _showOnlyPriced,
-                    showOnlyActive: _showOnlyActive,
-                    selectedColor: _selectedColor,
-                    selectedType: _selectedType,
-                    selectedRarity: _selectedRarity,
-                    selectedSort: _selectedSort,
-                    colorOptions: _cachedColorOptions,
-                    typeOptions: _cachedTypeOptions,
-                    rarityOptions: _cachedRarityOptions,
-                    onToggleOnlyPriced: () {
-                      setState(() {
-                        _showOnlyPriced = !_showOnlyPriced;
-                        _visibleCount = _pageSize;
-                      });
-                    },
-                    onToggleOnlyActive: () {
-                      setState(() {
-                        _showOnlyActive = !_showOnlyActive;
-                        _visibleCount = _pageSize;
-                      });
-                    },
-                    onColorChanged: (value) {
-                      setState(() {
-                        _selectedColor = value;
-                        _visibleCount = _pageSize;
-                      });
-                    },
-                    onTypeChanged: (value) {
-                      setState(() {
-                        _selectedType = value;
-                        _visibleCount = _pageSize;
-                      });
-                    },
-                    onRarityChanged: (value) {
-                      setState(() {
-                        _selectedRarity = value;
-                        _visibleCount = _pageSize;
-                      });
-                    },
-                    onSortChanged: (value) {
-                      setState(() {
-                        _selectedSort = value;
-                        _visibleCount = _pageSize;
-                      });
-                    },
-                    onReset: _resetFilters,
-                  ),
-                ),
-              ],
-            )
-          else
-            filteredItems.isEmpty
-                ? const _GlobalMarketplaceEmptyState()
-                : _buildMarketplaceGrid(visibleItems, filteredItems.length),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -2483,7 +2584,8 @@ class _GlobalMarketplaceCardImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (imageUrl.trim().isEmpty) {
+    final directUrl = imageUrl.trim();
+    if (directUrl.isEmpty) {
       return const Center(
         child: Icon(
           Icons.image_not_supported_outlined,
@@ -2493,10 +2595,25 @@ class _GlobalMarketplaceCardImage extends StatelessWidget {
       );
     }
 
+    final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+    final logicalWidth = MediaQuery.sizeOf(context).width < 600 ? 190.0 : 360.0;
+    final decodeWidth = (logicalWidth * devicePixelRatio).round().clamp(
+      220,
+      900,
+    );
+
     return Image.network(
-      imageUrl,
+      directUrl,
+      key: ValueKey('marketplace-thumbnail-$cardCode-$directUrl'),
       fit: BoxFit.contain,
-      webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+      cacheWidth: decodeWidth,
+      gaplessPlayback: false,
+      filterQuality: FilterQuality.low,
+      webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+        return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      },
       errorBuilder: (_, _, _) {
         return Center(
           child: Column(

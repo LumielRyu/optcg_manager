@@ -12,6 +12,7 @@ const _supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  WidgetsBinding.instance.addObserver(_AppMemoryPressureObserver());
 
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
@@ -44,4 +45,13 @@ Future<void> main() async {
   await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
 
   runApp(const ProviderScope(child: OptcgManagerApp()));
+}
+
+class _AppMemoryPressureObserver extends WidgetsBindingObserver {
+  @override
+  void didHaveMemoryPressure() {
+    final imageCache = PaintingBinding.instance.imageCache;
+    imageCache.clear();
+    imageCache.clearLiveImages();
+  }
 }

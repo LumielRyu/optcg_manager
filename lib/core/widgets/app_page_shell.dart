@@ -13,12 +13,14 @@ class AppPageShell extends StatelessWidget {
   final Widget child;
   final double maxWidth;
   final EdgeInsetsGeometry? padding;
+  final bool scrollable;
 
   const AppPageShell({
     super.key,
     required this.child,
     this.maxWidth = 1280,
     this.padding,
+    this.scrollable = true,
   });
 
   @override
@@ -28,6 +30,35 @@ class AppPageShell extends StatelessWidget {
     final reduceMotion =
         MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     final dark = theme.colorScheme.brightness == Brightness.dark;
+
+    final effectivePadding =
+        padding ??
+        EdgeInsets.symmetric(
+          horizontal: compact ? 14 : 28,
+          vertical: compact ? 16 : 30,
+        );
+    final content = Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: reduceMotion ? 1 : 0, end: 1),
+          duration: reduceMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 420),
+          curve: Curves.easeOutCubic,
+          builder: (context, value, animatedChild) {
+            return Opacity(
+              opacity: value,
+              child: Transform.translate(
+                offset: Offset(0, 18 * (1 - value)),
+                child: animatedChild,
+              ),
+            );
+          },
+          child: child,
+        ),
+      ),
+    );
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -55,36 +86,10 @@ class AppPageShell extends StatelessWidget {
           Positioned.fill(
             child: CustomPaint(painter: _ShellDepthPainter(dark)),
           ),
-          SingleChildScrollView(
-            padding:
-                padding ??
-                EdgeInsets.symmetric(
-                  horizontal: compact ? 14 : 28,
-                  vertical: compact ? 16 : 30,
-                ),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: maxWidth),
-                child: TweenAnimationBuilder<double>(
-                  tween: Tween(begin: reduceMotion ? 1 : 0, end: 1),
-                  duration: reduceMotion
-                      ? Duration.zero
-                      : const Duration(milliseconds: 420),
-                  curve: Curves.easeOutCubic,
-                  builder: (context, value, animatedChild) {
-                    return Opacity(
-                      opacity: value,
-                      child: Transform.translate(
-                        offset: Offset(0, 18 * (1 - value)),
-                        child: animatedChild,
-                      ),
-                    );
-                  },
-                  child: child,
-                ),
-              ),
-            ),
-          ),
+          if (scrollable)
+            SingleChildScrollView(padding: effectivePadding, child: content)
+          else
+            Padding(padding: effectivePadding, child: content),
         ],
       ),
     );

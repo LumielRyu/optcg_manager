@@ -49,7 +49,11 @@ class MarketplaceRepository {
       return const [];
     }
 
-    return _fetchListings(userId: user.id, onlyPublic: false);
+    return _fetchListings(
+      userId: user.id,
+      onlyPublic: false,
+      loadCardCatalog: false,
+    );
   }
 
   Future<List<MarketplaceListing>> getPublicListingsByUser(
@@ -71,7 +75,11 @@ class MarketplaceRepository {
   }
 
   Future<List<MarketplaceListing>> getGlobalPublicListings() {
-    return _fetchListings(onlyPublic: true, includeContactInfo: false);
+    return _fetchListings(
+      onlyPublic: true,
+      includeContactInfo: false,
+      loadCardCatalog: false,
+    );
   }
 
   Future<String> getPublicListingContact(String listingId) async {
@@ -334,8 +342,11 @@ class MarketplaceRepository {
     String? userId,
     required bool onlyPublic,
     bool includeContactInfo = true,
+    bool loadCardCatalog = true,
   }) async {
-    await _opApi.preload();
+    if (loadCardCatalog) {
+      await _opApi.preload();
+    }
 
     final selectColumns = includeContactInfo
         ? '$_listingColumns, $_dynamicPricingColumns'
@@ -363,7 +374,7 @@ class MarketplaceRepository {
     }
 
     await Future.wait([
-      _warmUpApiCards(uniqueCodes),
+      if (loadCardCatalog) _warmUpApiCards(uniqueCodes),
       _warmUpSellerNames(uniqueUserIds),
     ]);
 
