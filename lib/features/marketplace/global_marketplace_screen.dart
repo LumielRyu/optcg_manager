@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -917,8 +920,11 @@ class _GlobalMarketplaceScreenState
     });
   }
 
-  void _openItemDetails(MarketplaceListing item, String ligaPriceLabel) {
-    showDialog<void>(
+  Future<void> _openItemDetails(
+    MarketplaceListing item,
+    String ligaPriceLabel,
+  ) {
+    return showDialog<void>(
       context: context,
       builder: (_) => _GlobalMarketplaceCardDetailsDialog(
         card: item,
@@ -1098,8 +1104,6 @@ class _GlobalMarketplaceScreenState
   }) {
     final width = MediaQuery.sizeOf(context).width;
     final wide = width >= 1040;
-    final featured = filteredItems.isEmpty ? null : filteredItems.first;
-    final spotlight = filteredItems.take(8).toList(growable: false);
 
     return AppPageShell(
       maxWidth: 1480,
@@ -1108,23 +1112,18 @@ class _GlobalMarketplaceScreenState
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _MarketplaceEditorialHero(
-            featured: featured,
-            ligaPriceLabel: featured == null
-                ? ''
-                : _ligaPriceLabelFor(featured),
+            featuredItems: filteredItems,
+            ligaLabelFor: _ligaPriceLabelFor,
             totalListings: totalListings,
             totalCards: totalCards,
             totalWithPrice: totalWithPrice,
-            onOpenFeatured: featured == null
-                ? null
-                : () =>
-                      _openItemDetails(featured, _ligaPriceLabelFor(featured)),
+            onOpenFeatured: _openItemDetails,
             onOpenFilters: wide ? null : _showFiltersSheet,
           ),
           const SizedBox(height: 18),
-          if (spotlight.isNotEmpty) ...[
+          if (filteredItems.isNotEmpty) ...[
             _MarketplaceSpotlightRail(
-              items: spotlight,
+              items: filteredItems,
               ligaLabelFor: _ligaPriceLabelFor,
               onOpen: _openItemDetails,
             ),
@@ -1366,17 +1365,18 @@ class _GlobalMarketplaceLigaPriceBadge extends StatelessWidget {
 }
 
 class _MarketplaceEditorialHero extends StatelessWidget {
-  final MarketplaceListing? featured;
-  final String ligaPriceLabel;
+  final List<MarketplaceListing> featuredItems;
+  final String Function(MarketplaceListing item) ligaLabelFor;
   final int totalListings;
   final int totalCards;
   final int totalWithPrice;
-  final VoidCallback? onOpenFeatured;
+  final Future<void> Function(MarketplaceListing item, String ligaPriceLabel)
+  onOpenFeatured;
   final VoidCallback? onOpenFilters;
 
   const _MarketplaceEditorialHero({
-    required this.featured,
-    required this.ligaPriceLabel,
+    required this.featuredItems,
+    required this.ligaLabelFor,
     required this.totalListings,
     required this.totalCards,
     required this.totalWithPrice,
@@ -1387,7 +1387,6 @@ class _MarketplaceEditorialHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final card = featured;
     final wide = MediaQuery.sizeOf(context).width >= 860;
     final copy = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1498,13 +1497,13 @@ class _MarketplaceEditorialHero extends StatelessWidget {
               children: [
                 Expanded(flex: 5, child: copy),
                 const SizedBox(width: 24),
-                if (card != null)
+                if (featuredItems.isNotEmpty)
                   Flexible(
                     flex: 3,
-                    child: _MarketplaceFeaturedCard(
-                      item: card,
-                      ligaPriceLabel: ligaPriceLabel,
-                      onTap: onOpenFeatured,
+                    child: _MarketplaceRotatingFeaturedCard(
+                      items: featuredItems,
+                      ligaLabelFor: ligaLabelFor,
+                      onOpen: onOpenFeatured,
                     ),
                   ),
               ],
@@ -1514,12 +1513,12 @@ class _MarketplaceEditorialHero extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 copy,
-                if (card != null) ...[
+                if (featuredItems.isNotEmpty) ...[
                   const SizedBox(height: 22),
-                  _MarketplaceFeaturedCard(
-                    item: card,
-                    ligaPriceLabel: ligaPriceLabel,
-                    onTap: onOpenFeatured,
+                  _MarketplaceRotatingFeaturedCard(
+                    items: featuredItems,
+                    ligaLabelFor: ligaLabelFor,
+                    onOpen: onOpenFeatured,
                   ),
                 ],
               ],
@@ -1530,12 +1529,184 @@ class _MarketplaceEditorialHero extends StatelessWidget {
   }
 }
 
+class _MarketplaceRotatingFeaturedCard extends StatefulWidget {
+  final List<MarketplaceListing> items;
+  final String Function(MarketplaceListing item) ligaLabelFor;
+  final Future<void> Function(MarketplaceListing item, String ligaPriceLabel)
+  onOpen;
+
+  const _MarketplaceRotatingFeaturedCard({
+    required this.items,
+    required this.ligaLabelFor,
+    required this.onOpen,
+  });
+
+  @override
+  State<_MarketplaceRotatingFeaturedCard> createState() =>
+      _MarketplaceRotatingFeaturedCardState();
+}
+
+class _MarketplaceRotatingFeaturedCardState
+    extends State<_MarketplaceRotatingFeaturedCard> {
+  static const Duration _rotationInterval = Duration(seconds: 15);
+
+  final Random _random = Random();
+  Timer? _rotationTimer;
+  List<MarketplaceListing> _randomizedItems = const [];
+  int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _resetItems();
+    _startRotation();
+  }
+
+  @override
+  void didUpdateWidget(covariant _MarketplaceRotatingFeaturedCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_itemSignature(oldWidget.items) != _itemSignature(widget.items)) {
+      _resetItems(avoidFirstId: _currentItem?.id);
+      _startRotation();
+    }
+  }
+
+  @override
+  void dispose() {
+    _rotationTimer?.cancel();
+    super.dispose();
+  }
+
+  MarketplaceListing? get _currentItem {
+    if (_randomizedItems.isEmpty) return null;
+    return _randomizedItems[_currentIndex.clamp(
+      0,
+      _randomizedItems.length - 1,
+    )];
+  }
+
+  String _itemSignature(List<MarketplaceListing> items) {
+    return items.map((item) => item.id).join('|');
+  }
+
+  void _resetItems({String? avoidFirstId}) {
+    final shuffled = List<MarketplaceListing>.from(widget.items)
+      ..shuffle(_random);
+    if (shuffled.length > 1 && shuffled.first.id == avoidFirstId) {
+      final swapIndex = 1 + _random.nextInt(shuffled.length - 1);
+      final first = shuffled.first;
+      shuffled[0] = shuffled[swapIndex];
+      shuffled[swapIndex] = first;
+    }
+    _randomizedItems = shuffled;
+    _currentIndex = 0;
+  }
+
+  void _startRotation() {
+    _rotationTimer?.cancel();
+    if (_randomizedItems.length < 2) return;
+    _rotationTimer = Timer.periodic(_rotationInterval, (_) => _showNext());
+  }
+
+  void _showNext({bool restartTimer = false}) {
+    if (!mounted || _randomizedItems.length < 2) return;
+    setState(() {
+      if (_currentIndex + 1 < _randomizedItems.length) {
+        _currentIndex++;
+      } else {
+        _resetItems(avoidFirstId: _currentItem?.id);
+      }
+    });
+    if (restartTimer) _startRotation();
+  }
+
+  void _showPrevious() {
+    if (_randomizedItems.length < 2) return;
+    setState(() {
+      if (_currentIndex > 0) {
+        _currentIndex--;
+      } else {
+        _currentIndex = _randomizedItems.length - 1;
+      }
+    });
+    _startRotation();
+  }
+
+  Future<void> _openCurrent(MarketplaceListing item, String ligaLabel) async {
+    _rotationTimer?.cancel();
+    await widget.onOpen(item, ligaLabel);
+    if (mounted) _startRotation();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final item = _currentItem;
+    if (item == null) return const SizedBox.shrink();
+    final ligaLabel = widget.ligaLabelFor(item);
+    final multiple = _randomizedItems.length > 1;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 520),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) => FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.08, 0),
+                end: Offset.zero,
+              ).animate(animation),
+              child: child,
+            ),
+          ),
+          child: _MarketplaceFeaturedCard(
+            key: ValueKey('marketplace-featured-${item.id}'),
+            item: item,
+            ligaPriceLabel: ligaLabel,
+            onTap: () => _openCurrent(item, ligaLabel),
+          ),
+        ),
+        if (multiple) ...[
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton.outlined(
+                tooltip: 'Destaque anterior',
+                visualDensity: VisualDensity.compact,
+                onPressed: _showPrevious,
+                icon: const Icon(Icons.chevron_left),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                '${_currentIndex + 1} / ${_randomizedItems.length}  •  troca em 15s',
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
+              const SizedBox(width: 10),
+              IconButton.outlined(
+                tooltip: 'Proximo destaque',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => _showNext(restartTimer: true),
+                icon: const Icon(Icons.chevron_right),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class _MarketplaceFeaturedCard extends StatelessWidget {
   final MarketplaceListing item;
   final String ligaPriceLabel;
   final VoidCallback? onTap;
 
   const _MarketplaceFeaturedCard({
+    super.key,
     required this.item,
     required this.ligaPriceLabel,
     this.onTap,
@@ -1588,10 +1759,11 @@ class _MarketplaceFeaturedCard extends StatelessWidget {
   }
 }
 
-class _MarketplaceSpotlightRail extends StatelessWidget {
+class _MarketplaceSpotlightRail extends StatefulWidget {
   final List<MarketplaceListing> items;
   final String Function(MarketplaceListing item) ligaLabelFor;
-  final void Function(MarketplaceListing item, String ligaPriceLabel) onOpen;
+  final Future<void> Function(MarketplaceListing item, String ligaPriceLabel)
+  onOpen;
 
   const _MarketplaceSpotlightRail({
     required this.items,
@@ -1600,31 +1772,147 @@ class _MarketplaceSpotlightRail extends StatelessWidget {
   });
 
   @override
+  State<_MarketplaceSpotlightRail> createState() =>
+      _MarketplaceSpotlightRailState();
+}
+
+class _MarketplaceSpotlightRailState extends State<_MarketplaceSpotlightRail> {
+  static const Duration _autoScrollInterval = Duration(seconds: 7);
+  static const double _cardStep = 176;
+
+  final Random _random = Random();
+  final ScrollController _scrollController = ScrollController();
+  Timer? _autoScrollTimer;
+  List<MarketplaceListing> _randomizedItems = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _resetItems();
+    _startAutoScroll();
+  }
+
+  @override
+  void didUpdateWidget(covariant _MarketplaceSpotlightRail oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_itemSignature(oldWidget.items) != _itemSignature(widget.items)) {
+      _resetItems();
+      _startAutoScroll();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) _scrollController.jumpTo(0);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _autoScrollTimer?.cancel();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  String _itemSignature(List<MarketplaceListing> items) {
+    return items.map((item) => item.id).join('|');
+  }
+
+  void _resetItems() {
+    _randomizedItems = List<MarketplaceListing>.from(widget.items)
+      ..shuffle(_random);
+  }
+
+  void _startAutoScroll() {
+    _autoScrollTimer?.cancel();
+    if (_randomizedItems.length < 2) return;
+    _autoScrollTimer = Timer.periodic(_autoScrollInterval, (_) => _showNext());
+  }
+
+  Future<void> _showNext({bool restartTimer = false}) async {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    if (position.maxScrollExtent <= 0) return;
+
+    final nextOffset = position.pixels + _cardStep;
+    if (nextOffset >= position.maxScrollExtent - 4) {
+      setState(_resetItems);
+      _scrollController.jumpTo(0);
+    } else {
+      await _scrollController.animateTo(
+        nextOffset.clamp(0, position.maxScrollExtent),
+        duration: const Duration(milliseconds: 520),
+        curve: Curves.easeOutCubic,
+      );
+    }
+    if (restartTimer && mounted) _startAutoScroll();
+  }
+
+  Future<void> _showPrevious() async {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    await _scrollController.animateTo(
+      (position.pixels - _cardStep).clamp(0, position.maxScrollExtent),
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeOutCubic,
+    );
+    if (mounted) _startAutoScroll();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Ofertas em destaque',
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w900,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Ofertas em destaque',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  Text(
+                    'Ordem aleatoria • rotacao automatica',
+                    style: theme.textTheme.labelSmall,
+                  ),
+                ],
+              ),
+            ),
+            IconButton.outlined(
+              tooltip: 'Ofertas anteriores',
+              onPressed: _showPrevious,
+              icon: const Icon(Icons.chevron_left),
+            ),
+            const SizedBox(width: 8),
+            IconButton.outlined(
+              tooltip: 'Proximas ofertas',
+              onPressed: () => _showNext(restartTimer: true),
+              icon: const Icon(Icons.chevron_right),
+            ),
+          ],
         ),
         const SizedBox(height: 10),
         SizedBox(
           height: 218,
           child: ListView.separated(
+            controller: _scrollController,
             scrollDirection: Axis.horizontal,
-            itemCount: items.length,
+            physics: const BouncingScrollPhysics(),
+            itemCount: _randomizedItems.length,
             separatorBuilder: (context, index) => const SizedBox(width: 12),
             itemBuilder: (context, index) {
-              final item = items[index];
-              final liga = ligaLabelFor(item);
+              final item = _randomizedItems[index];
+              final liga = widget.ligaLabelFor(item);
               return _MarketplaceSpotlightCard(
+                key: ValueKey('marketplace-spotlight-${item.id}'),
                 item: item,
                 ligaPriceLabel: liga,
-                onTap: () => onOpen(item, liga),
+                onTap: () {
+                  widget.onOpen(item, liga);
+                },
               );
             },
           ),
@@ -1640,6 +1928,7 @@ class _MarketplaceSpotlightCard extends StatelessWidget {
   final VoidCallback onTap;
 
   const _MarketplaceSpotlightCard({
+    super.key,
     required this.item,
     required this.ligaPriceLabel,
     required this.onTap,

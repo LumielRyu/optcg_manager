@@ -2270,3 +2270,16 @@ git diff --stat
   arte comum.
 - Testes cobrem a substituicao da imagem antiga, a preservacao da carta normal e
   a proibicao de fallback quando a variante estrita nao existe no catalogo.
+
+### 11/08/2026 - Carrosseis aleatorios no marketplace
+
+- A carta principal do marketplace deixou de ser sempre o primeiro resultado.
+  Os anuncios filtrados sao embaralhados e o destaque troca automaticamente a
+  cada 15 segundos, com transicao suave, indicador e botoes anterior/proximo.
+- Ao abrir os detalhes do destaque, a rotacao e pausada e recomeca somente ao
+  fechar o modal, evitando que a carta mude escondida durante a consulta.
+- `Ofertas em destaque` agora usa todos os resultados filtrados em ordem
+  aleatoria, avanca automaticamente a cada 7 segundos e aceita arraste, roda do
+  mouse e botoes laterais. Ao completar uma volta, a ordem e embaralhada de novo.
+- Timers e controlador de rolagem sao sempre descartados ao sair da tela. Testes
+  de regressao verificam intervalo, aleatoriedade, controles e descarte seguro.
