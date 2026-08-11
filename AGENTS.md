@@ -2283,3 +2283,15 @@ git diff --stat
   mouse e botoes laterais. Ao completar uma volta, a ordem e embaralhada de novo.
 - Timers e controlador de rolagem sao sempre descartados ao sair da tela. Testes
   de regressao verificam intervalo, aleatoriedade, controles e descarte seguro.
+
+### 11/08/2026 - Imagem Full Art preservada nos anuncios
+
+- O anuncio `OP16-108` ja guardava a imagem correta da Full Art obtida na Liga,
+  mas o catalogo auxiliar nomeava a arte comum como `Shiryu (Full Art)` e
+  sobrescrevia a URL correta durante o carregamento do marketplace global.
+- Para variantes estritas, imagens persistidas no repositorio oficial usado
+  pela Liga agora sao tratadas como a referencia visual mais forte. O catalogo
+  continua preenchendo imagens ausentes e corrigindo URLs antigas de outras
+  fontes, mas nao substitui mais uma impressao exata da Liga.
+- Testes cobrem a preservacao da Full Art da Liga e a correcao de imagens antigas
+  que nao vieram desse repositorio.

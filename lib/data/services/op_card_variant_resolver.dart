@@ -67,15 +67,25 @@ String resolvedStoredCardImage({
   required String storedImageUrl,
   required OpCard? catalogCard,
 }) {
+  final normalizedStoredImage = storedImageUrl.trim();
   final catalogImage = catalogCard?.image.trim() ?? '';
   if (catalogImage.isEmpty) return storedImageUrl;
-  if (storedImageUrl.trim().isEmpty) return catalogImage;
+  if (normalizedStoredImage.isEmpty) return catalogImage;
 
   final requested = classifyLigaVariant(
     cardName: storedName,
     cardCode: cardCode,
   );
   if (!requested.requiresStrictMatch) return storedImageUrl;
+
+  // Liga images are selected from the exact marketplace printing. Some
+  // upstream catalog rows carry a strict variant name (for example, Full Art)
+  // while their image still points to the regular printing. In that case the
+  // persisted Liga image is the stronger identity signal and must not be
+  // overwritten by the auxiliary catalog.
+  if (_isLigaOnePieceRepositoryImage(normalizedStoredImage)) {
+    return storedImageUrl;
+  }
 
   final candidate = classifyLigaVariant(
     cardName: catalogCard!.name,
@@ -84,6 +94,13 @@ String resolvedStoredCardImage({
   return ligaVariantKindsCompatible(requested.kind, candidate.kind)
       ? catalogImage
       : storedImageUrl;
+}
+
+bool _isLigaOnePieceRepositoryImage(String imageUrl) {
+  final uri = Uri.tryParse(imageUrl);
+  if (uri == null) return false;
+  return uri.host.toLowerCase() == 'repositorio.sbrauble.com' &&
+      uri.path.toLowerCase().contains('/arquivos/in/onepiece/');
 }
 
 String normalizeOpCardIdentityText(String value) {

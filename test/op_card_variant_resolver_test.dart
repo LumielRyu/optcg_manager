@@ -67,6 +67,38 @@ void main() {
 
     expect(selected, isNull);
   });
+
+  test('Liga Full Art image is not replaced by a mislabeled catalog image', () {
+    const ligaFullArtImage =
+        'https://repositorio.sbrauble.com/arquivos/in/onepiece/81/full-art.jpg';
+    final mislabeledCatalogCard = _card(
+      code: 'OP16-108',
+      name: 'Shiryu (Full Art)',
+      image: normal.image,
+    );
+
+    expect(
+      resolvedStoredCardImage(
+        cardCode: 'OP16-108',
+        storedName: 'Shiryu (Full Art)',
+        storedImageUrl: ligaFullArtImage,
+        catalogCard: mislabeledCatalogCard,
+      ),
+      ligaFullArtImage,
+    );
+  });
+
+  test('stale non-Liga Full Art image can still be repaired by catalog', () {
+    expect(
+      resolvedStoredCardImage(
+        cardCode: 'OP16-108',
+        storedName: 'Shiryu (Full Art)',
+        storedImageUrl: normal.image,
+        catalogCard: fullArt,
+      ),
+      fullArt.image,
+    );
+  });
 }
 
 OpCard _card({
