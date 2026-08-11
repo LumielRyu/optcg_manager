@@ -10,6 +10,7 @@ import '../local/hive_boxes.dart';
 import '../models/card_record.dart';
 import '../models/op_card.dart';
 import '../services/op_api_service.dart';
+import '../services/op_card_variant_resolver.dart';
 import '../services/supabase_client_provider.dart';
 
 final collectionRepositoryProvider = Provider<CollectionRepository>((ref) {
@@ -151,10 +152,12 @@ class CollectionRepository {
       final storedType = (map['type'] ?? '').toString();
       final storedText = (map['text'] ?? '').toString();
       final storedAttribute = (map['attribute'] ?? '').toString();
-      final apiCard = _bestApiCardForStoredIdentity(
+      final apiCard = bestOpCardForStoredIdentity(
+        variants: _apiCardVariantsCache[cardCode] ?? const <OpCard>[],
         cardCode: cardCode,
         storedName: storedName,
         storedSetName: storedSetName,
+        storedImageUrl: storedImageUrl,
       );
 
       all.add(
@@ -164,11 +167,11 @@ class CollectionRepository {
           name: storedName.isNotEmpty
               ? storedName
               : (apiCard?.name ?? cardCode),
-          imageUrl: _resolvedStoredImage(
+          imageUrl: resolvedStoredCardImage(
             cardCode: cardCode,
             storedName: storedName,
             storedImageUrl: storedImageUrl,
-            apiCard: apiCard,
+            catalogCard: apiCard,
           ),
           dateAddedUtc:
               DateTime.tryParse((map['created_at'] ?? '').toString()) ??
@@ -214,10 +217,12 @@ class CollectionRepository {
         final storedType = (itemMap['type'] ?? '').toString();
         final storedText = (itemMap['text'] ?? '').toString();
         final storedAttribute = (itemMap['attribute'] ?? '').toString();
-        final apiCard = _bestApiCardForStoredIdentity(
+        final apiCard = bestOpCardForStoredIdentity(
+          variants: _apiCardVariantsCache[cardCode] ?? const <OpCard>[],
           cardCode: cardCode,
           storedName: storedName,
           storedSetName: storedSetName,
+          storedImageUrl: storedImageUrl,
         );
 
         all.add(
@@ -227,11 +232,11 @@ class CollectionRepository {
             name: storedName.isNotEmpty
                 ? storedName
                 : (apiCard?.name ?? cardCode),
-            imageUrl: _resolvedStoredImage(
+            imageUrl: resolvedStoredCardImage(
               cardCode: cardCode,
               storedName: storedName,
               storedImageUrl: storedImageUrl,
-              apiCard: apiCard,
+              catalogCard: apiCard,
             ),
             dateAddedUtc:
                 DateTime.tryParse((itemMap['created_at'] ?? '').toString()) ??
@@ -641,10 +646,12 @@ class CollectionRepository {
       final storedType = (itemMap['type'] ?? '').toString();
       final storedText = (itemMap['text'] ?? '').toString();
       final storedAttribute = (itemMap['attribute'] ?? '').toString();
-      final apiCard = _bestApiCardForStoredIdentity(
+      final apiCard = bestOpCardForStoredIdentity(
+        variants: _apiCardVariantsCache[cardCode] ?? const <OpCard>[],
         cardCode: cardCode,
         storedName: storedName,
         storedSetName: storedSetName,
+        storedImageUrl: storedImageUrl,
       );
 
       items.add(
@@ -654,11 +661,11 @@ class CollectionRepository {
           name: storedName.isNotEmpty
               ? storedName
               : (apiCard?.name ?? cardCode),
-          imageUrl: _resolvedStoredImage(
+          imageUrl: resolvedStoredCardImage(
             cardCode: cardCode,
             storedName: storedName,
             storedImageUrl: storedImageUrl,
-            apiCard: apiCard,
+            catalogCard: apiCard,
           ),
           dateAddedUtc:
               DateTime.tryParse((itemMap['created_at'] ?? '').toString()) ??
@@ -810,10 +817,12 @@ class CollectionRepository {
       final storedType = (map['type'] ?? '').toString();
       final storedText = (map['text'] ?? '').toString();
       final storedAttribute = (map['attribute'] ?? '').toString();
-      final apiCard = _bestApiCardForStoredIdentity(
+      final apiCard = bestOpCardForStoredIdentity(
+        variants: _apiCardVariantsCache[cardCode] ?? const <OpCard>[],
         cardCode: cardCode,
         storedName: storedName,
         storedSetName: storedSetName,
+        storedImageUrl: storedImageUrl,
       );
 
       items.add(
@@ -823,11 +832,11 @@ class CollectionRepository {
           name: storedName.isNotEmpty
               ? storedName
               : (apiCard?.name ?? cardCode),
-          imageUrl: _resolvedStoredImage(
+          imageUrl: resolvedStoredCardImage(
             cardCode: cardCode,
             storedName: storedName,
             storedImageUrl: storedImageUrl,
-            apiCard: apiCard,
+            catalogCard: apiCard,
           ),
           dateAddedUtc:
               DateTime.tryParse((map['created_at'] ?? '').toString()) ??
@@ -892,21 +901,23 @@ class CollectionRepository {
     final storedType = (row['type'] ?? '').toString();
     final storedText = (row['text'] ?? '').toString();
     final storedAttribute = (row['attribute'] ?? '').toString();
-    final apiCard = _bestApiCardForStoredIdentity(
+    final apiCard = bestOpCardForStoredIdentity(
+      variants: _apiCardVariantsCache[cardCode] ?? const <OpCard>[],
       cardCode: cardCode,
       storedName: storedName,
       storedSetName: storedSetName,
+      storedImageUrl: storedImageUrl,
     );
 
     final item = CardRecord(
       id: row['id'].toString(),
       cardCode: cardCode,
       name: storedName.isNotEmpty ? storedName : (apiCard?.name ?? cardCode),
-      imageUrl: _resolvedStoredImage(
+      imageUrl: resolvedStoredCardImage(
         cardCode: cardCode,
         storedName: storedName,
         storedImageUrl: storedImageUrl,
-        apiCard: apiCard,
+        catalogCard: apiCard,
       ),
       dateAddedUtc:
           DateTime.tryParse((row['created_at'] ?? '').toString()) ??
@@ -1135,89 +1146,6 @@ class CollectionRepository {
         }
       }),
     );
-  }
-
-  OpCard? _bestApiCardForStoredIdentity({
-    required String cardCode,
-    required String storedName,
-    required String storedSetName,
-  }) {
-    final normalizedCode = cardCode.trim().toUpperCase();
-    final variants = _apiCardVariantsCache[normalizedCode] ?? const <OpCard>[];
-    if (variants.isEmpty) return _apiCardCache[normalizedCode];
-
-    final normalizedName = _normalizeCardIdentityText(storedName);
-    final normalizedSet = _normalizeCardIdentityText(storedSetName);
-    final explicitVariant = _isExplicitVariantName(normalizedName);
-    OpCard? best;
-    var bestScore = -1;
-
-    for (final candidate in variants) {
-      var score = 0;
-      final candidateName = _normalizeCardIdentityText(candidate.name);
-      final candidateSet = _normalizeCardIdentityText(candidate.setName);
-      if (normalizedName.isNotEmpty && candidateName == normalizedName) {
-        score += 1000;
-      }
-      if (normalizedSet.isNotEmpty && candidateSet == normalizedSet) {
-        score += 120;
-      }
-      if (candidate.code.trim().toUpperCase() == normalizedCode) {
-        score += 20;
-      }
-      if (explicitVariant &&
-          candidateName == normalizedName &&
-          candidate.code.trim().toUpperCase() != normalizedCode) {
-        score += 300;
-      }
-      if (candidate.image.trim().isNotEmpty) score += 5;
-
-      if (score > bestScore) {
-        best = candidate;
-        bestScore = score;
-      }
-    }
-
-    return best;
-  }
-
-  String _resolvedStoredImage({
-    required String cardCode,
-    required String storedName,
-    required String storedImageUrl,
-    required OpCard? apiCard,
-  }) {
-    final apiImage = apiCard?.image.trim() ?? '';
-    if (apiImage.isEmpty) return storedImageUrl;
-    if (storedImageUrl.trim().isEmpty) return apiImage;
-
-    final exactNamedVariant =
-        _isExplicitVariantName(_normalizeCardIdentityText(storedName)) &&
-        _normalizeCardIdentityText(apiCard?.name ?? '') ==
-            _normalizeCardIdentityText(storedName) &&
-        apiCard!.code.trim().toUpperCase() != cardCode.trim().toUpperCase();
-    return exactNamedVariant ? apiImage : storedImageUrl;
-  }
-
-  String _normalizeCardIdentityText(String value) {
-    return value
-        .trim()
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
-        .trim();
-  }
-
-  bool _isExplicitVariantName(String normalizedName) {
-    return normalizedName.contains('alternate art') ||
-        normalizedName.contains('parallel') ||
-        normalizedName.contains('manga') ||
-        normalizedName.contains('winner') ||
-        normalizedName.contains('anniversary') ||
-        normalizedName.contains('tournament pack') ||
-        normalizedName.contains('treasure cup') ||
-        normalizedName.contains('treasure rare') ||
-        normalizedName.contains('pre release') ||
-        normalizedName.contains('release event');
   }
 
   Future<List<CardRecord>> _enrichRecords(List<CardRecord> records) async {

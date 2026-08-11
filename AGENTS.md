@@ -2256,3 +2256,17 @@ git diff --stat
   podem usar a resolucao tardia, sem impedir que a vitrine apareca.
 - Um teste de regressao garante que `getPublicListingsByUser` nao volte a chamar
   o carregamento geral de catalogo.
+
+### 11/08/2026 - Imagem Full Art correta no marketplace
+
+- O anuncio `OP16-108` estava nomeado como `Shiryu (Full Art)`, mas conservava
+  a URL da arte comum recebida da API antiga. O modal priorizava qualquer URL
+  persistida e, por isso, mostrava uma impressao diferente do nome e do preco.
+- O catalogo e o cache da Liga ja continham a variante correta como
+  `OP16-108-FA`, com imagem propria e menor preco de R$ 118,88.
+- Colecao, cartas a venda, marketplace e compartilhamento individual agora usam
+  um resolvedor comum de variantes. Impressões estritas sao selecionadas pelo
+  conjunto codigo-base, nome, set e imagem; `Full Art` nao pode mais herdar a
+  arte comum.
+- Testes cobrem a substituicao da imagem antiga, a preservacao da carta normal e
+  a proibicao de fallback quando a variante estrita nao existe no catalogo.

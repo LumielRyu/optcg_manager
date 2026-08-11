@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/marketplace_listing.dart';
 import '../models/op_card.dart';
 import '../services/liga_one_piece_service.dart';
+import '../services/op_card_variant_resolver.dart';
 import '../services/op_api_service.dart';
 import '../services/supabase_client_provider.dart';
 import 'user_preferences_repository.dart';
@@ -37,6 +38,7 @@ class MarketplaceRepository {
       'sale_expires_at, sale_folder_id';
   static const Duration _dynamicPriceMaxAge = Duration(hours: 24);
   final Map<String, OpCard?> _apiCardCache = {};
+  final Map<String, List<OpCard>> _apiCardVariantsCache = {};
   final Map<String, String> _sellerNameCache = {};
 
   MarketplaceRepository(this._client, this._opApi, this._prefs, this._liga);
@@ -132,8 +134,10 @@ class MarketplaceRepository {
     final map = Map<String, dynamic>.from(row);
     final cardCode = (map['card_code'] ?? '').toString().trim().toUpperCase();
 
-    if (!_apiCardCache.containsKey(cardCode)) {
-      _apiCardCache[cardCode] = await _opApi.findCardByCode(cardCode);
+    if (!_apiCardVariantsCache.containsKey(cardCode)) {
+      final variants = await _opApi.findAllByCode(cardCode);
+      _apiCardVariantsCache[cardCode] = variants;
+      _apiCardCache[cardCode] = variants.isEmpty ? null : variants.first;
     }
 
     return _mapRowToListing(map);
@@ -512,14 +516,18 @@ class MarketplaceRepository {
   Future<void> _warmUpApiCards(Set<String> cardCodes) async {
     final missingCodes = cardCodes
         .map((code) => code.trim().toUpperCase())
-        .where((code) => code.isNotEmpty && !_apiCardCache.containsKey(code))
+        .where(
+          (code) => code.isNotEmpty && !_apiCardVariantsCache.containsKey(code),
+        )
         .toList(growable: false);
 
     if (missingCodes.isEmpty) return;
 
     await Future.wait(
       missingCodes.map((code) async {
-        _apiCardCache[code] = await _opApi.findCardByCode(code);
+        final variants = await _opApi.findAllByCode(code);
+        _apiCardVariantsCache[code] = variants;
+        _apiCardCache[code] = variants.isEmpty ? null : variants.first;
       }),
     );
   }
@@ -561,29 +569,44 @@ class MarketplaceRepository {
     final storedType = (map['type'] ?? '').toString();
     final storedText = (map['text'] ?? '').toString();
     final storedAttribute = (map['attribute'] ?? '').toString();
+    final catalogCard = bestOpCardForStoredIdentity(
+      variants: _apiCardVariantsCache[cardCode] ?? const <OpCard>[],
+      cardCode: cardCode,
+      storedName: storedName,
+      storedSetName: storedSetName,
+      storedImageUrl: storedImageUrl,
+    );
+    final fallbackCard = catalogCard ?? apiCard;
 
     return MarketplaceListing(
       id: map['id'].toString(),
       ownerUserId: ownerUserId,
       sellerName: _sellerNameCache[ownerUserId] ?? '',
       cardCode: cardCode,
-      name: storedName.isNotEmpty ? storedName : (apiCard?.name ?? cardCode),
-      imageUrl: storedImageUrl.isNotEmpty
-          ? storedImageUrl
-          : (apiCard?.image ?? ''),
+      name: storedName.isNotEmpty
+          ? storedName
+          : (fallbackCard?.name ?? cardCode),
+      imageUrl: resolvedStoredCardImage(
+        cardCode: cardCode,
+        storedName: storedName,
+        storedImageUrl: storedImageUrl,
+        catalogCard: catalogCard,
+      ),
       dateAddedUtc:
           DateTime.tryParse((map['created_at'] ?? '').toString()) ??
           DateTime.now(),
       setName: storedSetName.isNotEmpty
           ? storedSetName
-          : (apiCard?.setName ?? ''),
-      rarity: storedRarity.isNotEmpty ? storedRarity : (apiCard?.rarity ?? ''),
-      color: storedColor.isNotEmpty ? storedColor : (apiCard?.color ?? ''),
-      type: storedType.isNotEmpty ? storedType : (apiCard?.type ?? ''),
-      text: storedText.isNotEmpty ? storedText : (apiCard?.text ?? ''),
+          : (fallbackCard?.setName ?? ''),
+      rarity: storedRarity.isNotEmpty
+          ? storedRarity
+          : (fallbackCard?.rarity ?? ''),
+      color: storedColor.isNotEmpty ? storedColor : (fallbackCard?.color ?? ''),
+      type: storedType.isNotEmpty ? storedType : (fallbackCard?.type ?? ''),
+      text: storedText.isNotEmpty ? storedText : (fallbackCard?.text ?? ''),
       attribute: storedAttribute.isNotEmpty
           ? storedAttribute
-          : (apiCard?.attribute ?? ''),
+          : (fallbackCard?.attribute ?? ''),
       quantity: (map['quantity'] as num?)?.toInt() ?? 1,
       isFavorite: (map['is_favorite'] as bool?) ?? false,
       isPublic: (map['is_public'] as bool?) ?? false,
