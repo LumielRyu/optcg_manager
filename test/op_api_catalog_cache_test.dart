@@ -49,7 +49,7 @@ void main() {
     final worker = File('web/pwa_service_worker.js').readAsStringSync();
     final index = File('web/index.html').readAsStringSync();
 
-    expect(worker, contains("CACHE_NAME = 'optcg-shell-v6'"));
+    expect(worker, contains("CACHE_NAME = 'optcg-shell-v7'"));
     expect(index, contains('2026-08-09-one-piece-catalog-v6'));
   });
 }

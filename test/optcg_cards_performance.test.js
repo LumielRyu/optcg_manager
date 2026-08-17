@@ -13,6 +13,7 @@ test('loads both Supabase catalog sources concurrently', () => {
 
 test('serves catalog responses from browser and CDN cache', () => {
   assert.match(source, /max-age=300/);
-  assert.match(source, /s-maxage=900/);
-  assert.match(source, /stale-while-revalidate=86400/);
+  assert.match(source, /s-maxage=21600/);
+  assert.match(source, /stale-while-revalidate=604800/);
+  assert.match(source, /AbortSignal\.timeout\(8000\)/);
 });

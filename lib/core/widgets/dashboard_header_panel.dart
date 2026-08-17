@@ -40,7 +40,7 @@ class DashboardHeaderPanel extends StatelessWidget {
                       ? 0.28
                       : 0.18,
                   child: Image.asset(
-                    'assets/editorial/scanner_card_stack.png',
+                    'assets/editorial/scanner_card_stack.webp',
                     width: 250,
                     fit: BoxFit.cover,
                   ),

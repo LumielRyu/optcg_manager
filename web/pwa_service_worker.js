@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'optcg-shell-v6';
+const CACHE_NAME = 'optcg-shell-v7';
 const NETWORK_FIRST_ASSETS = new Set([
   '/',
   '/index.html',
@@ -25,11 +25,7 @@ const CORE_ASSETS = [
   '/assets/FontManifest.json',
   '/assets/fonts/MaterialIcons-Regular.otf',
   '/assets/packages/cupertino_icons/assets/CupertinoIcons.ttf',
-  '/assets/assets/editorial/scanner_card_stack.png',
-  '/canvaskit/canvaskit.js',
-  '/canvaskit/canvaskit.wasm',
-  '/canvaskit/chromium/canvaskit.js',
-  '/canvaskit/chromium/canvaskit.wasm',
+  '/assets/assets/editorial/scanner_card_stack.webp',
 ];
 
 self.addEventListener('install', (event) => {
@@ -38,7 +34,7 @@ self.addEventListener('install', (event) => {
       await Promise.all(
         CORE_ASSETS.map(async (asset) => {
           try {
-            const response = await fetch(asset, { cache: 'reload' });
+            const response = await fetch(asset, { cache: 'no-cache' });
             if (response.ok) await cache.put(asset, response);
           } catch (_) {
             // A single optional asset must not prevent installation.
@@ -76,7 +72,7 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request, { cache: 'no-store' })
+      fetch(request, { cache: 'no-cache' })
         .then((response) => {
           if (response.ok) {
             const copy = response.clone();
@@ -93,7 +89,7 @@ self.addEventListener('fetch', (event) => {
 
   if (NETWORK_FIRST_ASSETS.has(url.pathname)) {
     event.respondWith(
-      fetch(request, { cache: 'no-store' })
+      fetch(request, { cache: 'no-cache' })
         .then((response) => {
           if (response.ok && response.type === 'basic') {
             const copy = response.clone();

@@ -40,7 +40,11 @@ void main() {
   );
 
   test('Liga price responses are batched instead of rebuilding every card', () {
-    expect(marketplaceSource, contains('_queueLigaPriceLabel('));
+    expect(
+      marketplaceSource,
+      contains('fetchCachedPublicCardSnapshotsForCards'),
+    );
+    expect(marketplaceSource, contains('_queueLigaPriceRefresh('));
     expect(
       marketplaceSource,
       contains('Timer(const Duration(milliseconds: 120)'),

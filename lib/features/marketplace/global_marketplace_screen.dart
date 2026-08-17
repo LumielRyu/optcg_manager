@@ -21,6 +21,7 @@ import '../../data/models/marketplace_order.dart';
 import '../../data/repositories/marketplace_repository.dart';
 import '../../data/repositories/marketplace_order_repository.dart';
 import '../../data/services/liga_one_piece_service.dart';
+import '../../data/services/op_card_image_catalog.dart';
 
 class GlobalMarketplaceScreen extends ConsumerStatefulWidget {
   const GlobalMarketplaceScreen({super.key});
@@ -89,9 +90,27 @@ class _GlobalMarketplaceScreenState
 
   Future<List<MarketplaceListing>> _loadPublicListings() async {
     try {
-      return await ref
+      final items = await ref
           .read(marketplaceRepositoryProvider)
           .getGlobalPublicListings();
+      final resolvedItems = await Future.wait(
+        items.map((item) async {
+          final imageUrl = await OpCardImageCatalog.resolve(
+            cardCode: item.cardCode,
+            cardName: item.name,
+            setName: item.setName,
+            currentImageUrl: item.imageUrl,
+          );
+          return imageUrl == item.imageUrl
+              ? item
+              : item.copyWith(imageUrl: imageUrl);
+        }),
+      );
+      // Prices are intentionally loaded after the lightweight listing/image
+      // metadata. This keeps the first marketplace paint independent from the
+      // Liga cache and replaces one request per card with batched reads.
+      unawaited(_loadLigaPriceLabels(resolvedItems));
+      return resolvedItems;
     } catch (error, stackTrace) {
       final referenceId = AppErrorReporter.report(
         error,
@@ -118,51 +137,72 @@ class _GlobalMarketplaceScreenState
     if (normalizedCode.isEmpty) {
       return 'Liga: sem codigo';
     }
-    final lookupCode = ref
-        .read(ligaOnePieceServiceProvider)
-        .lookupCodeForCard(cardName: item.name, cardCode: normalizedCode);
+    final referenceKey = _ligaReferenceKeyFor(item);
 
-    if (_ligaPriceLabels.containsKey(lookupCode)) {
-      return _ligaPriceLabels[lookupCode] ?? 'Liga: sem cache';
-    }
-
-    if (!_ligaPriceLabels.containsKey(lookupCode) &&
-        _ligaPriceLoadingCodes.add(lookupCode)) {
-      _loadLigaPriceLabel(item);
+    if (_ligaPriceLabels.containsKey(referenceKey)) {
+      return _ligaPriceLabels[referenceKey] ?? 'Liga: sem cache';
     }
 
     return 'Liga: consultando...';
   }
 
-  Future<void> _loadLigaPriceLabel(MarketplaceListing item) async {
+  String _ligaReferenceKeyFor(MarketplaceListing item) {
     final service = ref.read(ligaOnePieceServiceProvider);
-    final lookupCode = service.lookupCodeForCard(
+    return service.priceReferenceKeyForCard(
       cardName: item.name,
       cardCode: item.cardCode,
+      imageUrl: item.imageUrl,
     );
-    try {
-      final snapshot = await service.fetchCachedPublicCardSnapshotForCard(
-        cardName: item.name,
-        cardCode: item.cardCode,
-        imageUrl: item.imageUrl,
-      );
-      final price = snapshot?.minimumPrice ?? snapshot?.lowestListing?.price;
-      final label = price == null || price <= 0
-          ? null
-          : 'Liga: ${_formatMarketplaceCurrency(price)}';
+  }
 
-      if (!mounted) return;
-      _queueLigaPriceLabel(lookupCode, label);
-    } catch (_) {
-      if (!mounted) return;
-      _queueLigaPriceLabel(lookupCode, null);
+  Future<void> _loadLigaPriceLabels(List<MarketplaceListing> items) async {
+    if (items.isEmpty) return;
+    final service = ref.read(ligaOnePieceServiceProvider);
+    final pendingItems = items
+        .where((item) {
+          final key = _ligaReferenceKeyFor(item);
+          return !_ligaPriceLabels.containsKey(key) &&
+              _ligaPriceLoadingCodes.add(key);
+        })
+        .toList(growable: false);
+    if (pendingItems.isEmpty) return;
+
+    try {
+      final snapshots = await service.fetchCachedPublicCardSnapshotsForCards(
+        pendingItems.map(
+          (item) => (
+            cardName: item.name,
+            cardCode: item.cardCode,
+            imageUrl: item.imageUrl,
+          ),
+        ),
+      );
+      for (final item in pendingItems) {
+        final key = _ligaReferenceKeyFor(item);
+        final snapshot = snapshots[key];
+        final price = snapshot?.minimumPrice ?? snapshot?.lowestListing?.price;
+        _ligaPriceLabels[key] = price == null || price <= 0
+            ? null
+            : 'Liga: ${_formatMarketplaceCurrency(price)}';
+      }
+    } catch (error, stackTrace) {
+      AppErrorReporter.report(
+        error,
+        stackTrace,
+        context: 'marketplace.load-liga-price-batch',
+      );
+      for (final item in pendingItems) {
+        _ligaPriceLabels.putIfAbsent(_ligaReferenceKeyFor(item), () => null);
+      }
     } finally {
-      _ligaPriceLoadingCodes.remove(lookupCode);
+      for (final item in pendingItems) {
+        _ligaPriceLoadingCodes.remove(_ligaReferenceKeyFor(item));
+      }
+      if (mounted) _queueLigaPriceRefresh();
     }
   }
 
-  void _queueLigaPriceLabel(String lookupCode, String? label) {
-    _ligaPriceLabels[lookupCode] = label;
+  void _queueLigaPriceRefresh() {
     if (_ligaPriceRefreshTimer?.isActive ?? false) return;
     _ligaPriceRefreshTimer = Timer(const Duration(milliseconds: 120), () {
       _ligaPriceRefreshTimer = null;
@@ -1566,7 +1606,7 @@ class _MarketplaceEditorialHero extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Image.asset(
-                'assets/editorial/marketplace_hero.png',
+                'assets/editorial/marketplace_hero.webp',
                 fit: BoxFit.cover,
                 opacity: const AlwaysStoppedAnimation(0.34),
               ),

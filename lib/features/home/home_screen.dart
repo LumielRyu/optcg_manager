@@ -95,7 +95,7 @@ class HomeScreen extends ConsumerWidget {
                   subtitle:
                       'Controle colecao, vendas, cartas procuradas e biblioteca em uma interface mais rapida para a comunidade de BH.',
                   icon: Icons.waves_outlined,
-                  visualAsset: 'assets/editorial/marketplace_hero.png',
+                  visualAsset: 'assets/editorial/marketplace_hero.webp',
                   badges: const [
                     AppBadge(
                       label: 'Marketplace local',

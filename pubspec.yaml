@@ -36,6 +36,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/visual_card_fingerprints.json
+    - assets/one_piece_image_catalog.json
     - assets/liga_one_piece_price_cache.json
     - assets/liga_one_piece_editions.json
     - assets/one_piece_cards_cache.json

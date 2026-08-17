@@ -10,7 +10,7 @@ import 'op_card_variant_resolver.dart';
 /// visual catalog. The upstream OPTCG image host is intentionally only kept as
 /// a last resort because it can become unavailable for long periods.
 class OpCardImageCatalog {
-  static const String _assetPath = 'assets/visual_card_fingerprints.json';
+  static const String _assetPath = 'assets/one_piece_image_catalog.json';
   static Future<Map<String, List<OpCard>>>? _catalogFuture;
 
   static Future<String> resolve({
@@ -90,9 +90,11 @@ class OpCardImageCatalog {
 
   static bool _isDurableImage(String imageUrl) {
     final host = Uri.tryParse(imageUrl)?.host.toLowerCase() ?? '';
-    return host == 'pub-b575d68981e0471899723c0f36cb89aa.r2.dev' ||
-        (host == 'repositorio.sbrauble.com' &&
-            imageUrl.toLowerCase().contains('/arquivos/in/onepiece/'));
+    // The Liga repository is authoritative, but it does not consistently
+    // allow cross-origin image decoding in Flutter Web. Keep the R2 mirror as
+    // the only terminal URL so persisted Liga/OPTCG URLs are repaired before
+    // reaching the renderer.
+    return host == 'pub-b575d68981e0471899723c0f36cb89aa.r2.dev';
   }
 
   static Future<Map<String, List<OpCard>>> _loadCatalog() async {
@@ -105,13 +107,13 @@ class OpCardImageCatalog {
           .map((raw) {
             final item = Map<String, dynamic>.from(raw);
             return OpCard(
-              code: (item['code'] ?? '').toString().trim().toUpperCase(),
-              name: (item['name'] ?? '').toString().trim(),
-              image: (item['imageUrl'] ?? '').toString().trim(),
-              setName: (item['setName'] ?? '').toString().trim(),
-              rarity: (item['rarity'] ?? '').toString().trim(),
-              color: (item['color'] ?? '').toString().trim(),
-              type: (item['type'] ?? '').toString().trim(),
+              code: (item['c'] ?? '').toString().trim().toUpperCase(),
+              name: (item['n'] ?? '').toString().trim(),
+              image: (item['i'] ?? '').toString().trim(),
+              setName: (item['s'] ?? '').toString().trim(),
+              rarity: (item['r'] ?? '').toString().trim(),
+              color: (item['o'] ?? '').toString().trim(),
+              type: (item['t'] ?? '').toString().trim(),
               subTypes: '',
               text: '',
               attribute: '',

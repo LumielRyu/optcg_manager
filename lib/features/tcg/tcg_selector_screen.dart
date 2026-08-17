@@ -85,7 +85,7 @@ class TcgSelectorScreen extends ConsumerWidget {
                   subtitle:
                       'Entre no jogo que deseja explorar. Cada hub concentra sua biblioteca e recursos da comunidade; os torneios da loja ficam reunidos nos Semanais STOP TCG.',
                   icon: Icons.style_outlined,
-                  visualAsset: 'assets/editorial/scanner_card_stack.png',
+                  visualAsset: 'assets/editorial/scanner_card_stack.webp',
                   badges: [
                     AppBadge(
                       label: '6 card games',

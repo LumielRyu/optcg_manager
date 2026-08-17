@@ -413,7 +413,10 @@ class LigaOnePieceService {
             () => _supabase
                 .from(_remoteCacheTable)
                 .select()
-                .inFilter('card_code', chunk)
+                // lookup_code is the primary key and identifies the exact
+                // printing. Querying card_code caused full-table scans and
+                // statement timeouts on the public marketplace.
+                .inFilter('lookup_code', chunk)
                 .range(pageStart, pageStart + pageSize - 1),
           );
           for (final rawRow in rows) {
@@ -828,7 +831,7 @@ class LigaOnePieceService {
       final rows = await _supabase
           .from(_remoteCacheTable)
           .select()
-          .inFilter('card_code', queryCodes);
+          .inFilter('lookup_code', queryCodes);
       final candidates = rows
           .map((row) => Map<String, dynamic>.from(row))
           .toList(growable: false);

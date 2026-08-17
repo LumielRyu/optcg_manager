@@ -58,6 +58,19 @@ const ROUTES = [
     backTarget: '#/home/one-piece',
   },
   {
+    name: 'global-marketplace',
+    hash: '#/marketplace',
+    title: 'Marketplace de cartas | TCG BH',
+    content: ['TCG BH MARKETPLACE', 'Ofertas em destaque'],
+    backTarget: '#/home/one-piece',
+    screenshot: 'global-marketplace.png',
+    ignoredConsoleErrorIncludes: [
+      'repositorio.sbrauble.com',
+      'pub-b575d68981e0471899723c0f36cb89aa.r2.dev',
+      'www.optcgapi.com',
+    ],
+  },
+  {
     name: 'pokemon-hub',
     hash: '#/pokemon',
     title: 'Pokemon | TCG BH',

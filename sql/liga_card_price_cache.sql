@@ -19,6 +19,11 @@ create table if not exists public.liga_card_price_cache (
 create index if not exists liga_card_price_cache_resolved_at_idx
 on public.liga_card_price_cache (resolved_at desc);
 
+-- The app resolves variants by card_code in batches. Without this index,
+-- PostgREST may scan the complete cache and hit Supabase's statement timeout.
+create index if not exists liga_card_price_cache_card_code_idx
+on public.liga_card_price_cache (card_code);
+
 alter table public.liga_card_price_cache enable row level security;
 
 revoke insert, update, delete, truncate, references, trigger

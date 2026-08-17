@@ -28,7 +28,7 @@
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "no-store, no-cache, must-revalidate, max-age=0"
+          "value": "public, max-age=0, must-revalidate"
         }
       ]
     },
@@ -86,7 +86,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://www.gstatic.com; worker-src 'self' blob: https://cdn.jsdelivr.net https://www.gstatic.com; connect-src 'self' https://sslfaerultjnjfkivved.supabase.co https://*.supabase.co https://www.ligaonepiece.com.br https://ligaonepiece.com.br https://www.optcgapi.com https://api.heroi.cc https://api.pokemontcg.io https://api.magicthegathering.io https://api.scryfall.com https://db.ygoprodeck.com https://digimoncard.io https://api.riftcodex.com https://riftcodex.com https://www.gstatic.com https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://www.gstatic.com; worker-src 'self' blob: https://cdn.jsdelivr.net https://www.gstatic.com; connect-src 'self' https://sslfaerultjnjfkivved.supabase.co https://*.supabase.co https://www.ligaonepiece.com.br https://ligaonepiece.com.br https://repositorio.sbrauble.com https://pub-b575d68981e0471899723c0f36cb89aa.r2.dev https://www.optcgapi.com https://api.heroi.cc https://api.pokemontcg.io https://api.magicthegathering.io https://api.scryfall.com https://db.ygoprodeck.com https://digimoncard.io https://api.riftcodex.com https://riftcodex.com https://www.gstatic.com https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests"
         },
         {
           "key": "X-Content-Type-Options",

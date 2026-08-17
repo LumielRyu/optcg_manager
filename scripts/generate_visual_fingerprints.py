@@ -18,6 +18,7 @@ API_URLS = [
 ]
 
 OUTPUT_PATH = pathlib.Path("assets/visual_card_fingerprints.json")
+IMAGE_CATALOG_OUTPUT_PATH = pathlib.Path("assets/one_piece_image_catalog.json")
 DEFAULT_IMAGE_DIR = pathlib.Path(".cache/card_images")
 
 
@@ -137,6 +138,12 @@ def parse_args():
         description="Build the local visual card catalog and cache source images."
     )
     parser.add_argument("--output", type=pathlib.Path, default=OUTPUT_PATH)
+    parser.add_argument(
+        "--image-catalog-output",
+        type=pathlib.Path,
+        default=IMAGE_CATALOG_OUTPUT_PATH,
+        help="Compact card identity/image catalog used outside the scanner.",
+    )
     parser.add_argument("--image-dir", type=pathlib.Path, default=DEFAULT_IMAGE_DIR)
     parser.add_argument(
         "--public-base-url",
@@ -205,8 +212,29 @@ def main():
         json.dumps(output, ensure_ascii=False, separators=(",", ":")),
         encoding="utf-8",
     )
+    compact_catalog = [
+        {
+            "c": item.get("code", ""),
+            "n": item.get("name", ""),
+            "i": item.get("imageUrl", ""),
+            "s": item.get("setName", ""),
+            "r": item.get("rarity", ""),
+            "o": item.get("color", ""),
+            "t": item.get("type", ""),
+        }
+        for item in output
+    ]
+    args.image_catalog_output.parent.mkdir(parents=True, exist_ok=True)
+    args.image_catalog_output.write_text(
+        json.dumps(compact_catalog, ensure_ascii=False, separators=(",", ":")),
+        encoding="utf-8",
+    )
     print(f"cached source images under {args.image_dir}")
     print(f"saved {len(output)} fingerprints to {args.output}")
+    print(
+        f"saved {len(compact_catalog)} compact image rows to "
+        f"{args.image_catalog_output}"
+    )
 
 
 if __name__ == "__main__":

@@ -2348,3 +2348,29 @@ git diff --stat
   navegadores existentes recebam a correcao sem depender de limpar dados ou F5.
 - Validacao: 213 testes Flutter, 28 Node e 21 Python aprovados; cobertura de
   34,76%, analise estatica limpa e build web concluido.
+
+### 17/08/2026 - Primeira rodada de performance geral
+
+- O marketplace global fazia uma consulta de preco para cada anuncio. Agora
+  envia todas as cartas em uma leitura em lote e atualiza a interface uma unica
+  vez, reduzindo viagens ao Supabase e reconstrucoes da grade.
+- As leituras publicas do cache da Liga passaram de `card_code` para a chave
+  primaria `lookup_code`. A consulta antiga foi reproduzida com timeout 57014;
+  a nova respondeu normalmente. `sql/performance_indexes.sql` tambem ganhou um
+  indice em `card_code` para telas administrativas e consultas antigas.
+- Colecao e marketplace deixaram de carregar o JSON visual completo. O novo
+  `assets/one_piece_image_catalog.json` tem apenas os campos necessarios, cerca
+  de 1 MB bruto e 100 KB com Brotli, mantendo 4.939 impressoes e o espelho R2.
+- O marketplace resolve URLs antigas da Liga/OPTCG para o espelho R2 antes de
+  desenhar os anuncios, preservando a identidade exata de artes alternativas.
+- `marketplace_hero` caiu de 1,72 MB para 94 KB e `scanner_card_stack` de 599 KB
+  para 49 KB com WebP. Os PNGs continuam apenas onde metadados sociais exigem.
+- O service worker foi atualizado para v7, usa revalidacao condicional e nao
+  baixa antecipadamente duas copias completas do CanvasKit. O shell web tambem
+  deixou de usar `no-store`, permitindo resposta 304 sem servir versao antiga.
+- A API do catalogo ganhou timeout de origem, cache CDN de 6 horas e stale de 7
+  dias. `puppeteer-core` passou a dependencia de desenvolvimento atualizada e
+  a auditoria de dependencias de producao ficou sem vulnerabilidades.
+- Validacao: analise estatica limpa, 218 testes Flutter e 28 Node aprovados,
+  build web e dry run Wasm concluidos, alem de smoke visual local da Home e do
+  Marketplace Global.

@@ -1,6 +1,9 @@
 create index if not exists idx_collection_items_user_type_created_at
 on public.collection_items (user_id, collection_type, created_at desc);
 
+create index if not exists liga_card_price_cache_card_code_idx
+on public.liga_card_price_cache (card_code);
+
 create index if not exists idx_collection_items_public_for_sale_created_at
 on public.collection_items (user_id, created_at desc)
 where collection_type = 'forSale' and is_public = true;

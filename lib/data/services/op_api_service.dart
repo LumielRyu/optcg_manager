@@ -513,13 +513,15 @@ class OpApiService {
     final parsedUrl = Uri.parse(url);
     final isWebProxy = !parsedUrl.hasScheme;
     final uri = isWebProxy ? Uri.base.resolve(url) : parsedUrl;
-    final response = await http.get(
-      uri,
-      headers: {
-        'Accept': 'application/json',
-        if (!isWebProxy) 'Cache-Control': 'no-cache',
-      },
-    );
+    final response = await http
+        .get(
+          uri,
+          headers: {
+            'Accept': 'application/json',
+            if (!isWebProxy) 'Cache-Control': 'no-cache',
+          },
+        )
+        .timeout(const Duration(seconds: 12));
 
     if (response.statusCode != 200) {
       throw Exception('Erro ao carregar cartas da API: ${response.statusCode}');

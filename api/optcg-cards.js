@@ -7,7 +7,7 @@ const endpoints = [
 const jsonHeaders = {
   'Content-Type': 'application/json; charset=utf-8',
   'Cache-Control':
-    'public, max-age=300, s-maxage=900, stale-while-revalidate=86400',
+    'public, max-age=300, s-maxage=21600, stale-while-revalidate=604800',
 };
 
 import observability from '../server/api-observability.js';
@@ -36,6 +36,7 @@ export default async function handler(request, response) {
     const payloads = await Promise.all(
       endpoints.map(async (url) => {
         const upstream = await fetch(url, {
+          signal: AbortSignal.timeout(8000),
           headers: {
             Accept: 'application/json',
             'User-Agent': 'TCG BH/1.0 (+https://tcgbh.vercel.app)',
