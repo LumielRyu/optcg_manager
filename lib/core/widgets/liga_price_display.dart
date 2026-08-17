@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -20,6 +22,14 @@ LigaOnePieceCardSnapshot? selectLigaPriceSnapshot({
   // base. Ex.: OP12-119-3A (3rd Anniversary) não deve usar OP12-119.
   if (normalizedLookupCode != normalizedCode) return null;
   return snapshots[normalizedCode];
+}
+
+@visibleForTesting
+Map<String, LigaOnePieceCardSnapshot> mergeLigaPriceSnapshots({
+  required Map<String, LigaOnePieceCardSnapshot> previous,
+  required Map<String, LigaOnePieceCardSnapshot> latest,
+}) {
+  return <String, LigaOnePieceCardSnapshot>{...previous, ...latest};
 }
 
 class LigaPriceCardReference {
@@ -112,6 +122,9 @@ class _LigaPriceScopeState extends ConsumerState<LigaPriceScope> {
   Map<String, LigaOnePieceCardSnapshot> _snapshots = const {};
   bool _loading = true;
   late String _signature;
+  int _loadGeneration = 0;
+  int _retryAttempt = 0;
+  Timer? _retryTimer;
 
   @override
   void initState() {
@@ -126,30 +139,96 @@ class _LigaPriceScopeState extends ConsumerState<LigaPriceScope> {
     final nextSignature = _buildSignature(widget.cards);
     if (_signature == nextSignature) return;
     _signature = nextSignature;
+    _retryAttempt = 0;
     _load();
   }
 
-  Future<void> _load() async {
+  @override
+  void dispose() {
+    _retryTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _load({bool retry = false}) async {
+    final generation = ++_loadGeneration;
+    _retryTimer?.cancel();
+    final cards = widget.cards
+        .map(
+          (card) => (
+            cardName: card.cardName,
+            cardCode: card.cardCode,
+            imageUrl: card.imageUrl,
+          ),
+        )
+        .toList(growable: false);
+    final service = ref.read(ligaOnePieceServiceProvider);
+    final localSnapshots = service.readLocallyCachedPublicCardSnapshotsForCards(
+      cards,
+    );
+
     if (mounted) {
       setState(() {
+        if (localSnapshots.isNotEmpty) {
+          _snapshots = mergeLigaPriceSnapshots(
+            previous: _snapshots,
+            latest: localSnapshots,
+          );
+        }
         _loading = true;
       });
     }
-    final service = ref.read(ligaOnePieceServiceProvider);
-    final snapshots = await service.fetchCachedPublicCardSnapshotsForCards(
-      widget.cards.map(
-        (card) => (
+
+    try {
+      final snapshots = await service.fetchCachedPublicCardSnapshotsForCards(
+        cards,
+      );
+      if (!mounted || generation != _loadGeneration) return;
+      final mergedSnapshots = mergeLigaPriceSnapshots(
+        previous: _snapshots,
+        latest: snapshots,
+      );
+      setState(() {
+        // Uma resposta parcial nunca apaga precos que ja estavam disponiveis.
+        _snapshots = mergedSnapshots;
+        _loading = false;
+      });
+
+      final hasMissingPrices = cards.any((card) {
+        final referenceKey = service.priceReferenceKeyForCard(
           cardName: card.cardName,
           cardCode: card.cardCode,
           imageUrl: card.imageUrl,
-        ),
-      ),
-    );
-    if (!mounted) return;
-    setState(() {
-      _snapshots = snapshots;
-      _loading = false;
-    });
+        );
+        final lookupCode = service.lookupCodeForCard(
+          cardName: card.cardName,
+          cardCode: card.cardCode,
+        );
+        return selectLigaPriceSnapshot(
+              snapshots: mergedSnapshots,
+              referenceKey: referenceKey,
+              lookupCode: lookupCode,
+              cardCode: card.cardCode,
+            ) ==
+            null;
+      });
+      if (!retry && hasMissingPrices && _retryAttempt < 1) {
+        _retryAttempt++;
+        _retryTimer = Timer(
+          const Duration(seconds: 2),
+          () => _load(retry: true),
+        );
+      }
+    } catch (_) {
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() => _loading = false);
+      if (_retryAttempt < 2) {
+        _retryAttempt++;
+        _retryTimer = Timer(
+          Duration(seconds: _retryAttempt * 2),
+          () => _load(retry: true),
+        );
+      }
+    }
   }
 
   String _buildSignature(List<LigaPriceCardReference> cards) {
@@ -179,7 +258,7 @@ class LigaCollectionValueCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final data = _LigaPriceData.maybeOf(context);
-    if (data == null || data.loading) {
+    if (data == null || (data.loading && data.snapshots.isEmpty)) {
       return const SummaryStatCard(
         label: 'Valor pela Liga',
         value: 'Calculando...',
@@ -230,7 +309,7 @@ class LigaCollectionValueText extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final data = _LigaPriceData.maybeOf(context);
     final theme = Theme.of(context);
-    if (data == null || data.loading) {
+    if (data == null || (data.loading && data.snapshots.isEmpty)) {
       return Text(
         'Valor: calculando...',
         style: theme.textTheme.labelMedium?.copyWith(
@@ -282,7 +361,7 @@ class LigaDeckValueCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final data = _LigaPriceData.maybeOf(context);
-    if (data == null || data.loading) {
+    if (data == null || (data.loading && data.snapshots.isEmpty)) {
       return const SummaryStatCard(
         label: 'Valor total do deck',
         value: 'Calculando...',
@@ -363,7 +442,7 @@ class LigaPriceLabel extends ConsumerWidget {
     final price = snapshot?.minimumPrice ?? snapshot?.lowestListing?.price;
     final theme = Theme.of(context);
 
-    if (data?.loading ?? true) {
+    if ((data?.loading ?? true) && snapshot == null) {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -443,7 +522,7 @@ class LigaDeckCardPrice extends ConsumerWidget {
     final data = _LigaPriceData.maybeOf(context);
     final theme = Theme.of(context);
 
-    if (data == null || data.loading) {
+    if (data == null || (data.loading && data.snapshots.isEmpty)) {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [

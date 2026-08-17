@@ -24,6 +24,8 @@ void main() {
       ).readAsStringSync();
 
       expect(source, contains('cacheWidth: decodeWidth'));
+      expect(source, contains('Duration(milliseconds: 800)'));
+      expect(source, contains("'Tentando carregar imagem...'"));
       expect(
         source,
         contains('webHtmlElementStrategy: WebHtmlElementStrategy.fallback'),

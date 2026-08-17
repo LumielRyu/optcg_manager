@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -1992,7 +1994,7 @@ class _VirtualizedDeckLibraryView extends StatelessWidget {
   }
 }
 
-class _CollectionCardImage extends StatelessWidget {
+class _CollectionCardImage extends StatefulWidget {
   final String imageUrl;
   final String cardCode;
   final BoxFit fit;
@@ -2005,8 +2007,46 @@ class _CollectionCardImage extends StatelessWidget {
   });
 
   @override
+  State<_CollectionCardImage> createState() => _CollectionCardImageState();
+}
+
+class _CollectionCardImageState extends State<_CollectionCardImage> {
+  static const List<Duration> _retryDelays = <Duration>[
+    Duration(milliseconds: 800),
+    Duration(seconds: 2),
+  ];
+
+  Timer? _retryTimer;
+  int _attempt = 0;
+
+  @override
+  void didUpdateWidget(covariant _CollectionCardImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.imageUrl != widget.imageUrl) {
+      _retryTimer?.cancel();
+      _retryTimer = null;
+      _attempt = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _retryTimer?.cancel();
+    super.dispose();
+  }
+
+  void _scheduleRetry() {
+    if (_retryTimer != null || _attempt >= _retryDelays.length) return;
+    _retryTimer = Timer(_retryDelays[_attempt], () {
+      _retryTimer = null;
+      if (!mounted) return;
+      setState(() => _attempt++);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final directUrl = imageUrl.trim();
+    final directUrl = widget.imageUrl.trim();
 
     if (directUrl.isEmpty) {
       return const _ImagePlaceholder();
@@ -2021,14 +2061,21 @@ class _CollectionCardImage extends StatelessWidget {
 
     return Image.network(
       directUrl,
-      key: ValueKey('collection-image-$cardCode-$directUrl'),
-      fit: fit,
+      key: ValueKey(
+        'collection-image-${widget.cardCode}-$directUrl-attempt-$_attempt',
+      ),
+      fit: widget.fit,
       gaplessPlayback: false,
       cacheWidth: decodeWidth,
       webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
       filterQuality: FilterQuality.low,
       errorBuilder: (_, _, _) {
-        return const _ImagePlaceholder();
+        _scheduleRetry();
+        return _ImagePlaceholder(
+          label: _attempt < _retryDelays.length
+              ? 'Tentando carregar imagem...'
+              : 'Imagem indisponivel',
+        );
       },
       loadingBuilder: (context, child, progress) {
         if (progress == null) return child;
@@ -2040,13 +2087,30 @@ class _CollectionCardImage extends StatelessWidget {
 }
 
 class _ImagePlaceholder extends StatelessWidget {
-  const _ImagePlaceholder();
+  final String? label;
+
+  const _ImagePlaceholder({this.label});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       color: Colors.grey.shade200,
-      child: const Center(child: Icon(Icons.image_not_supported_outlined)),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.image_not_supported_outlined),
+            if (label != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                label!,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

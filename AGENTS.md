@@ -2310,3 +2310,23 @@ git diff --stat
 - O aplicativo limpa imagens decodificadas quando o navegador informa pressao de
   memoria. Uma auditoria automatizada garante que bibliotecas, colecoes, vendas,
   procurados, vitrines e marketplaces principais continuem usando grades lazy.
+
+### 16/08/2026 - Primeira abertura da colecao sem F5
+
+- Depois de 12 horas, o cache local de precos era descartado antes da consulta
+  remota. A colecao agora mostra imediatamente o ultimo valor salvo como
+  desatualizado e o substitui pela resposta atual do Supabase em segundo plano.
+- Consultas de preco iniciadas antes e depois da atualizacao do catalogo podiam
+  terminar fora de ordem. Cada carga passou a ter uma geracao; somente a mais
+  recente pode alterar a tela, e respostas parciais nao apagam precos ja
+  exibidos.
+- Falhas na auditoria de variantes eram marcadas como definitivamente lidas e
+  so voltavam a ser consultadas apos F5. Agora leituras remotas tentam novamente
+  com espera progressiva e somente consultas bem-sucedidas entram no cache.
+- Auditoria de variantes e precos por codigo passaram a carregar em paralelo,
+  reduzindo uma viagem ao banco durante a primeira abertura.
+- Imagens da colecao que falharem por indisponibilidade transitoria fazem duas
+  novas tentativas automaticamente, em 800 ms e 2 s, mantendo o limite de
+  decodificacao e a grade virtualizada.
+- Validacao: 209 testes Flutter, 26 Node e 21 Python aprovados; cobertura de
+  34,42%, analise estatica limpa e build web concluido.

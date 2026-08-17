@@ -45,6 +45,11 @@ class LigaOnePieceService {
   static const String _snapshotCachePrefix = 'liga_snapshot_v3_';
   static const String _snapshotCachedAtPrefix = 'liga_snapshot_v3_cached_at_';
   static const Duration _snapshotCacheMaxAge = Duration(hours: 12);
+  static const List<Duration> _remoteReadRetryDelays = <Duration>[
+    Duration.zero,
+    Duration(milliseconds: 250),
+    Duration(milliseconds: 750),
+  ];
   static const String defaultCardUrl =
       'https://www.ligaonepiece.com.br/?view=cards/card&card=Porche+%28OP07-072%29&ed=OP-07&num=OP07-072';
 
@@ -375,7 +380,7 @@ class LigaOnePieceService {
     }
 
     final rowsByCode = <String, List<Map<String, dynamic>>>{};
-    final confirmedMappings = await _loadConfirmedMappings(
+    final confirmedMappingsFuture = _loadConfirmedMappings(
       missingReferences.map((card) => card.referenceKey),
     );
 
@@ -404,11 +409,13 @@ class LigaOnePieceService {
         const pageSize = 1000;
         var pageStart = 0;
         while (true) {
-          final rows = await _supabase
-              .from(_remoteCacheTable)
-              .select()
-              .inFilter('card_code', chunk)
-              .range(pageStart, pageStart + pageSize - 1);
+          final rows = await _retryRemoteRead(
+            () => _supabase
+                .from(_remoteCacheTable)
+                .select()
+                .inFilter('card_code', chunk)
+                .range(pageStart, pageStart + pageSize - 1),
+          );
           for (final rawRow in rows) {
             final row = Map<String, dynamic>.from(rawRow);
             indexRow(row, row['card_code']);
@@ -426,6 +433,10 @@ class LigaOnePieceService {
         // A lista continua utilizavel mesmo se o cache remoto estiver offline.
       }
     }
+    // A auditoria de variantes e os precos por codigo sao independentes. Ler
+    // ambos ao mesmo tempo reduz uma ida completa ao Supabase na primeira
+    // abertura da colecao.
+    final confirmedMappings = await confirmedMappingsFuture;
     final mappedLookupCodes = confirmedMappings.values.toSet().toList();
     for (
       var offset = 0;
@@ -435,10 +446,12 @@ class LigaOnePieceService {
       final end = (offset + chunkSize).clamp(0, mappedLookupCodes.length);
       final chunk = mappedLookupCodes.sublist(offset, end);
       try {
-        final rows = await _supabase
-            .from(_remoteCacheTable)
-            .select()
-            .inFilter('lookup_code', chunk);
+        final rows = await _retryRemoteRead(
+          () => _supabase
+              .from(_remoteCacheTable)
+              .select()
+              .inFilter('lookup_code', chunk),
+        );
         for (final rawRow in rows) {
           final row = Map<String, dynamic>.from(rawRow);
           indexRow(row, row['card_code']);
@@ -515,6 +528,46 @@ class LigaOnePieceService {
           stackTrace,
           context: 'liga-price-batch-map',
         );
+      }
+    }
+
+    return snapshots;
+  }
+
+  /// Returns the last usable prices synchronously, including entries older
+  /// than the online refresh window. The UI can render these as stale while a
+  /// fresh Supabase read runs in the background instead of briefly claiming
+  /// that a previously verified card is unverified.
+  Map<String, LigaOnePieceCardSnapshot>
+  readLocallyCachedPublicCardSnapshotsForCards(
+    Iterable<({String cardName, String cardCode, String imageUrl})> cards,
+  ) {
+    final snapshots = <String, LigaOnePieceCardSnapshot>{};
+
+    for (final card in cards) {
+      final normalizedCode = _normalizeLookupCode(card.cardCode);
+      final lookupCode = lookupCodeForCard(
+        cardName: card.cardName,
+        cardCode: card.cardCode,
+      );
+      final referenceKey = priceReferenceKeyForCard(
+        cardName: card.cardName,
+        cardCode: card.cardCode,
+        imageUrl: card.imageUrl,
+      );
+      final snapshot =
+          _memorySnapshotForCardCode(referenceKey) ??
+          _memorySnapshotForCardCode(lookupCode) ??
+          _memorySnapshotForCardCode(normalizedCode) ??
+          _persistedSnapshotForCardCode(referenceKey, allowExpired: true) ??
+          _persistedSnapshotForCardCode(lookupCode, allowExpired: true) ??
+          _persistedSnapshotForCardCode(normalizedCode, allowExpired: true);
+      if (snapshot == null) continue;
+
+      snapshots[referenceKey] = snapshot;
+      snapshots.putIfAbsent(lookupCode, () => snapshot);
+      if (lookupCode == normalizedCode) {
+        snapshots.putIfAbsent(normalizedCode, () => snapshot);
       }
     }
 
@@ -678,7 +731,10 @@ class LigaOnePieceService {
         _memorySnapshotCache[normalizedCode];
   }
 
-  LigaOnePieceCardSnapshot? _persistedSnapshotForCardCode(String cardCode) {
+  LigaOnePieceCardSnapshot? _persistedSnapshotForCardCode(
+    String cardCode, {
+    bool allowExpired = false,
+  }) {
     try {
       final box = Hive.box(HiveBoxes.apiCache);
       final normalizedCode = _normalizeLookupCode(cardCode);
@@ -691,7 +747,8 @@ class LigaOnePieceService {
           continue;
         }
 
-        if (DateTime.now().difference(cachedAt) > _snapshotCacheMaxAge) {
+        if (!allowExpired &&
+            DateTime.now().difference(cachedAt) > _snapshotCacheMaxAge) {
           continue;
         }
 
@@ -812,13 +869,16 @@ class LigaOnePieceService {
     for (var offset = 0; offset < pending.length; offset += chunkSize) {
       final end = (offset + chunkSize).clamp(0, pending.length);
       final chunk = pending.sublist(offset, end);
+      var loaded = false;
       try {
-        final rows = await _supabase
-            .from(_variantMappingTable)
-            .select('catalog_variant_key, liga_lookup_code')
-            .eq('game_slug', 'one-piece')
-            .eq('status', 'confirmed')
-            .inFilter('catalog_variant_key', chunk);
+        final rows = await _retryRemoteRead(
+          () => _supabase
+              .from(_variantMappingTable)
+              .select('catalog_variant_key, liga_lookup_code')
+              .eq('game_slug', 'one-piece')
+              .eq('status', 'confirmed')
+              .inFilter('catalog_variant_key', chunk),
+        );
         for (final rawRow in rows) {
           final row = Map<String, dynamic>.from(rawRow);
           final key = row['catalog_variant_key']?.toString().trim() ?? '';
@@ -829,9 +889,13 @@ class LigaOnePieceService {
             _confirmedMappingCache[key] = lookup;
           }
         }
+        loaded = true;
       } catch (_) {
         // O seletor heuristico continua disponivel enquanto a auditoria carrega.
-      } finally {
+      }
+      if (loaded) {
+        // Falhas transitorias nao podem ser memorizadas como uma consulta
+        // concluida; isso impedia nova tentativa ate o usuario pressionar F5.
         _loadedMappingKeys.addAll(chunk);
       }
     }
@@ -841,6 +905,23 @@ class LigaOnePieceService {
       if (lookup != null) result[key] = lookup;
     }
     return result;
+  }
+
+  Future<T> _retryRemoteRead<T>(Future<T> Function() operation) async {
+    Object? lastError;
+    StackTrace? lastStackTrace;
+
+    for (final delay in _remoteReadRetryDelays) {
+      if (delay > Duration.zero) await Future<void>.delayed(delay);
+      try {
+        return await operation();
+      } catch (error, stackTrace) {
+        lastError = error;
+        lastStackTrace = stackTrace;
+      }
+    }
+
+    Error.throwWithStackTrace(lastError!, lastStackTrace!);
   }
 
   @visibleForTesting
