@@ -45,11 +45,11 @@ void main() {
     expect(source, contains("'Cache-Control': 'no-cache'"));
   });
 
-  test('web shell and reset marker are versioned for OP17 rollout', () {
+  test('versioned web worker owns catalog cache migration', () {
     final worker = File('web/pwa_service_worker.js').readAsStringSync();
     final index = File('web/index.html').readAsStringSync();
 
     expect(worker, contains("CACHE_NAME = 'optcg-shell-v7'"));
-    expect(index, contains('2026-08-09-one-piece-catalog-v6'));
+    expect(index, isNot(contains('optcg_cache_reset_version')));
   });
 }

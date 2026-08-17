@@ -2399,3 +2399,25 @@ git diff --stat
 - Validacao: analise estatica limpa, 222 testes Flutter e 28 Node aprovados,
   auditoria npm sem vulnerabilidades, build web concluido e smoke local aprovado
   na Home, Marketplace Global, Produtos e rankings semanais.
+
+### 17/08/2026 - Terceira rodada de performance e bootstrap web
+
+- O bootstrap aguardava a exclusao de todos os caches e o cancelamento de
+  service workers antes de iniciar o Flutter em um navegador novo. Essa limpeza
+  saiu do caminho critico; o Flutter inicia imediatamente e a migracao continua
+  sob responsabilidade do service worker versionado `optcg-shell-v7`.
+- Biblioteca, colecao, vendas e procuradas de One Piece foram reunidas em um
+  modulo adiado. As telas genericas e bibliotecas dos demais TCGs formam outro
+  modulo, enquanto decks, vendas e vitrines compartilhadas ficam em um terceiro.
+  Isso evita enviar toda a aplicacao para quem abre somente a Home.
+- O JavaScript inicial bruto caiu de 4.245.246 para 3.401.452 bytes nesta etapa.
+  Em relacao aos 5.160.491 bytes anteriores a divisao de rotas, a reducao total
+  chegou a aproximadamente 34%.
+- A estrategia experimental de um import adiado por tela foi descartada porque
+  criava fragmentos demais. O agrupamento final preserva o ganho de tamanho e
+  reduz a fragmentacao por dominio funcional.
+- Medicao direta em navegador limpo encontrou o primeiro frame local em cerca
+  de 0,55 s. Smoke local aprovou Home, Biblioteca One Piece, Marketplace Global,
+  Produtos, Biblioteca Pokemon e rankings semanais. Validacao completa: analise
+  estatica limpa, 223 testes Flutter e 28 Node aprovados, auditoria npm sem
+  vulnerabilidades e build web concluido.

@@ -55,7 +55,19 @@ void main() {
     expect(router, contains('deferred as products'));
     expect(router, contains('deferred as weekly_dashboard'));
     expect(router, contains('deferred as image_import'));
+    expect(router, contains('deferred as op_routes'));
+    expect(router, contains('deferred as shared_routes'));
+    expect(router, contains('deferred as tcg_routes'));
     expect(router, contains('class _DeferredRoute'));
+  });
+
+  test('web bootstrap does not erase caches before starting Flutter', () {
+    final entrypoint = File('web/index.html').readAsStringSync();
+
+    expect(entrypoint, contains('loadFlutter();'));
+    expect(entrypoint, isNot(contains('resetStaleCaches().finally')));
+    expect(entrypoint, isNot(contains('navigator.serviceWorker.getRegistrations')));
+    expect(entrypoint, isNot(contains('window.caches.keys')));
   });
 
   test('marketplace keeps automatic carousels outside the LCP window', () {

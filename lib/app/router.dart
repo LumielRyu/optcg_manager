@@ -8,18 +8,12 @@ import '../core/constants/collection_types.dart';
 import '../core/tcg/tcg_game.dart';
 import '../core/utils/admin_access.dart';
 import '../data/models/op_card.dart';
+import '../data/repositories/user_preferences_repository.dart';
+import '../features/admin/liga_price_admin_screen.dart' deferred as liga_admin;
 import '../features/auth/auth_gate.dart';
 import '../features/auth/complete_profile_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
-import '../features/admin/liga_price_admin_screen.dart' deferred as liga_admin;
-import '../features/collection/collection_screen.dart';
-import '../features/collection/shared_sale_card_screen.dart';
-import '../features/collection/shared_store_screen.dart';
-import '../features/collection/tcg_collection_screen.dart';
-import '../features/decks/shared_deck_screen.dart';
-import '../features/decks/tcg_decks_screen.dart';
-import '../features/digimon/digimon_library_screen.dart';
 import '../features/help/help_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/integrations/liga_one_piece_test_screen.dart'
@@ -32,34 +26,22 @@ import '../features/imports/code_import/code_import_screen.dart'
     deferred as code_import;
 import '../features/imports/image_import/image_import_screen.dart'
     deferred as image_import;
-import '../features/imports/tcg_import/tcg_import_screen.dart';
-import '../features/library/library_card_details_screen.dart';
-import '../features/library/library_compare_screen.dart';
-import '../features/library/one_piece_library_screen.dart';
 import '../features/legal/legal_document_screen.dart';
 import '../features/marketplace/global_marketplace_screen.dart'
     deferred as global_marketplace;
-import '../features/marketplace/tcg_marketplace_screen.dart';
-import '../features/magic/magic_library_screen.dart';
-import '../features/pokemon/pokemon_library_screen.dart';
 import '../features/products/products_screen.dart' deferred as products;
 import '../features/profile/profile_screen.dart';
-import '../features/riftbound/riftbound_library_screen.dart';
-import '../features/sales/sales_screen.dart';
-import '../features/sales/tcg_sales_screen.dart';
 import '../features/tcg/tcg_hub_screen.dart';
 import '../features/tcg/tcg_selector_screen.dart';
-import '../features/wanted/wanted_cards_screen.dart';
-import '../features/wanted/shared_wanted_cards_screen.dart';
-import '../features/wanted/tcg_wanted_screen.dart';
-import '../features/yugioh/yugioh_library_screen.dart';
 import '../features/weeklies/pokemon_weekly_report_screen.dart'
     deferred as pokemon_weekly;
 import '../features/weeklies/weekly_dashboard_screen.dart'
     deferred as weekly_dashboard;
 import '../features/weeklies/weekly_selector_screen.dart'
     deferred as weekly_selector;
-import '../data/repositories/user_preferences_repository.dart';
+import 'deferred/one_piece_routes.dart' deferred as op_routes;
+import 'deferred/shared_routes.dart' deferred as shared_routes;
+import 'deferred/tcg_routes.dart' deferred as tcg_routes;
 
 class AuthRouterNotifier extends ChangeNotifier {
   AuthRouterNotifier() {
@@ -177,21 +159,30 @@ final GoRouter appRouter = GoRouter(
       path: '/shared/deck/:shareCode',
       builder: (context, state) {
         final shareCode = state.pathParameters['shareCode'] ?? '';
-        return SharedDeckScreen(shareCode: shareCode);
+        return _DeferredRoute(
+          loadLibrary: shared_routes.loadLibrary,
+          builder: () => shared_routes.deckScreen(shareCode: shareCode),
+        );
       },
     ),
     GoRoute(
       path: '/shared/sale/:shareCode',
       builder: (context, state) {
         final shareCode = state.pathParameters['shareCode'] ?? '';
-        return SharedSaleCardScreen(shareCode: shareCode);
+        return _DeferredRoute(
+          loadLibrary: shared_routes.loadLibrary,
+          builder: () => shared_routes.saleScreen(shareCode: shareCode),
+        );
       },
     ),
     GoRoute(
       path: '/shared/store/:userId',
       builder: (context, state) {
         final userId = state.pathParameters['userId'] ?? '';
-        return SharedStoreScreen(userId: userId);
+        return _DeferredRoute(
+          loadLibrary: shared_routes.loadLibrary,
+          builder: () => shared_routes.storeScreen(userId: userId),
+        );
       },
     ),
     GoRoute(
@@ -199,14 +190,20 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final game = TcgGame.fromSlug(state.pathParameters['gameSlug']);
         final userId = state.pathParameters['userId'] ?? '';
-        return TcgWantedScreen(game: game, sharedUserId: userId);
+        return _DeferredRoute(
+          loadLibrary: tcg_routes.loadLibrary,
+          builder: () => tcg_routes.wantedScreen(game, sharedUserId: userId),
+        );
       },
     ),
     GoRoute(
       path: '/shared/wanted/:userId',
       builder: (context, state) {
         final userId = state.pathParameters['userId'] ?? '';
-        return SharedWantedCardsScreen(userId: userId);
+        return _DeferredRoute(
+          loadLibrary: shared_routes.loadLibrary,
+          builder: () => shared_routes.wantedScreen(userId: userId),
+        );
       },
     ),
     GoRoute(
@@ -262,33 +259,52 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/digimon/library',
-      builder: (context, state) => const DigimonLibraryScreen(),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.libraryScreen(TcgGame.digimon),
+      ),
     ),
     GoRoute(
       path: '/digimon/collection',
-      builder: (context, state) =>
-          const TcgCollectionScreen(game: TcgGame.digimon),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.collectionScreen(TcgGame.digimon),
+      ),
     ),
     GoRoute(
       path: '/digimon/decks',
-      builder: (context, state) => const TcgDecksScreen(game: TcgGame.digimon),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.decksScreen(TcgGame.digimon),
+      ),
     ),
     GoRoute(
       path: '/digimon/sales',
-      builder: (context, state) => const TcgSalesScreen(game: TcgGame.digimon),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.salesScreen(TcgGame.digimon),
+      ),
     ),
     GoRoute(
       path: '/digimon/marketplace',
-      builder: (context, state) =>
-          const TcgMarketplaceScreen(game: TcgGame.digimon),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.marketplaceScreen(TcgGame.digimon),
+      ),
     ),
     GoRoute(
       path: '/digimon/wanted',
-      builder: (context, state) => const TcgWantedScreen(game: TcgGame.digimon),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.wantedScreen(TcgGame.digimon),
+      ),
     ),
     GoRoute(
       path: '/digimon/import',
-      builder: (context, state) => const TcgImportScreen(game: TcgGame.digimon),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.importScreen(TcgGame.digimon),
+      ),
     ),
     GoRoute(
       path: '/magic',
@@ -311,33 +327,52 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/magic/library',
-      builder: (context, state) => const MagicLibraryScreen(),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.libraryScreen(TcgGame.magic),
+      ),
     ),
     GoRoute(
       path: '/magic/collection',
-      builder: (context, state) =>
-          const TcgCollectionScreen(game: TcgGame.magic),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.collectionScreen(TcgGame.magic),
+      ),
     ),
     GoRoute(
       path: '/magic/decks',
-      builder: (context, state) => const TcgDecksScreen(game: TcgGame.magic),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.decksScreen(TcgGame.magic),
+      ),
     ),
     GoRoute(
       path: '/magic/sales',
-      builder: (context, state) => const TcgSalesScreen(game: TcgGame.magic),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.salesScreen(TcgGame.magic),
+      ),
     ),
     GoRoute(
       path: '/magic/marketplace',
-      builder: (context, state) =>
-          const TcgMarketplaceScreen(game: TcgGame.magic),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.marketplaceScreen(TcgGame.magic),
+      ),
     ),
     GoRoute(
       path: '/magic/wanted',
-      builder: (context, state) => const TcgWantedScreen(game: TcgGame.magic),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.wantedScreen(TcgGame.magic),
+      ),
     ),
     GoRoute(
       path: '/magic/import',
-      builder: (context, state) => const TcgImportScreen(game: TcgGame.magic),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.importScreen(TcgGame.magic),
+      ),
     ),
     GoRoute(
       path: '/pokemon',
@@ -360,33 +395,52 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/pokemon/library',
-      builder: (context, state) => const PokemonLibraryScreen(),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.libraryScreen(TcgGame.pokemon),
+      ),
     ),
     GoRoute(
       path: '/pokemon/collection',
-      builder: (context, state) =>
-          const TcgCollectionScreen(game: TcgGame.pokemon),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.collectionScreen(TcgGame.pokemon),
+      ),
     ),
     GoRoute(
       path: '/pokemon/decks',
-      builder: (context, state) => const TcgDecksScreen(game: TcgGame.pokemon),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.decksScreen(TcgGame.pokemon),
+      ),
     ),
     GoRoute(
       path: '/pokemon/sales',
-      builder: (context, state) => const TcgSalesScreen(game: TcgGame.pokemon),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.salesScreen(TcgGame.pokemon),
+      ),
     ),
     GoRoute(
       path: '/pokemon/marketplace',
-      builder: (context, state) =>
-          const TcgMarketplaceScreen(game: TcgGame.pokemon),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.marketplaceScreen(TcgGame.pokemon),
+      ),
     ),
     GoRoute(
       path: '/pokemon/wanted',
-      builder: (context, state) => const TcgWantedScreen(game: TcgGame.pokemon),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.wantedScreen(TcgGame.pokemon),
+      ),
     ),
     GoRoute(
       path: '/pokemon/import',
-      builder: (context, state) => const TcgImportScreen(game: TcgGame.pokemon),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.importScreen(TcgGame.pokemon),
+      ),
     ),
     GoRoute(
       path: '/riftbound',
@@ -409,37 +463,52 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/riftbound/library',
-      builder: (context, state) => const RiftboundLibraryScreen(),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.libraryScreen(TcgGame.riftbound),
+      ),
     ),
     GoRoute(
       path: '/riftbound/collection',
-      builder: (context, state) =>
-          const TcgCollectionScreen(game: TcgGame.riftbound),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.collectionScreen(TcgGame.riftbound),
+      ),
     ),
     GoRoute(
       path: '/riftbound/decks',
-      builder: (context, state) =>
-          const TcgDecksScreen(game: TcgGame.riftbound),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.decksScreen(TcgGame.riftbound),
+      ),
     ),
     GoRoute(
       path: '/riftbound/sales',
-      builder: (context, state) =>
-          const TcgSalesScreen(game: TcgGame.riftbound),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.salesScreen(TcgGame.riftbound),
+      ),
     ),
     GoRoute(
       path: '/riftbound/marketplace',
-      builder: (context, state) =>
-          const TcgMarketplaceScreen(game: TcgGame.riftbound),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.marketplaceScreen(TcgGame.riftbound),
+      ),
     ),
     GoRoute(
       path: '/riftbound/wanted',
-      builder: (context, state) =>
-          const TcgWantedScreen(game: TcgGame.riftbound),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.wantedScreen(TcgGame.riftbound),
+      ),
     ),
     GoRoute(
       path: '/riftbound/import',
-      builder: (context, state) =>
-          const TcgImportScreen(game: TcgGame.riftbound),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.importScreen(TcgGame.riftbound),
+      ),
     ),
     GoRoute(
       path: '/yugioh',
@@ -462,33 +531,52 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/yugioh/library',
-      builder: (context, state) => const YugiohLibraryScreen(),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.libraryScreen(TcgGame.yugioh),
+      ),
     ),
     GoRoute(
       path: '/yugioh/collection',
-      builder: (context, state) =>
-          const TcgCollectionScreen(game: TcgGame.yugioh),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.collectionScreen(TcgGame.yugioh),
+      ),
     ),
     GoRoute(
       path: '/yugioh/decks',
-      builder: (context, state) => const TcgDecksScreen(game: TcgGame.yugioh),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.decksScreen(TcgGame.yugioh),
+      ),
     ),
     GoRoute(
       path: '/yugioh/sales',
-      builder: (context, state) => const TcgSalesScreen(game: TcgGame.yugioh),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.salesScreen(TcgGame.yugioh),
+      ),
     ),
     GoRoute(
       path: '/yugioh/marketplace',
-      builder: (context, state) =>
-          const TcgMarketplaceScreen(game: TcgGame.yugioh),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.marketplaceScreen(TcgGame.yugioh),
+      ),
     ),
     GoRoute(
       path: '/yugioh/wanted',
-      builder: (context, state) => const TcgWantedScreen(game: TcgGame.yugioh),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.wantedScreen(TcgGame.yugioh),
+      ),
     ),
     GoRoute(
       path: '/yugioh/import',
-      builder: (context, state) => const TcgImportScreen(game: TcgGame.yugioh),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: tcg_routes.loadLibrary,
+        builder: () => tcg_routes.importScreen(TcgGame.yugioh),
+      ),
     ),
     GoRoute(
       path: '/integrations/liga-one-piece-test',
@@ -506,7 +594,10 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/library',
-      builder: (context, state) => const OnePieceLibraryScreen(),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: op_routes.loadLibrary,
+        builder: () => op_routes.libraryScreen(),
+      ),
     ),
     GoRoute(
       path: '/marketplace',
@@ -524,7 +615,10 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/wanted',
-      builder: (context, state) => const WantedCardsScreen(),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: op_routes.loadLibrary,
+        builder: () => op_routes.wantedScreen(),
+      ),
     ),
     GoRoute(
       path: '/library/card/:cardCode',
@@ -533,11 +627,14 @@ final GoRouter appRouter = GoRouter(
         final imageUrl = state.uri.queryParameters['image'];
         final cardName = state.uri.queryParameters['name'];
         final extraCard = state.extra is OpCard ? state.extra as OpCard : null;
-        return LibraryCardDetailsScreen(
-          cardCode: cardCode,
-          preferredImageUrl: imageUrl,
-          preferredName: cardName,
-          initialCard: extraCard,
+        return _DeferredRoute(
+          loadLibrary: op_routes.loadLibrary,
+          builder: () => op_routes.libraryCardDetailsScreen(
+            cardCode: cardCode,
+            preferredImageUrl: imageUrl,
+            preferredName: cardName,
+            initialCard: extraCard,
+          ),
         );
       },
     ),
@@ -551,12 +648,18 @@ final GoRouter appRouter = GoRouter(
             .map((code) => code.trim())
             .where((code) => code.isNotEmpty)
             .toList(growable: false);
-        return LibraryCompareScreen(cardCodes: codes);
+        return _DeferredRoute(
+          loadLibrary: op_routes.loadLibrary,
+          builder: () => op_routes.libraryCompareScreen(cardCodes: codes),
+        );
       },
     ),
     GoRoute(
       path: '/collection',
-      builder: (context, state) => const CollectionScreen(),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: op_routes.loadLibrary,
+        builder: () => op_routes.collectionScreen(),
+      ),
     ),
     GoRoute(
       path: '/weeklies',
@@ -581,7 +684,13 @@ final GoRouter appRouter = GoRouter(
         ),
       ),
     ),
-    GoRoute(path: '/sales', builder: (context, state) => const SalesScreen()),
+    GoRoute(
+      path: '/sales',
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: op_routes.loadLibrary,
+        builder: () => op_routes.salesScreen(),
+      ),
+    ),
     GoRoute(path: '/help', builder: (context, state) => const HelpScreen()),
     GoRoute(
       path: '/code-import',

@@ -27,12 +27,8 @@ void main() {
         ".register('pwa_service_worker.js', { updateViaCache: 'none' })",
       ),
     );
-    expect(
-      html,
-      contains(
-        "const cacheResetVersion = '2026-08-09-one-piece-catalog-v6'",
-      ),
-    );
+    expect(html, contains('loadFlutter();'));
+    expect(html, isNot(contains('resetStaleCaches().finally(loadFlutter)')));
     expect(File('assets/editorial/marketplace_hero.png').existsSync(), isTrue);
 
     final structuredData = RegExp(
@@ -55,10 +51,7 @@ void main() {
     expect(worker, contains("url.pathname.startsWith('/api/')"));
     expect(worker, contains("caches.match('/index.html')"));
     expect(worker, contains("'/main.dart.js'"));
-    expect(
-      worker,
-      isNot(contains("'/canvaskit/chromium/canvaskit.wasm'")),
-    );
+    expect(worker, isNot(contains("'/canvaskit/chromium/canvaskit.wasm'")));
     expect(bootstrap, contains("canvasKitBaseUrl: 'canvaskit/'"));
   });
 
