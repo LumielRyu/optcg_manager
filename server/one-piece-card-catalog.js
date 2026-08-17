@@ -63,23 +63,31 @@ function samePrintingEdition(first, second) {
   return Boolean(firstSet && secondSet && firstSet === secondSet);
 }
 
-function hasEquivalentPrinting(card, printingIndex) {
+function equivalentPrinting(card, printingIndex) {
   for (const key of printingIndexKeys(card)) {
     const candidates = printingIndex.get(key) ?? [];
     const cardImage = String(card?.card_image ?? '').trim();
-    if (
-      candidates.some((candidate) => {
+    const match = candidates.find((candidate) => {
         const candidateImage = String(candidate?.card_image ?? '').trim();
         return (
           samePrintingEdition(candidate, card) ||
           (cardImage && candidateImage === cardImage)
         );
-      })
-    ) {
-      return true;
-    }
+      });
+    if (match) return match;
   }
-  return false;
+  return null;
+}
+
+function isUnreliableOptcgImage(value) {
+  try {
+    const url = new URL(String(value ?? '').trim());
+    return ['optcgapi.com', 'www.optcgapi.com'].includes(
+      url.hostname.toLowerCase(),
+    );
+  } catch (_) {
+    return false;
+  }
 }
 
 function indexPrinting(card, printingIndex) {
@@ -129,7 +137,15 @@ function mergeCatalogCards(cards, catalogRows) {
     const catalogCard = toCatalogCard(row, cardsByCode);
     if (!catalogCard.card_set_id || !catalogCard.card_image) continue;
 
-    if (hasEquivalentPrinting(catalogCard, printingIndex)) continue;
+    const equivalent = equivalentPrinting(catalogCard, printingIndex);
+    if (equivalent) {
+      const existingImage = String(equivalent.card_image ?? '').trim();
+      if (!existingImage || isUnreliableOptcgImage(existingImage)) {
+        equivalent.card_image = catalogCard.card_image;
+        equivalent.catalog_source = catalogCard.catalog_source;
+      }
+      continue;
+    }
 
     indexPrinting(catalogCard, printingIndex);
     merged.push(catalogCard);
@@ -221,6 +237,8 @@ module.exports = {
   baseCardCode,
   fetchCatalogCards,
   mergeCatalogCards,
+  equivalentPrinting,
+  isUnreliableOptcgImage,
   normalizeCardName,
   normalizeEditionCode,
   toCatalogCard,

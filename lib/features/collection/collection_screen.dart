@@ -20,6 +20,7 @@ import '../../data/models/collection_folder.dart';
 import '../../data/repositories/collection_repository.dart';
 import '../../data/repositories/marketplace_repository.dart';
 import '../../data/services/translation_service.dart';
+import '../../data/services/op_card_image_catalog.dart';
 import '../../core/widgets/primary_bottom_navigation.dart';
 import 'collection_controller.dart';
 import 'collection_bulk_sale_import.dart';
@@ -1872,6 +1873,8 @@ class _VirtualizedStandardLibraryView extends ConsumerWidget {
         ),
         imageUrl: item.imageUrl,
         cardCode: item.cardCode,
+        cardName: item.name,
+        setName: item.setName,
       ),
       onTap: () => _openCardDetails(context, item),
     );
@@ -1905,6 +1908,8 @@ class _VirtualizedStandardLibraryView extends ConsumerWidget {
         ),
         imageUrl: item.imageUrl,
         cardCode: item.cardCode,
+        cardName: item.name,
+        setName: item.setName,
       ),
       onTap: () => _openCardDetails(context, item),
     );
@@ -1997,12 +2002,16 @@ class _VirtualizedDeckLibraryView extends StatelessWidget {
 class _CollectionCardImage extends StatefulWidget {
   final String imageUrl;
   final String cardCode;
+  final String cardName;
+  final String setName;
   final BoxFit fit;
 
   const _CollectionCardImage({
     super.key,
     required this.imageUrl,
     required this.cardCode,
+    required this.cardName,
+    required this.setName,
     this.fit = BoxFit.contain,
   });
 
@@ -2018,16 +2027,34 @@ class _CollectionCardImageState extends State<_CollectionCardImage> {
 
   Timer? _retryTimer;
   int _attempt = 0;
+  late Future<String> _resolvedUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolvedUrl = _resolveUrl();
+  }
 
   @override
   void didUpdateWidget(covariant _CollectionCardImage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.imageUrl != widget.imageUrl) {
+    if (oldWidget.imageUrl != widget.imageUrl ||
+        oldWidget.cardCode != widget.cardCode ||
+        oldWidget.cardName != widget.cardName ||
+        oldWidget.setName != widget.setName) {
       _retryTimer?.cancel();
       _retryTimer = null;
       _attempt = 0;
+      _resolvedUrl = _resolveUrl();
     }
   }
+
+  Future<String> _resolveUrl() => OpCardImageCatalog.resolve(
+    cardCode: widget.cardCode,
+    cardName: widget.cardName,
+    setName: widget.setName,
+    currentImageUrl: widget.imageUrl,
+  );
 
   @override
   void dispose() {
@@ -2046,8 +2073,19 @@ class _CollectionCardImageState extends State<_CollectionCardImage> {
 
   @override
   Widget build(BuildContext context) {
-    final directUrl = widget.imageUrl.trim();
+    return FutureBuilder<String>(
+      future: _resolvedUrl,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+        }
 
+        return _buildNetworkImage(context, snapshot.data?.trim() ?? '');
+      },
+    );
+  }
+
+  Widget _buildNetworkImage(BuildContext context, String directUrl) {
     if (directUrl.isEmpty) {
       return const _ImagePlaceholder();
     }
@@ -2421,6 +2459,8 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
                                     child: _CollectionCardImage(
                                       imageUrl: card.imageUrl,
                                       cardCode: card.cardCode,
+                                      cardName: card.name,
+                                      setName: card.setName,
                                       fit: BoxFit.contain,
                                     ),
                                   ),

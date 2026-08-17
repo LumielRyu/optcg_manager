@@ -2330,3 +2330,19 @@ git diff --stat
   decodificacao e a grade virtualizada.
 - Validacao: 209 testes Flutter, 26 Node e 21 Python aprovados; cobertura de
   34,42%, analise estatica limpa e build web concluido.
+
+### 16/08/2026 - Imagens ausentes na colecao
+
+- A origem `www.optcgapi.com` deixou de responder inclusive em testes de 30 s,
+  fazendo cartas antigas e variantes aparecerem como blocos vazios ou imagens
+  quebradas. As copias ja existentes no CDN R2 continuavam respondendo `200`.
+- A colecao agora resolve codigo, nome, set e variante pelo catalogo visual
+  local e usa automaticamente a copia duravel do R2. A carta normal, Alternate
+  Art, Manga, SP e reprints com o mesmo codigo nao se confundem nesse fallback.
+- Cartas novas como `ST31-004` e `ST31-005` chegavam da API com imagem nula,
+  embora o catalogo da Liga tivesse uma URL valida. A mesclagem agora substitui
+  imagens vazias ou hospedadas na OPTCG API pela imagem equivalente da Liga.
+- A versao do endpoint e do cache local do catalogo foi incrementada para que
+  navegadores existentes recebam a correcao sem depender de limpar dados ou F5.
+- Validacao: 212 testes Flutter, 28 Node e 21 Python aprovados; cobertura de
+  34,62%, analise estatica limpa e build web concluido.

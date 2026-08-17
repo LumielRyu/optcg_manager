@@ -28,12 +28,14 @@ class OpApiService {
       'https://www.optcgapi.com/api/allSTCards/?format=json';
   static const String _promosUrl =
       'https://www.optcgapi.com/api/allPromos/?format=json';
-  static const String _webProxyUrl = '/api/optcg-cards?catalog=v9';
+  static const String _webProxyUrl = '/api/optcg-cards?catalog=v10';
   static const String _assetCachePath = 'assets/one_piece_cards_cache.json';
-  static const String _cachedCardsKey = 'all_cards_v6';
-  static const String _cachedAtKey = 'all_cards_v6_cached_at';
+  static const String _cachedCardsKey = 'all_cards_v7';
+  static const String _cachedAtKey = 'all_cards_v7_cached_at';
   static const List<String> _legacyCacheKeys = <String>[
     'all_cards_v5',
+    'all_cards_v6',
+    'all_cards_v6_cached_at',
     'all_cards_cached_at',
   ];
   static const Duration _cacheMaxAge = Duration(minutes: 5);

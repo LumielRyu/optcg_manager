@@ -36,6 +36,60 @@ test('adds a new Liga starter card that is absent from the upstream API', () => 
   ]);
 });
 
+test('replaces an empty upstream image with the matching Liga image', () => {
+  const merged = mergeCatalogCards(
+    [
+      {
+        card_set_id: 'ST31-004',
+        card_name: 'Monkey.D.Luffy (ST31-004)',
+        card_image: null,
+        set_id: 'ST-31',
+        set_name: 'Starter Deck 31: RED Monkey.D.Luffy',
+      },
+    ],
+    [
+      {
+        card_code: 'ST31-004',
+        card_name: 'Monkey.D.Luffy (004)',
+        image_url: 'https://liga.example/st31-004.jpg',
+        edition_code: 'ST31',
+        edition_name: 'Starter Deck 31: RED Monkey.D.Luffy',
+      },
+    ],
+  );
+
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].card_image, 'https://liga.example/st31-004.jpg');
+  assert.equal(merged[0].catalog_source, 'liga');
+});
+
+test('replaces an unstable OPTCG image with the matching Liga image', () => {
+  const merged = mergeCatalogCards(
+    [
+      {
+        card_set_id: 'EB02-017',
+        card_name: 'Nami',
+        card_image:
+          'https://www.optcgapi.com/media/static/Card_Images/EB02-017.jpg',
+        set_id: 'EB-02',
+        set_name: 'Extra Booster: Anime 25th Collection',
+      },
+    ],
+    [
+      {
+        card_code: 'EB02-017',
+        card_name: 'Nami',
+        image_url: 'https://liga.example/eb02-017.jpg',
+        edition_code: 'EB02',
+        edition_name: 'Extra Booster: Anime 25th Collection',
+      },
+    ],
+  );
+
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].card_image, 'https://liga.example/eb02-017.jpg');
+});
+
 test('enriches Liga variants from an existing base card and removes cache duplicates', () => {
   const upstream = [
     {
