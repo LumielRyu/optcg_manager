@@ -11,7 +11,7 @@ import 'op_card_variant_resolver.dart';
 /// a last resort because it can become unavailable for long periods.
 class OpCardImageCatalog {
   static const String _assetPath = 'assets/visual_card_fingerprints.json';
-  static Future<List<OpCard>>? _catalogFuture;
+  static Future<Map<String, List<OpCard>>>? _catalogFuture;
 
   static Future<String> resolve({
     required String cardCode,
@@ -24,12 +24,45 @@ class OpCardImageCatalog {
 
     final catalog = await (_catalogFuture ??= _loadCatalog());
     return resolveFromCards(
-      cards: catalog,
+      cards: catalog[cardCode.trim().toUpperCase()] ?? const <OpCard>[],
       cardCode: cardCode,
       cardName: cardName,
       setName: setName,
       currentImageUrl: current,
     );
+  }
+
+  static Future<List<OpCard>> replaceUnreliableImages(
+    Iterable<OpCard> cards,
+  ) async {
+    final catalog = await (_catalogFuture ??= _loadCatalog());
+    return cards
+        .map((card) {
+          if (_isDurableImage(card.image)) return card;
+
+          final resolved = resolveFromCards(
+            cards: catalog[card.code.trim().toUpperCase()] ?? const <OpCard>[],
+            cardCode: card.code,
+            cardName: card.name,
+            setName: card.setName,
+            currentImageUrl: card.image,
+          );
+          if (resolved.isEmpty || resolved == card.image) return card;
+
+          return OpCard(
+            code: card.code,
+            name: card.name,
+            image: resolved,
+            setName: card.setName,
+            rarity: card.rarity,
+            color: card.color,
+            type: card.type,
+            subTypes: card.subTypes,
+            text: card.text,
+            attribute: card.attribute,
+          );
+        })
+        .toList(growable: false);
   }
 
   @visibleForTesting
@@ -62,12 +95,12 @@ class OpCardImageCatalog {
             imageUrl.toLowerCase().contains('/arquivos/in/onepiece/'));
   }
 
-  static Future<List<OpCard>> _loadCatalog() async {
+  static Future<Map<String, List<OpCard>>> _loadCatalog() async {
     try {
       final decoded = jsonDecode(await rootBundle.loadString(_assetPath));
-      if (decoded is! List) return const <OpCard>[];
+      if (decoded is! List) return const <String, List<OpCard>>{};
 
-      return decoded
+      final cards = decoded
           .whereType<Map>()
           .map((raw) {
             final item = Map<String, dynamic>.from(raw);
@@ -88,8 +121,13 @@ class OpCardImageCatalog {
             return card.code.isNotEmpty && card.image.isNotEmpty;
           })
           .toList(growable: false);
+      final byCode = <String, List<OpCard>>{};
+      for (final card in cards) {
+        byCode.putIfAbsent(card.code, () => <OpCard>[]).add(card);
+      }
+      return byCode;
     } catch (_) {
-      return const <OpCard>[];
+      return const <String, List<OpCard>>{};
     }
   }
 }

@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 
 import '../local/hive_boxes.dart';
 import '../models/op_card.dart';
+import 'op_card_image_catalog.dart';
 
 final opApiServiceProvider = Provider<OpApiService>((ref) {
   return OpApiService();
@@ -192,8 +193,10 @@ class OpApiService {
       allCards.addAll(list.map(OpCard.fromJson));
     }
 
-    _setMemoryCache(allCards);
-    await _saveCardsToDisk(allCards);
+    final cardsWithReliableImages =
+        await OpCardImageCatalog.replaceUnreliableImages(allCards);
+    _setMemoryCache(cardsWithReliableImages);
+    await _saveCardsToDisk(cardsWithReliableImages);
   }
 
   Future<List<OpCard>> findAllByCode(String code) async {

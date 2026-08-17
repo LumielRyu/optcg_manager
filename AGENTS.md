@@ -2339,10 +2339,12 @@ git diff --stat
 - A colecao agora resolve codigo, nome, set e variante pelo catalogo visual
   local e usa automaticamente a copia duravel do R2. A carta normal, Alternate
   Art, Manga, SP e reprints com o mesmo codigo nao se confundem nesse fallback.
+- O catalogo carregado em memoria tambem troca URLs instaveis pelas copias do
+  R2, estendendo a correcao para biblioteca, importacao e demais telas.
 - Cartas novas como `ST31-004` e `ST31-005` chegavam da API com imagem nula,
   embora o catalogo da Liga tivesse uma URL valida. A mesclagem agora substitui
   imagens vazias ou hospedadas na OPTCG API pela imagem equivalente da Liga.
 - A versao do endpoint e do cache local do catalogo foi incrementada para que
   navegadores existentes recebam a correcao sem depender de limpar dados ou F5.
-- Validacao: 212 testes Flutter, 28 Node e 21 Python aprovados; cobertura de
-  34,62%, analise estatica limpa e build web concluido.
+- Validacao: 213 testes Flutter, 28 Node e 21 Python aprovados; cobertura de
+  34,76%, analise estatica limpa e build web concluido.

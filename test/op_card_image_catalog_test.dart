@@ -63,4 +63,25 @@ void main() {
 
     expect(resolved, 'https://liga.example/st31-004.jpg');
   });
+
+  test('repairs unreliable images before the API catalog is cached', () async {
+    final cards = await OpCardImageCatalog.replaceUnreliableImages(<OpCard>[
+      OpCard(
+        code: 'EB02-052',
+        name: 'Enel (SP)',
+        image:
+            'https://www.optcgapi.com/media/static/Card_Images/EB02-052_p2.jpg',
+        setName: 'Adventure on Kami\'s Island',
+        rarity: 'L',
+        color: 'Yellow',
+        type: 'Leader',
+        subTypes: '',
+        text: '',
+        attribute: '',
+      ),
+    ]);
+
+    expect(cards.single.image, startsWith('https://pub-'));
+    expect(cards.single.image, contains('/one-piece/EB02-052/'));
+  });
 }
