@@ -47,4 +47,53 @@ void main() {
       isNot(contains("fetch(request, { cache: 'no-store' }")),
     );
   });
+
+  test('heavy routes are split out of the initial JavaScript bundle', () {
+    final router = File('lib/app/router.dart').readAsStringSync();
+
+    expect(router, contains('deferred as global_marketplace'));
+    expect(router, contains('deferred as products'));
+    expect(router, contains('deferred as weekly_dashboard'));
+    expect(router, contains('deferred as image_import'));
+    expect(router, contains('class _DeferredRoute'));
+  });
+
+  test('marketplace keeps automatic carousels outside the LCP window', () {
+    final source = File(
+      'lib/features/marketplace/global_marketplace_screen.dart',
+    ).readAsStringSync();
+
+    expect(
+      RegExp(
+        r'_initialRotationDelay = Duration\(seconds: 60\)',
+      ).hasMatch(source),
+      isTrue,
+    );
+    expect(
+      RegExp(
+        r'_initialAutoScrollDelay = Duration\(seconds: 60\)',
+      ).hasMatch(source),
+      isTrue,
+    );
+    expect(source, contains('_rotationInterval = Duration(seconds: 15)'));
+    expect(source, contains('_autoScrollInterval = Duration(seconds: 7)'));
+  });
+
+  test('web entry preconnects the first marketplace data origins', () {
+    final entrypoint = File('web/index.html').readAsStringSync();
+
+    expect(entrypoint, contains('rel="preconnect"'));
+    expect(entrypoint, contains('sslfaerultjnjfkivved.supabase.co'));
+    expect(entrypoint, contains('pub-b575d68981e0471899723c0f36cb89aa.r2.dev'));
+  });
+
+  test('cold-start storage and backend initialization run concurrently', () {
+    final mainSource = File('lib/main.dart').readAsStringSync();
+    final hiveSource = File('lib/data/local/hive_init.dart').readAsStringSync();
+
+    expect(mainSource, contains('Future.wait<dynamic>'));
+    expect(mainSource, contains('HiveInit.init()'));
+    expect(mainSource, contains('Supabase.initialize('));
+    expect(hiveSource, contains('Future.wait<Object>'));
+  });
 }

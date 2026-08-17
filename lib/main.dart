@@ -29,8 +29,6 @@ Future<void> main() async {
     imageCache.maximumSizeBytes = 48 * 1024 * 1024;
   }
 
-  await HiveInit.init();
-
   final supabaseUrl = _supabaseUrl.trim();
   final supabaseAnonKey = _supabaseAnonKey.trim();
 
@@ -42,7 +40,13 @@ Future<void> main() async {
     throw Exception('SUPABASE_ANON_KEY nao foi informada no build.');
   }
 
-  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
+  // Local storage and the Supabase client do not depend on each other. Doing
+  // both cold-start tasks in parallel reduces time spent behind the HTML app
+  // loader without changing what is ready before the first widget is built.
+  await Future.wait<dynamic>([
+    HiveInit.init(),
+    Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey),
+  ]);
 
   runApp(const ProviderScope(child: OptcgManagerApp()));
 }

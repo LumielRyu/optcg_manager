@@ -12,7 +12,7 @@ import '../features/auth/auth_gate.dart';
 import '../features/auth/complete_profile_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
-import '../features/admin/liga_price_admin_screen.dart';
+import '../features/admin/liga_price_admin_screen.dart' deferred as liga_admin;
 import '../features/collection/collection_screen.dart';
 import '../features/collection/shared_sale_card_screen.dart';
 import '../features/collection/shared_store_screen.dart';
@@ -22,21 +22,27 @@ import '../features/decks/tcg_decks_screen.dart';
 import '../features/digimon/digimon_library_screen.dart';
 import '../features/help/help_screen.dart';
 import '../features/home/home_screen.dart';
-import '../features/integrations/liga_one_piece_test_screen.dart';
-import '../features/imports/camera_import/camera_import_screen.dart';
-import '../features/imports/card_scan_test/card_scan_test_screen.dart';
-import '../features/imports/code_import/code_import_screen.dart';
-import '../features/imports/image_import/image_import_screen.dart';
+import '../features/integrations/liga_one_piece_test_screen.dart'
+    deferred as liga_test;
+import '../features/imports/camera_import/camera_import_screen.dart'
+    deferred as camera_import;
+import '../features/imports/card_scan_test/card_scan_test_screen.dart'
+    deferred as scan_test;
+import '../features/imports/code_import/code_import_screen.dart'
+    deferred as code_import;
+import '../features/imports/image_import/image_import_screen.dart'
+    deferred as image_import;
 import '../features/imports/tcg_import/tcg_import_screen.dart';
 import '../features/library/library_card_details_screen.dart';
 import '../features/library/library_compare_screen.dart';
 import '../features/library/one_piece_library_screen.dart';
 import '../features/legal/legal_document_screen.dart';
-import '../features/marketplace/global_marketplace_screen.dart';
+import '../features/marketplace/global_marketplace_screen.dart'
+    deferred as global_marketplace;
 import '../features/marketplace/tcg_marketplace_screen.dart';
 import '../features/magic/magic_library_screen.dart';
 import '../features/pokemon/pokemon_library_screen.dart';
-import '../features/products/products_screen.dart';
+import '../features/products/products_screen.dart' deferred as products;
 import '../features/profile/profile_screen.dart';
 import '../features/riftbound/riftbound_library_screen.dart';
 import '../features/sales/sales_screen.dart';
@@ -47,9 +53,12 @@ import '../features/wanted/wanted_cards_screen.dart';
 import '../features/wanted/shared_wanted_cards_screen.dart';
 import '../features/wanted/tcg_wanted_screen.dart';
 import '../features/yugioh/yugioh_library_screen.dart';
-import '../features/weeklies/pokemon_weekly_report_screen.dart';
-import '../features/weeklies/weekly_dashboard_screen.dart';
-import '../features/weeklies/weekly_selector_screen.dart';
+import '../features/weeklies/pokemon_weekly_report_screen.dart'
+    deferred as pokemon_weekly;
+import '../features/weeklies/weekly_dashboard_screen.dart'
+    deferred as weekly_dashboard;
+import '../features/weeklies/weekly_selector_screen.dart'
+    deferred as weekly_selector;
 import '../data/repositories/user_preferences_repository.dart';
 
 class AuthRouterNotifier extends ChangeNotifier {
@@ -483,11 +492,17 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/integrations/liga-one-piece-test',
-      builder: (context, state) => const LigaOnePieceTestScreen(),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: liga_test.loadLibrary,
+        builder: () => liga_test.LigaOnePieceTestScreen(),
+      ),
     ),
     GoRoute(
       path: '/admin/liga-prices',
-      builder: (context, state) => const LigaPriceAdminScreen(),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: liga_admin.loadLibrary,
+        builder: () => liga_admin.LigaPriceAdminScreen(),
+      ),
     ),
     GoRoute(
       path: '/library',
@@ -495,11 +510,17 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/marketplace',
-      builder: (context, state) => const GlobalMarketplaceScreen(),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: global_marketplace.loadLibrary,
+        builder: () => global_marketplace.GlobalMarketplaceScreen(),
+      ),
     ),
     GoRoute(
       path: '/products',
-      builder: (context, state) => const ProductsScreen(),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: products.loadLibrary,
+        builder: () => products.ProductsScreen(),
+      ),
     ),
     GoRoute(
       path: '/wanted',
@@ -539,48 +560,69 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/weeklies',
-      builder: (context, state) => const WeeklySelectorScreen(),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: weekly_selector.loadLibrary,
+        builder: () => weekly_selector.WeeklySelectorScreen(),
+      ),
     ),
     GoRoute(
       path: '/weeklies/pokemon',
-      builder: (context, state) => const PokemonWeeklyReportScreen(),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: pokemon_weekly.loadLibrary,
+        builder: () => pokemon_weekly.PokemonWeeklyReportScreen(),
+      ),
     ),
     GoRoute(
       path: '/weeklies/:gameSlug',
-      builder: (context, state) => WeeklyDashboardScreen(
-        gameSlug: state.pathParameters['gameSlug'] ?? 'one-piece',
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: weekly_dashboard.loadLibrary,
+        builder: () => weekly_dashboard.WeeklyDashboardScreen(
+          gameSlug: state.pathParameters['gameSlug'] ?? 'one-piece',
+        ),
       ),
     ),
     GoRoute(path: '/sales', builder: (context, state) => const SalesScreen()),
     GoRoute(path: '/help', builder: (context, state) => const HelpScreen()),
     GoRoute(
       path: '/code-import',
-      builder: (context, state) => CodeImportScreen(
-        initialDestination: _parseDestination(
-          state.uri.queryParameters['destination'],
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: code_import.loadLibrary,
+        builder: () => code_import.CodeImportScreen(
+          initialDestination: _parseDestination(
+            state.uri.queryParameters['destination'],
+          ),
         ),
       ),
     ),
     GoRoute(
       path: '/image-import',
-      builder: (context, state) => ImageImportScreen(
-        initialImageSource: state.extra,
-        initialDestination: _parseDestination(
-          state.uri.queryParameters['destination'],
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: image_import.loadLibrary,
+        builder: () => image_import.ImageImportScreen(
+          initialImageSource: state.extra,
+          initialDestination: _parseDestination(
+            state.uri.queryParameters['destination'],
+          ),
         ),
       ),
     ),
     GoRoute(
       path: '/camera-import',
-      builder: (context, state) => CameraImportScreen(
-        initialDestination: _parseDestination(
-          state.uri.queryParameters['destination'],
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: camera_import.loadLibrary,
+        builder: () => camera_import.CameraImportScreen(
+          initialDestination: _parseDestination(
+            state.uri.queryParameters['destination'],
+          ),
         ),
       ),
     ),
     GoRoute(
       path: '/card-scan-test',
-      builder: (context, state) => const CardScanTestScreen(),
+      builder: (context, state) => _DeferredRoute(
+        loadLibrary: scan_test.loadLibrary,
+        builder: () => scan_test.CardScanTestScreen(),
+      ),
     ),
   ],
 );
@@ -591,4 +633,71 @@ String _parseDestination(String? rawDestination) {
   }
 
   return CollectionTypes.owned;
+}
+
+class _DeferredRoute extends StatefulWidget {
+  final Future<void> Function() loadLibrary;
+  final Widget Function() builder;
+
+  const _DeferredRoute({required this.loadLibrary, required this.builder});
+
+  @override
+  State<_DeferredRoute> createState() => _DeferredRouteState();
+}
+
+class _DeferredRouteState extends State<_DeferredRoute> {
+  late Future<void> _loadFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFuture = widget.loadLibrary();
+  }
+
+  void _retry() {
+    setState(() => _loadFuture = widget.loadLibrary());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<void>(
+      future: _loadFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return Scaffold(
+            body: Center(
+              child: Semantics(
+                label: 'Carregando pagina',
+                child: const CircularProgressIndicator(),
+              ),
+            ),
+          );
+        }
+        if (snapshot.hasError) {
+          return Scaffold(
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.cloud_off_outlined, size: 42),
+                    const SizedBox(height: 12),
+                    const Text('Nao foi possivel carregar esta pagina.'),
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: _retry,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Tentar novamente'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+        return widget.builder();
+      },
+    );
+  }
 }

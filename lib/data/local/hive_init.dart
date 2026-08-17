@@ -11,9 +11,13 @@ class HiveInit {
       Hive.registerAdapter(CardRecordAdapter());
     }
 
-    await Hive.openBox<CardRecord>(HiveBoxes.collection);
-    await Hive.openBox(HiveBoxes.libraryPrefs);
-    await Hive.openBox(HiveBoxes.apiCache);
-    await Hive.openBox(HiveBoxes.appPrefs);
+    // These boxes are independent. Opening them together shortens the cold
+    // start, especially after the browser has evicted IndexedDB connections.
+    await Future.wait<Object>([
+      Hive.openBox<CardRecord>(HiveBoxes.collection),
+      Hive.openBox(HiveBoxes.libraryPrefs),
+      Hive.openBox(HiveBoxes.apiCache),
+      Hive.openBox(HiveBoxes.appPrefs),
+    ]);
   }
 }

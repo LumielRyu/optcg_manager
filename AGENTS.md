@@ -2374,3 +2374,28 @@ git diff --stat
 - Validacao: analise estatica limpa, 218 testes Flutter e 28 Node aprovados,
   build web e dry run Wasm concluidos, alem de smoke visual local da Home e do
   Marketplace Global.
+
+### 17/08/2026 - Segunda rodada de performance e carregamento inicial
+
+- Telas pesadas e pouco acessadas no primeiro uso passaram a usar imports
+  adiados. Administracao da Liga, testes de integracao, importadores por camera,
+  codigo e imagem, marketplace global, produtos e rankings semanais agora sao
+  baixados somente quando a rota correspondente e aberta.
+- O JavaScript inicial bruto caiu de 5.160.491 para 4.245.246 bytes, reducao de
+  aproximadamente 18%. As partes adiadas sao mantidas em arquivos separados e
+  exibem carregamento e opcao de tentar novamente em caso de falha.
+- A inicializacao do Hive e do Supabase passou a ocorrer em paralelo. As quatro
+  caixas locais do Hive tambem abrem concorrentemente, diminuindo trabalho
+  sequencial antes da primeira tela.
+- O documento web ganhou conexoes antecipadas com Supabase e o espelho R2 das
+  imagens, alem de resolucao DNS antecipada para o repositorio secundario.
+- Os dois carrosseis do marketplace preservam os intervalos de 15 e 7 segundos,
+  mas aguardam 60 segundos na primeira visita. Isso evita que uma imagem grande
+  trocada pelo timer reinicie a medicao de LCP enquanto a pagina ainda carrega;
+  controles manuais continuam respondendo imediatamente.
+- O build WebAssembly experimental foi testado, mas nao adotado porque as rotas
+  adiadas apresentaram tela vazia no teste ponta a ponta. A publicacao continua
+  usando o build JavaScript estavel.
+- Validacao: analise estatica limpa, 222 testes Flutter e 28 Node aprovados,
+  auditoria npm sem vulnerabilidades, build web concluido e smoke local aprovado
+  na Home, Marketplace Global, Produtos e rankings semanais.

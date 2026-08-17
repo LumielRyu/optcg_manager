@@ -21,7 +21,7 @@ void main() {
     );
     expect(source, contains('Timer.periodic(_rotationInterval'));
     expect(source, contains('AnimatedSwitcher('));
-    expect(source, contains('troca em 15s'));
+    expect(source, contains('troca automatica a cada 15s'));
   });
 
   test('spotlight offers use a randomized automatic carousel', () {

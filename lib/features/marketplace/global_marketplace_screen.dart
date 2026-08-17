@@ -1689,6 +1689,7 @@ class _MarketplaceRotatingFeaturedCard extends StatefulWidget {
 
 class _MarketplaceRotatingFeaturedCardState
     extends State<_MarketplaceRotatingFeaturedCard> {
+  static const Duration _initialRotationDelay = Duration(seconds: 60);
   static const Duration _rotationInterval = Duration(seconds: 15);
 
   final Random _random = Random();
@@ -1743,10 +1744,17 @@ class _MarketplaceRotatingFeaturedCardState
     _currentIndex = 0;
   }
 
-  void _startRotation() {
+  void _startRotation({bool useInitialDelay = true}) {
     _rotationTimer?.cancel();
     if (_randomizedItems.length < 2) return;
-    _rotationTimer = Timer.periodic(_rotationInterval, (_) => _showNext());
+    _rotationTimer = Timer(
+      useInitialDelay ? _initialRotationDelay : _rotationInterval,
+      () {
+        if (!mounted) return;
+        _showNext();
+        _rotationTimer = Timer.periodic(_rotationInterval, (_) => _showNext());
+      },
+    );
   }
 
   void _showNext({bool restartTimer = false}) {
@@ -1758,7 +1766,7 @@ class _MarketplaceRotatingFeaturedCardState
         _resetItems(avoidFirstId: _currentItem?.id);
       }
     });
-    if (restartTimer) _startRotation();
+    if (restartTimer) _startRotation(useInitialDelay: false);
   }
 
   void _showPrevious() {
@@ -1770,7 +1778,7 @@ class _MarketplaceRotatingFeaturedCardState
         _currentIndex = _randomizedItems.length - 1;
       }
     });
-    _startRotation();
+    _startRotation(useInitialDelay: false);
   }
 
   Future<void> _openCurrent(MarketplaceListing item, String ligaLabel) async {
@@ -1823,7 +1831,7 @@ class _MarketplaceRotatingFeaturedCardState
               ),
               const SizedBox(width: 10),
               Text(
-                '${_currentIndex + 1} / ${_randomizedItems.length}  •  troca em 15s',
+                '${_currentIndex + 1} / ${_randomizedItems.length}  •  troca automatica a cada 15s',
                 style: Theme.of(context).textTheme.labelSmall,
               ),
               const SizedBox(width: 10),
@@ -1918,6 +1926,7 @@ class _MarketplaceSpotlightRail extends StatefulWidget {
 }
 
 class _MarketplaceSpotlightRailState extends State<_MarketplaceSpotlightRail> {
+  static const Duration _initialAutoScrollDelay = Duration(seconds: 60);
   static const Duration _autoScrollInterval = Duration(seconds: 7);
   static const double _cardStep = 176;
 
@@ -1961,10 +1970,20 @@ class _MarketplaceSpotlightRailState extends State<_MarketplaceSpotlightRail> {
       ..shuffle(_random);
   }
 
-  void _startAutoScroll() {
+  void _startAutoScroll({bool useInitialDelay = true}) {
     _autoScrollTimer?.cancel();
     if (_randomizedItems.length < 2) return;
-    _autoScrollTimer = Timer.periodic(_autoScrollInterval, (_) => _showNext());
+    _autoScrollTimer = Timer(
+      useInitialDelay ? _initialAutoScrollDelay : _autoScrollInterval,
+      () {
+        if (!mounted) return;
+        unawaited(_showNext());
+        _autoScrollTimer = Timer.periodic(
+          _autoScrollInterval,
+          (_) => unawaited(_showNext()),
+        );
+      },
+    );
   }
 
   Future<void> _showNext({bool restartTimer = false}) async {
@@ -1983,7 +2002,9 @@ class _MarketplaceSpotlightRailState extends State<_MarketplaceSpotlightRail> {
         curve: Curves.easeOutCubic,
       );
     }
-    if (restartTimer && mounted) _startAutoScroll();
+    if (restartTimer && mounted) {
+      _startAutoScroll(useInitialDelay: false);
+    }
   }
 
   Future<void> _showPrevious() async {
@@ -1994,7 +2015,7 @@ class _MarketplaceSpotlightRailState extends State<_MarketplaceSpotlightRail> {
       duration: const Duration(milliseconds: 420),
       curve: Curves.easeOutCubic,
     );
-    if (mounted) _startAutoScroll();
+    if (mounted) _startAutoScroll(useInitialDelay: false);
   }
 
   @override
