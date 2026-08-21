@@ -2432,10 +2432,26 @@ git diff --stat
   de preco, mantendo a chave exata e a chave com escopo da edicao. Na coleta,
   154 impressoes tinham menor preco publico e 18 estavam verificadas sem oferta.
 - A resposta mesclada de `/api/optcg-cards?catalog=v12` foi validada com 7.513
-  cartas no total, 157 entradas OP17 e imagem, raridade e cor presentes em todas elas.
+  cartas no total, 157 entradas OP17 e imagem, raridade e cor presentes em
+  todas elas.
 - Os codigos numericos da Liga agora sao convertidos para as raridades e cores
   usadas pelo app. Isso permite filtrar as novas cartas OP17 por cor e raridade,
   mesmo quando elas ainda nao existem na API antiga.
 - O cache HTTP recebeu o identificador `catalog=v12` e o Hive passou para
-  `all_cards_v9`, incluindo as versoes anteriores na limpeza de legado. Assim, navegadores
-  existentes recebem o catalogo completo sem depender de F5 ou limpeza manual.
+  `all_cards_v9`, incluindo as versoes anteriores na limpeza de legado. Assim,
+  navegadores existentes recebem o catalogo completo sem depender de F5 ou
+  limpeza manual.
+
+### 21/08/2026 - Quantidade parcial ao mover cartas entre pastas
+
+- O dialogo `Mover para pasta` agora reune destino e quantidade na mesma etapa,
+  mostra o total disponivel e oferece controles para mover uma parte ou todas as
+  copias. A pasta atual fica identificada e indisponivel como destino.
+- Mover apenas parte de um registro reduz a quantidade na pasta de origem e
+  cria a parcela na pasta escolhida. Se a mesma impressao ja existe no destino,
+  as quantidades sao somadas sem misturar variantes que compartilham codigo.
+- O fluxo tambem permite retirar uma quantidade especifica para `Sem pasta` e
+  preserva o comportamento anterior quando todas as copias sao movidas.
+- Validacao: testes de widget cobrem destino, quantidade parcial e `Sem pasta`;
+  os 225 testes Flutter passaram, a analise estatica ficou limpa e o build web
+  foi concluido.

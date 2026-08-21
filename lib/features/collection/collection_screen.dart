@@ -17,6 +17,7 @@ import '../../core/widgets/dashboard_header_panel.dart';
 import '../../core/widgets/summary_stat_card.dart';
 import '../../data/models/card_record.dart';
 import '../../data/models/collection_folder.dart';
+import 'move_to_folder_dialog.dart';
 import '../../data/repositories/collection_repository.dart';
 import '../../data/repositories/marketplace_repository.dart';
 import '../../data/services/translation_service.dart';
@@ -2368,28 +2369,24 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
   }
 
   Future<void> _moveToFolder() async {
-    const unfiled = '__unfiled__';
-    final selected = await showDialog<String>(
+    final availableQuantity = widget.sourceRecords.fold<int>(
+      0,
+      (total, item) => total + item.quantity,
+    );
+    if (availableQuantity <= 0) return;
+
+    final currentFolderIds = widget.sourceRecords
+        .map((item) => item.folderId?.trim() ?? '')
+        .toSet();
+    final currentFolderId = currentFolderIds.length == 1
+        ? currentFolderIds.first
+        : null;
+    final selected = await showDialog<MoveToFolderResult>(
       context: context,
-      builder: (dialogContext) => SimpleDialog(
-        title: const Text('Mover para pasta'),
-        children: [
-          SimpleDialogOption(
-            onPressed: () => Navigator.of(dialogContext).pop(unfiled),
-            child: const ListTile(
-              leading: Icon(Icons.folder_off_outlined),
-              title: Text('Sem pasta'),
-            ),
-          ),
-          for (final folder in widget.folders)
-            SimpleDialogOption(
-              onPressed: () => Navigator.of(dialogContext).pop(folder.id),
-              child: ListTile(
-                leading: const Icon(Icons.folder_outlined),
-                title: Text(folder.name),
-              ),
-            ),
-        ],
+      builder: (_) => MoveToFolderDialog(
+        folders: widget.folders,
+        currentFolderId: currentFolderId,
+        availableQuantity: availableQuantity,
       ),
     );
     if (selected == null || !mounted) return;
@@ -2397,12 +2394,27 @@ class _CardDetailsDialogState extends ConsumerState<_CardDetailsDialog> {
     setState(() => _isMovingToFolder = true);
     try {
       final repository = ref.read(collectionRepositoryProvider);
-      final folderId = selected == unfiled ? null : selected;
+      var remaining = selected.quantity;
       for (final item in widget.sourceRecords) {
-        await repository.moveItemToFolder(item.id, folderId);
+        if (remaining <= 0) break;
+        final quantity = remaining.clamp(1, item.quantity);
+        await repository.moveItemQuantityToFolder(
+          itemId: item.id,
+          folderId: selected.folderId,
+          quantity: quantity,
+        );
+        remaining -= quantity;
       }
       await ref.read(collectionControllerProvider.notifier).load();
       if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Não foi possível mover as cartas. Tente novamente.'),
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isMovingToFolder = false);
     }

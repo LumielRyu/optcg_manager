@@ -526,18 +526,140 @@ class CollectionRepository {
   }
 
   Future<void> moveItemToFolder(String itemId, String? folderId) async {
+    final item = findById(itemId);
+    if (item == null) return;
+    await moveItemQuantityToFolder(
+      itemId: itemId,
+      folderId: folderId,
+      quantity: item.quantity,
+    );
+  }
+
+  Future<void> moveItemQuantityToFolder({
+    required String itemId,
+    required String? folderId,
+    required int quantity,
+  }) async {
     final user = _client.auth.currentUser;
     if (user == null) {
       throw Exception('Usuario nao autenticado.');
     }
 
-    await _client
-        .from('collection_items')
-        .update({'folder_id': folderId})
-        .eq('id', itemId)
-        .eq('user_id', user.id)
-        .eq('collection_type', CollectionTypes.owned);
+    final source = findById(itemId);
+    if (source == null || source.collectionType != CollectionTypes.owned) {
+      throw StateError('Carta da colecao nao encontrada.');
+    }
+    if (quantity <= 0 || quantity > source.quantity) {
+      throw RangeError.range(
+        quantity,
+        1,
+        source.quantity,
+        'quantity',
+        'Escolha uma quantidade disponivel para mover.',
+      );
+    }
+
+    final normalizedFolderId = folderId?.trim();
+    final destinationFolderId =
+        normalizedFolderId == null || normalizedFolderId.isEmpty
+        ? null
+        : normalizedFolderId;
+    if ((source.folderId ?? '') == (destinationFolderId ?? '')) return;
+
+    if (quantity == source.quantity) {
+      await _client
+          .from('collection_items')
+          .update({'folder_id': destinationFolderId})
+          .eq('id', itemId)
+          .eq('user_id', user.id)
+          .eq('collection_type', CollectionTypes.owned);
+      await refreshAll();
+      return;
+    }
+
+    CardRecord? destination;
+    for (final item in _cache) {
+      if (item.id == source.id ||
+          item.collectionType != CollectionTypes.owned ||
+          (item.folderId ?? '') != (destinationFolderId ?? '') ||
+          !_isSameCollectionPrinting(source, item)) {
+        continue;
+      }
+      destination = item;
+      break;
+    }
+
+    final sourceAfterMove = source.copyWith(
+      quantity: source.quantity - quantity,
+    );
+    if (destination != null) {
+      final destinationAfterMove = destination.copyWith(
+        quantity: destination.quantity + quantity,
+      );
+      await _client.from('collection_items').upsert([
+        {
+          'id': sourceAfterMove.id,
+          ..._buildCollectionItemPayload(sourceAfterMove, user.id),
+        },
+        {
+          'id': destinationAfterMove.id,
+          ..._buildCollectionItemPayload(destinationAfterMove, user.id),
+        },
+      ]);
+      await refreshAll();
+      return;
+    }
+
+    final destinationPayload = _buildCollectionItemPayload(
+      source.copyWith(
+        id: '',
+        quantity: quantity,
+        folderId: destinationFolderId,
+        clearFolder: destinationFolderId == null,
+      ),
+      user.id,
+    );
+    String? insertedId;
+    try {
+      final inserted = await _client
+          .from('collection_items')
+          .insert(destinationPayload)
+          .select('id')
+          .single();
+      insertedId = inserted['id']?.toString();
+      await _client
+          .from('collection_items')
+          .update({'quantity': sourceAfterMove.quantity})
+          .eq('id', source.id)
+          .eq('user_id', user.id)
+          .eq('collection_type', CollectionTypes.owned);
+    } catch (_) {
+      if (insertedId != null && insertedId.isNotEmpty) {
+        await _client
+            .from('collection_items')
+            .delete()
+            .eq('id', insertedId)
+            .eq('user_id', user.id);
+      }
+      rethrow;
+    }
     await refreshAll();
+  }
+
+  bool _isSameCollectionPrinting(CardRecord first, CardRecord second) {
+    if (first.cardCode.trim().toUpperCase() !=
+        second.cardCode.trim().toUpperCase()) {
+      return false;
+    }
+    final firstImage = first.imageUrl.trim();
+    final secondImage = second.imageUrl.trim();
+    if (firstImage.isNotEmpty && secondImage.isNotEmpty) {
+      return firstImage == secondImage;
+    }
+    return first.name.trim().toLowerCase() ==
+            second.name.trim().toLowerCase() &&
+        first.setName.trim().toLowerCase() ==
+            second.setName.trim().toLowerCase();
   }
 
   Future<DeckShareInfo?> getDeckShareInfo(String deckName) async {
