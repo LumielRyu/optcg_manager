@@ -2431,8 +2431,11 @@ git diff --stat
 - O coletor direcionado gravou 172 impressoes no catalogo proprio e 344 chaves
   de preco, mantendo a chave exata e a chave com escopo da edicao. Na coleta,
   154 impressoes tinham menor preco publico e 18 estavam verificadas sem oferta.
-- A resposta mesclada de `/api/optcg-cards?catalog=v11` foi validada com 7.504
-  cartas no total, 157 entradas OP17 e imagem presente em todas elas.
-- O cache HTTP recebeu o identificador `catalog=v11` e o Hive passou para
-  `all_cards_v8`, incluindo a versao v7 na limpeza de legado. Assim, navegadores
+- A resposta mesclada de `/api/optcg-cards?catalog=v12` foi validada com 7.513
+  cartas no total, 157 entradas OP17 e imagem, raridade e cor presentes em todas elas.
+- Os codigos numericos da Liga agora sao convertidos para as raridades e cores
+  usadas pelo app. Isso permite filtrar as novas cartas OP17 por cor e raridade,
+  mesmo quando elas ainda nao existem na API antiga.
+- O cache HTTP recebeu o identificador `catalog=v12` e o Hive passou para
+  `all_cards_v9`, incluindo as versoes anteriores na limpeza de legado. Assim, navegadores
   existentes recebem o catalogo completo sem depender de F5 ou limpeza manual.

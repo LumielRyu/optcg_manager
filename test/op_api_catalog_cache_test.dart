@@ -8,8 +8,10 @@ void main() {
   ).readAsStringSync();
 
   test('One Piece catalog cache versions cards and timestamp together', () {
-    expect(source, contains("_cachedCardsKey = 'all_cards_v8'"));
-    expect(source, contains("_cachedAtKey = 'all_cards_v8_cached_at'"));
+    expect(source, contains("_cachedCardsKey = 'all_cards_v9'"));
+    expect(source, contains("_cachedAtKey = 'all_cards_v9_cached_at'"));
+    expect(source, contains("'all_cards_v8'"));
+    expect(source, contains("'all_cards_v8_cached_at'"));
     expect(source, contains("'all_cards_v7'"));
     expect(source, contains("'all_cards_v7_cached_at'"));
     expect(source, contains("'all_cards_v6'"));
@@ -42,7 +44,7 @@ void main() {
     expect(preload, contains('if (kIsWeb)'));
     expect(preload, contains('await _refreshFromApi()'));
     expect(preload, contains('_setMemoryCache(cachedCards)'));
-    expect(source, contains("'/api/optcg-cards?catalog=v11'"));
+    expect(source, contains("'/api/optcg-cards?catalog=v12'"));
     expect(source, contains('if (!isWebProxy)'));
     expect(source, contains("'Cache-Control': 'no-cache'"));
   });

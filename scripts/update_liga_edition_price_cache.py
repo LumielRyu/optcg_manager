@@ -32,6 +32,27 @@ KNOWN_VARIANT_SUFFIXES = {
     "SP",
     "TR",
 }
+LIGA_RARITIES = {
+    1: "C",
+    2: "UC",
+    3: "R",
+    4: "SR",
+    5: "P",
+    6: "L",
+    7: "SEC",
+    8: "DON!!",
+    9: "SP",
+    10: "TR",
+}
+LIGA_COLORS = {
+    1: "Red",
+    2: "Purple",
+    3: "Green",
+    4: "Blue",
+    5: "Black",
+    6: "Yellow",
+    7: "Multi Colored",
+}
 
 
 @dataclass(frozen=True)
@@ -399,6 +420,8 @@ def parse_catalog_cards_page(
                     exact_code,
                 ),
                 "image_url": image_url,
+                "rarity": _catalog_label(LIGA_RARITIES, item.get("iR")),
+                "color": _catalog_label(LIGA_COLORS, item.get("sC")),
                 "source_metadata": source_metadata,
                 "published_at": str(item.get("dt") or "").strip() or None,
                 "resolved_at": resolved_at,
@@ -501,6 +524,14 @@ def _safe_price(value):
     if price is None or price <= 0 or price > 10_000_000:
         return None
     return round(price, 2)
+
+
+def _catalog_label(labels: dict[int, str], value) -> str:
+    try:
+        normalized = int(value)
+    except (TypeError, ValueError):
+        return ""
+    return labels.get(normalized, "")
 
 
 def _clean_card_name(name: str, exact_code: str) -> str:

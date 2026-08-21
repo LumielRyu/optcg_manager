@@ -203,10 +203,29 @@ class LigaEditionPriceCacheTest(unittest.TestCase):
             rows[0]["edition_name"],
         )
         self.assertEqual(4, rows[0]["source_metadata"]["iR"])
+        self.assertEqual("SR", rows[0]["rarity"])
+        self.assertEqual("Red", rows[0]["color"])
         self.assertEqual(
             "https://example.test/st31-001.jpg",
             rows[0]["image_url"],
         )
+
+    def test_maps_every_liga_rarity_and_color_used_by_the_catalog(self):
+        self.assertEqual("L", edition_cache._catalog_label(
+            edition_cache.LIGA_RARITIES, 6
+        ))
+        self.assertEqual("DON!!", edition_cache._catalog_label(
+            edition_cache.LIGA_RARITIES, "8"
+        ))
+        self.assertEqual("Blue", edition_cache._catalog_label(
+            edition_cache.LIGA_COLORS, 4
+        ))
+        self.assertEqual("Multi Colored", edition_cache._catalog_label(
+            edition_cache.LIGA_COLORS, "7"
+        ))
+        self.assertEqual("", edition_cache._catalog_label(
+            edition_cache.LIGA_COLORS, 0
+        ))
 
     def test_upsert_consolidates_duplicate_codes_and_keeps_newest_edition(self):
         rows = [
