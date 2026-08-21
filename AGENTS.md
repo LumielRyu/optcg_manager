@@ -2467,3 +2467,20 @@ git diff --stat
   instrucao curta de navegacao enquanto houver pastas fora da area visivel.
 - O teste de estabilidade da colecao protege os dispositivos de entrada, a
   barra horizontal, os controles laterais e a instrucao visual.
+
+### 21/08/2026 - Consolidacao de cartas duplicadas nas pastas
+
+- O movimento completo agora procura a mesma impressao na pasta de destino
+  antes de alterar o `folder_id`. Quando ela existe, soma as quantidades,
+  preserva o favorito e remove o registro antigo com restauracao em caso de
+  falha na segunda operacao.
+- A carga inicial da colecao executa uma reconciliacao leve. Duplicatas exatas
+  preexistentes na mesma pasta sao consolidadas, corrigindo os registros criados
+  pelo fluxo anterior assim que o usuario abrir ou atualizar a colecao.
+- A identidade exige pasta, codigo, nome, edicao e imagem equivalentes. Parametros
+  temporarios da URL sao ignorados, mas artes alternativas e pastas diferentes
+  permanecem independentes.
+- Testes cobrem URLs com cache diferente, separacao entre arte normal e
+  alternativa, pastas diferentes e o fallback seguro para cartas sem imagem.
+  A validacao completa terminou com 229 testes Flutter aprovados, analise
+  estatica limpa e build web concluido.

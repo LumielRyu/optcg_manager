@@ -40,6 +40,11 @@ class CollectionController extends StateNotifier<List<CardRecord>> {
     try {
       await _repo.seedIfEmpty();
       await _repo.refreshAll(loadCatalog: false);
+      try {
+        await _repo.consolidateExactOwnedDuplicates();
+      } catch (_) {
+        // A colecao continua disponivel mesmo se a reconciliacao falhar.
+      }
       if (!mounted) return;
       state = _repo.getAll();
       _onPhaseChanged(CollectionLoadPhase.details);

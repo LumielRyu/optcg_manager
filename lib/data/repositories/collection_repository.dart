@@ -13,6 +13,40 @@ import '../services/op_api_service.dart';
 import '../services/op_card_variant_resolver.dart';
 import '../services/supabase_client_provider.dart';
 
+bool sameOwnedCollectionPrinting(CardRecord first, CardRecord second) {
+  if (first.cardCode.trim().toUpperCase() !=
+      second.cardCode.trim().toUpperCase()) {
+    return false;
+  }
+  final firstImage = _normalizedCollectionImageIdentity(first.imageUrl);
+  final secondImage = _normalizedCollectionImageIdentity(second.imageUrl);
+  if (firstImage.isNotEmpty && secondImage.isNotEmpty) {
+    return firstImage == secondImage;
+  }
+  return normalizeOpCardIdentityText(first.name) ==
+          normalizeOpCardIdentityText(second.name) &&
+      normalizeOpCardIdentityText(first.setName) ==
+          normalizeOpCardIdentityText(second.setName);
+}
+
+String ownedCollectionFolderIdentity(CardRecord item) {
+  return <String>[
+    item.folderId ?? '',
+    item.cardCode.trim().toUpperCase(),
+    normalizeOpCardIdentityText(item.name),
+    normalizeOpCardIdentityText(item.setName),
+    _normalizedCollectionImageIdentity(item.imageUrl),
+  ].join('\u001f');
+}
+
+String _normalizedCollectionImageIdentity(String value) {
+  final normalized = value.trim();
+  final uri = Uri.tryParse(normalized);
+  return uri == null
+      ? normalized
+      : uri.replace(query: '', fragment: '').toString();
+}
+
 final collectionRepositoryProvider = Provider<CollectionRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
   final opApi = ref.watch(opApiServiceProvider);
@@ -566,27 +600,35 @@ class CollectionRepository {
         : normalizedFolderId;
     if ((source.folderId ?? '') == (destinationFolderId ?? '')) return;
 
-    if (quantity == source.quantity) {
-      await _client
-          .from('collection_items')
-          .update({'folder_id': destinationFolderId})
-          .eq('id', itemId)
-          .eq('user_id', user.id)
-          .eq('collection_type', CollectionTypes.owned);
-      await refreshAll();
-      return;
-    }
-
     CardRecord? destination;
     for (final item in _cache) {
       if (item.id == source.id ||
           item.collectionType != CollectionTypes.owned ||
           (item.folderId ?? '') != (destinationFolderId ?? '') ||
-          !_isSameCollectionPrinting(source, item)) {
+          !sameOwnedCollectionPrinting(source, item)) {
         continue;
       }
       destination = item;
       break;
+    }
+
+    if (quantity == source.quantity) {
+      if (destination == null) {
+        await _client
+            .from('collection_items')
+            .update({'folder_id': destinationFolderId})
+            .eq('id', itemId)
+            .eq('user_id', user.id)
+            .eq('collection_type', CollectionTypes.owned);
+      } else {
+        await _mergeEntireCollectionItem(
+          userId: user.id,
+          source: source,
+          destination: destination,
+        );
+      }
+      await refreshAll();
+      return;
     }
 
     final sourceAfterMove = source.copyWith(
@@ -646,20 +688,92 @@ class CollectionRepository {
     await refreshAll();
   }
 
-  bool _isSameCollectionPrinting(CardRecord first, CardRecord second) {
-    if (first.cardCode.trim().toUpperCase() !=
-        second.cardCode.trim().toUpperCase()) {
-      return false;
+  Future<void> _mergeEntireCollectionItem({
+    required String userId,
+    required CardRecord source,
+    required CardRecord destination,
+  }) async {
+    await _client
+        .from('collection_items')
+        .delete()
+        .eq('id', source.id)
+        .eq('user_id', userId)
+        .eq('collection_type', CollectionTypes.owned)
+        .select('id')
+        .single();
+    try {
+      await _client
+          .from('collection_items')
+          .update({
+            'quantity': destination.quantity + source.quantity,
+            'is_favorite': destination.isFavorite || source.isFavorite,
+          })
+          .eq('id', destination.id)
+          .eq('user_id', userId)
+          .eq('collection_type', CollectionTypes.owned)
+          .select('id')
+          .single();
+    } catch (_) {
+      await _client.from('collection_items').upsert({
+        'id': source.id,
+        ..._buildCollectionItemPayload(source, userId),
+      });
+      rethrow;
     }
-    final firstImage = first.imageUrl.trim();
-    final secondImage = second.imageUrl.trim();
-    if (firstImage.isNotEmpty && secondImage.isNotEmpty) {
-      return firstImage == secondImage;
+  }
+
+  Future<int> consolidateExactOwnedDuplicates() async {
+    final user = _client.auth.currentUser;
+    if (user == null) return 0;
+
+    final groups = <String, List<CardRecord>>{};
+    for (final item in _cache) {
+      if (item.collectionType != CollectionTypes.owned ||
+          !_isValidUuid(item.id)) {
+        continue;
+      }
+      groups
+          .putIfAbsent(ownedCollectionFolderIdentity(item), () => [])
+          .add(item);
     }
-    return first.name.trim().toLowerCase() ==
-            second.name.trim().toLowerCase() &&
-        first.setName.trim().toLowerCase() ==
-            second.setName.trim().toLowerCase();
+
+    var removedCount = 0;
+    for (final group in groups.values.where((items) => items.length > 1)) {
+      final keeper = group.first;
+      final duplicates = group.skip(1).toList(growable: false);
+      final duplicateIds = duplicates.map((item) => item.id).toList();
+      final totalQuantity = group.fold<int>(
+        0,
+        (total, item) => total + item.quantity,
+      );
+      final shouldFavorite = group.any((item) => item.isFavorite);
+      final removedRows = await _client
+          .from('collection_items')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('collection_type', CollectionTypes.owned)
+          .inFilter('id', duplicateIds)
+          .select();
+      try {
+        await _client
+            .from('collection_items')
+            .update({'quantity': totalQuantity, 'is_favorite': shouldFavorite})
+            .eq('id', keeper.id)
+            .eq('user_id', user.id)
+            .eq('collection_type', CollectionTypes.owned)
+            .select('id')
+            .single();
+      } catch (_) {
+        if (removedRows.isNotEmpty) {
+          await _client.from('collection_items').insert(removedRows);
+        }
+        rethrow;
+      }
+      removedCount += duplicates.length;
+    }
+
+    if (removedCount > 0) await refreshAll(loadCatalog: false);
+    return removedCount;
   }
 
   Future<DeckShareInfo?> getDeckShareInfo(String deckName) async {
