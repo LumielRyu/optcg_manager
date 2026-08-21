@@ -2421,3 +2421,18 @@ git diff --stat
   Produtos, Biblioteca Pokemon e rankings semanais. Validacao completa: analise
   estatica limpa, 223 testes Flutter e 28 Node aprovados, auditoria npm sem
   vulnerabilidades e build web concluido.
+
+### 21/08/2026 - Catalogo completo e precos de OP-17
+
+- A pagina da Liga ID 83 passou de uma publicacao parcial para 172 impressoes
+  com codigo e imagem. Destas, 157 usam codigos `OP17-*` e cobrem os 119
+  numeros-base da colecao; as outras 15 sao DON, SP e reimpressoes especiais
+  publicadas dentro da mesma edicao.
+- O coletor direcionado gravou 172 impressoes no catalogo proprio e 344 chaves
+  de preco, mantendo a chave exata e a chave com escopo da edicao. Na coleta,
+  154 impressoes tinham menor preco publico e 18 estavam verificadas sem oferta.
+- A resposta mesclada de `/api/optcg-cards?catalog=v11` foi validada com 7.504
+  cartas no total, 157 entradas OP17 e imagem presente em todas elas.
+- O cache HTTP recebeu o identificador `catalog=v11` e o Hive passou para
+  `all_cards_v8`, incluindo a versao v7 na limpeza de legado. Assim, navegadores
+  existentes recebem o catalogo completo sem depender de F5 ou limpeza manual.
