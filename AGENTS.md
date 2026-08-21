@@ -2455,3 +2455,15 @@ git diff --stat
 - Validacao: testes de widget cobrem destino, quantidade parcial e `Sem pasta`;
   os 225 testes Flutter passaram, a analise estatica ficou limpa e o build web
   foi concluido.
+
+### 21/08/2026 - Navegacao horizontal das pastas da colecao
+
+- A faixa de pastas ganhou um controlador horizontal proprio e uma barra de
+  rolagem sempre visivel, deixando claro quando existem pastas fora da janela.
+- Toque, trackpad, roda do mouse e arraste com o botao do mouse passam a mover a
+  faixa. Setas de navegacao aparecem somente quando ha conteudo antes ou depois
+  da posicao atual e deslocam quase uma pagina por vez.
+- Os cartoes usam largura menor em janelas estreitas e a interface exibe uma
+  instrucao curta de navegacao enquanto houver pastas fora da area visivel.
+- O teste de estabilidade da colecao protege os dispositivos de entrada, a
+  barra horizontal, os controles laterais e a instrucao visual.

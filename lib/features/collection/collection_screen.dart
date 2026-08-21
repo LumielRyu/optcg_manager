@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -1107,7 +1108,7 @@ class _HeaderSection extends StatelessWidget {
   }
 }
 
-class _CollectionFoldersSection extends StatelessWidget {
+class _CollectionFoldersSection extends StatefulWidget {
   final List<CollectionFolder> folders;
   final List<CardRecord> items;
   final String selectedFolder;
@@ -1133,7 +1134,99 @@ class _CollectionFoldersSection extends StatelessWidget {
   });
 
   @override
+  State<_CollectionFoldersSection> createState() =>
+      _CollectionFoldersSectionState();
+}
+
+class _CollectionFoldersSectionState extends State<_CollectionFoldersSection> {
+  final ScrollController _folderScrollController = ScrollController();
+  bool _canScrollBack = false;
+  bool _canScrollForward = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _folderScrollController.addListener(_syncScrollControls);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncScrollControls());
+  }
+
+  @override
+  void didUpdateWidget(covariant _CollectionFoldersSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.folders.length != widget.folders.length) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _syncScrollControls(),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _folderScrollController
+      ..removeListener(_syncScrollControls)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _syncScrollControls() {
+    if (!mounted || !_folderScrollController.hasClients) return;
+    final position = _folderScrollController.position;
+    final canScrollBack = position.pixels > position.minScrollExtent + 1;
+    final canScrollForward = position.pixels < position.maxScrollExtent - 1;
+    if (canScrollBack == _canScrollBack &&
+        canScrollForward == _canScrollForward) {
+      return;
+    }
+    setState(() {
+      _canScrollBack = canScrollBack;
+      _canScrollForward = canScrollForward;
+    });
+  }
+
+  Future<void> _scrollFolders(double direction) async {
+    if (!_folderScrollController.hasClients) return;
+    final position = _folderScrollController.position;
+    final distance = (position.viewportDimension * 0.78).clamp(220.0, 620.0);
+    final target = (position.pixels + distance * direction).clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
+    await _folderScrollController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  void _handleFolderPointerSignal(PointerSignalEvent event) {
+    if (event is! PointerScrollEvent || !_folderScrollController.hasClients) {
+      return;
+    }
+    final delta = event.scrollDelta.dx.abs() > event.scrollDelta.dy.abs()
+        ? event.scrollDelta.dx
+        : event.scrollDelta.dy;
+    if (delta == 0) return;
+    final position = _folderScrollController.position;
+    final target = (position.pixels + delta).clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
+    _folderScrollController.jumpTo(target);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncScrollControls());
+    final folders = widget.folders;
+    final items = widget.items;
+    final selectedFolder = widget.selectedFolder;
+    final loading = widget.loading;
+    final onSelected = widget.onSelected;
+    final onCreate = widget.onCreate;
+    final onRename = widget.onRename;
+    final onDelete = widget.onDelete;
+    final onSell = widget.onSell;
+    final selling = widget.selling;
     final unfiled = items
         .where((item) => (item.folderId ?? '').isEmpty)
         .toList(growable: false);
@@ -1213,109 +1306,178 @@ class _CollectionFoldersSection extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             SizedBox(
-              height: 154,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: entries.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 10),
-                itemBuilder: (context, index) {
-                  final entry = entries[index];
-                  final folder = folders.cast<CollectionFolder?>().firstWhere(
-                    (candidate) => candidate?.id == entry.id,
-                    orElse: () => null,
-                  );
-                  final total = entry.items.fold<int>(
-                    0,
-                    (sum, item) => sum + item.quantity,
-                  );
-                  final selected = selectedFolder == entry.id;
-                  return SizedBox(
-                    width: 246,
-                    child: Card(
-                      color: selected
-                          ? Theme.of(context).colorScheme.primaryContainer
-                          : null,
-                      clipBehavior: Clip.antiAlias,
-                      child: InkWell(
-                        onTap: () => onSelected(entry.id),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    entry.id == '__all__'
-                                        ? Icons.collections_bookmark_outlined
-                                        : entry.id == '__unfiled__'
-                                        ? Icons.folder_off_outlined
-                                        : Icons.folder_outlined,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      entry.name,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w900,
-                                      ),
-                                    ),
-                                  ),
-                                  if (folder != null)
-                                    PopupMenuButton<String>(
-                                      tooltip: 'Opções da pasta',
-                                      onSelected: (action) {
-                                        if (action == 'rename') {
-                                          onRename(folder);
-                                        } else if (action == 'delete') {
-                                          onDelete(folder);
-                                        }
-                                      },
-                                      itemBuilder: (_) => const [
-                                        PopupMenuItem(
-                                          value: 'rename',
-                                          child: Text('Renomear'),
+              height: 170,
+              child: Listener(
+                onPointerSignal: _handleFolderPointerSignal,
+                child: ScrollConfiguration(
+                  behavior: ScrollConfiguration.of(context).copyWith(
+                    dragDevices: const {
+                      PointerDeviceKind.touch,
+                      PointerDeviceKind.mouse,
+                      PointerDeviceKind.trackpad,
+                      PointerDeviceKind.stylus,
+                    },
+                    scrollbars: false,
+                  ),
+                  child: Scrollbar(
+                    controller: _folderScrollController,
+                    thumbVisibility: true,
+                    interactive: true,
+                    notificationPredicate: (notification) =>
+                        notification.metrics.axis == Axis.horizontal,
+                    child: ListView.separated(
+                      key: const Key('collection-folders-strip'),
+                      controller: _folderScrollController,
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(
+                        parent: AlwaysScrollableScrollPhysics(),
+                      ),
+                      padding: const EdgeInsets.only(bottom: 14),
+                      itemCount: entries.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 10),
+                      itemBuilder: (context, index) {
+                        final entry = entries[index];
+                        final folder = folders
+                            .cast<CollectionFolder?>()
+                            .firstWhere(
+                              (candidate) => candidate?.id == entry.id,
+                              orElse: () => null,
+                            );
+                        final total = entry.items.fold<int>(
+                          0,
+                          (sum, item) => sum + item.quantity,
+                        );
+                        final selected = selectedFolder == entry.id;
+                        return SizedBox(
+                          width: MediaQuery.sizeOf(context).width < 720
+                              ? 205
+                              : 238,
+                          child: Card(
+                            color: selected
+                                ? Theme.of(context).colorScheme.primaryContainer
+                                : null,
+                            clipBehavior: Clip.antiAlias,
+                            child: InkWell(
+                              onTap: () => onSelected(entry.id),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          entry.id == '__all__'
+                                              ? Icons
+                                                    .collections_bookmark_outlined
+                                              : entry.id == '__unfiled__'
+                                              ? Icons.folder_off_outlined
+                                              : Icons.folder_outlined,
                                         ),
-                                        PopupMenuItem(
-                                          value: 'delete',
-                                          child: Text('Excluir'),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            entry.name,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w900,
+                                            ),
+                                          ),
                                         ),
+                                        if (folder != null)
+                                          PopupMenuButton<String>(
+                                            tooltip: 'Opções da pasta',
+                                            onSelected: (action) {
+                                              if (action == 'rename') {
+                                                onRename(folder);
+                                              } else if (action == 'delete') {
+                                                onDelete(folder);
+                                              }
+                                            },
+                                            itemBuilder: (_) => const [
+                                              PopupMenuItem(
+                                                value: 'rename',
+                                                child: Text('Renomear'),
+                                              ),
+                                              PopupMenuItem(
+                                                value: 'delete',
+                                                child: Text('Excluir'),
+                                              ),
+                                            ],
+                                          ),
                                       ],
                                     ),
-                                ],
+                                    const Spacer(),
+                                    Text(
+                                      '${entry.items.length} cartas diferentes • '
+                                      '$total no total',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 6),
+                                    LigaCollectionValueText(
+                                      items: entry.items
+                                          .map(
+                                            (card) =>
+                                                LigaPriceCollectionItemReference(
+                                                  cardName: card.name,
+                                                  cardCode: card.cardCode,
+                                                  imageUrl: card.imageUrl,
+                                                  quantity: card.quantity,
+                                                ),
+                                          )
+                                          .toList(growable: false),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              const Spacer(),
-                              Text(
-                                '${entry.items.length} cartas diferentes • '
-                                '$total no total',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 6),
-                              LigaCollectionValueText(
-                                items: entry.items
-                                    .map(
-                                      (card) =>
-                                          LigaPriceCollectionItemReference(
-                                            cardName: card.name,
-                                            cardCode: card.cardCode,
-                                            imageUrl: card.imageUrl,
-                                            quantity: card.quantity,
-                                          ),
-                                    )
-                                    .toList(growable: false),
-                              ),
-                            ],
+                            ),
                           ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            if (_canScrollBack || _canScrollForward)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      key: const Key('collection-folders-scroll-back'),
+                      tooltip: 'Ver pastas anteriores',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: _canScrollBack
+                          ? () => _scrollFolders(-1)
+                          : null,
+                      icon: const Icon(Icons.chevron_left),
+                    ),
+                    Flexible(
+                      child: Text(
+                        'Deslize ou arraste para ver mais pastas',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
-                  );
-                },
+                    IconButton(
+                      key: const Key('collection-folders-scroll-forward'),
+                      tooltip: 'Ver próximas pastas',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: _canScrollForward
+                          ? () => _scrollFolders(1)
+                          : null,
+                      icon: const Icon(Icons.chevron_right),
+                    ),
+                  ],
+                ),
               ),
-            ),
           ],
         ],
       ),

@@ -49,6 +49,23 @@ void main() {
     expect(source, contains('LigaCollectionValueText('));
   });
 
+  test(
+    'collection folders remain horizontally accessible in narrow windows',
+    () {
+      final source = File(
+        'lib/features/collection/collection_screen.dart',
+      ).readAsStringSync();
+
+      expect(source, contains("Key('collection-folders-strip')"));
+      expect(source, contains('PointerDeviceKind.mouse'));
+      expect(source, contains('PointerDeviceKind.trackpad'));
+      expect(source, contains('thumbVisibility: true'));
+      expect(source, contains('_handleFolderPointerSignal'));
+      expect(source, contains('_scrollFolders(1)'));
+      expect(source, contains('Deslize ou arraste para ver mais pastas'));
+    },
+  );
+
   test('collection distinguishes initial loading from an empty result', () {
     final source = File(
       'lib/features/collection/collection_screen.dart',
