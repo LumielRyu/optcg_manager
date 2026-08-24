@@ -2484,3 +2484,14 @@ git diff --stat
   alternativa, pastas diferentes e o fallback seguro para cartas sem imagem.
   A validacao completa terminou com 229 testes Flutter aprovados, analise
   estatica limpa e build web concluido.
+
+### 24/08/2026 - Exclusao de pastas com destino das cartas
+
+- Ao excluir uma pasta da colecao, o usuario agora escolhe entre preservar as
+  cartas em `Sem pasta` ou remover permanentemente todas as cartas da pasta.
+- O dialogo informa quantas impressoes diferentes e quantas copias existem na
+  pasta antes da decisao, e destaca visualmente a opcao destrutiva.
+- O repositorio limita a alteracao ao usuario autenticado, a cartas da colecao
+  e ao identificador exato da pasta antes de excluir a propria pasta.
+- Validacao: 230 testes Flutter aprovados, analise estatica limpa e build web
+  concluido.

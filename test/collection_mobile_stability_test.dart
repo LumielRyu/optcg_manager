@@ -80,6 +80,25 @@ void main() {
     expect(source, contains('CollectionLoadPhase.details'));
   });
 
+  test('folder deletion lets the user preserve or delete its cards', () {
+    final screenSource = File(
+      'lib/features/collection/collection_screen.dart',
+    ).readAsStringSync();
+    final repositorySource = File(
+      'lib/data/repositories/collection_repository.dart',
+    ).readAsStringSync();
+
+    expect(screenSource, contains("Key('delete-folder-move-to-unfiled')"));
+    expect(screenSource, contains("Key('delete-folder-with-cards')"));
+    expect(screenSource, contains('Enviar as cartas para Sem pasta'));
+    expect(screenSource, contains('Excluir a pasta e todas as cartas'));
+    expect(
+      repositorySource,
+      contains('CollectionFolderDeletionMode.deleteCards'),
+    );
+    expect(repositorySource, contains("update({'folder_id': null})"));
+  });
+
   test('sales uses virtualized slivers and memory-sized thumbnails', () {
     final source = File(
       'lib/features/sales/sales_screen.dart',

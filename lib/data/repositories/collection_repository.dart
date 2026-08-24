@@ -53,6 +53,8 @@ final collectionRepositoryProvider = Provider<CollectionRepository>((ref) {
   return CollectionRepository(client, opApi);
 });
 
+enum CollectionFolderDeletionMode { moveCardsToUnfiled, deleteCards }
+
 class DeckShareInfo {
   final bool isPublic;
   final String? shareCode;
@@ -545,10 +547,30 @@ class CollectionRepository {
         .eq('user_id', user.id);
   }
 
-  Future<void> deleteFolder(String folderId) async {
+  Future<void> deleteFolder(
+    String folderId, {
+    CollectionFolderDeletionMode mode =
+        CollectionFolderDeletionMode.moveCardsToUnfiled,
+  }) async {
     final user = _client.auth.currentUser;
     if (user == null) {
       throw Exception('Usuario nao autenticado.');
+    }
+
+    if (mode == CollectionFolderDeletionMode.deleteCards) {
+      await _client
+          .from('collection_items')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('collection_type', CollectionTypes.owned)
+          .eq('folder_id', folderId);
+    } else {
+      await _client
+          .from('collection_items')
+          .update({'folder_id': null})
+          .eq('user_id', user.id)
+          .eq('collection_type', CollectionTypes.owned)
+          .eq('folder_id', folderId);
     }
 
     await _client

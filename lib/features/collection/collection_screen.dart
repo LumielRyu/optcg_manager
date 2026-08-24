@@ -484,36 +484,123 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
   }
 
   Future<void> _deleteFolder(CollectionFolder folder) async {
-    final confirmed = await showDialog<bool>(
+    final folderItems = ref
+        .read(collectionControllerProvider)
+        .where(
+          (item) =>
+              item.collectionType == CollectionTypes.owned &&
+              item.folderId == folder.id,
+        )
+        .toList(growable: false);
+    final uniqueCards = folderItems.length;
+    final totalCards = folderItems.fold<int>(
+      0,
+      (total, item) => total + item.quantity,
+    );
+    final cardSummary = uniqueCards == 0
+        ? 'A pasta est\u00e1 vazia.'
+        : '$uniqueCards ${uniqueCards == 1 ? 'carta diferente' : 'cartas diferentes'} '
+              '\u2022 $totalCards ${totalCards == 1 ? 'carta no total' : 'cartas no total'}';
+
+    final mode = await showDialog<CollectionFolderDeletionMode>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Excluir pasta?'),
-        content: Text(
-          'As cartas de “${folder.name}” não serão excluídas. '
-          'Elas voltarão para “Sem pasta”.',
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 460),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Pasta: ${folder.name}'),
+              const SizedBox(height: 4),
+              Text(cardSummary),
+              const SizedBox(height: 16),
+              const Text('O que deseja fazer com as cartas desta pasta?'),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                key: const Key('delete-folder-move-to-unfiled'),
+                onPressed: () => Navigator.of(
+                  dialogContext,
+                ).pop(CollectionFolderDeletionMode.moveCardsToUnfiled),
+                icon: const Icon(Icons.drive_file_move_outline),
+                label: const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Enviar as cartas para Sem pasta'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              FilledButton.icon(
+                key: const Key('delete-folder-with-cards'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Theme.of(dialogContext).colorScheme.error,
+                  foregroundColor: Theme.of(dialogContext).colorScheme.onError,
+                ),
+                onPressed: () => Navigator.of(
+                  dialogContext,
+                ).pop(CollectionFolderDeletionMode.deleteCards),
+                icon: const Icon(Icons.delete_forever_outlined),
+                label: const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Excluir a pasta e todas as cartas'),
+                ),
+              ),
+              if (uniqueCards > 0) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Esta segunda op\u00e7\u00e3o remove permanentemente as cartas da cole\u00e7\u00e3o.',
+                  style: Theme.of(dialogContext).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(dialogContext).colorScheme.error,
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Cancelar'),
-          ),
-          FilledButton.tonal(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Excluir pasta'),
           ),
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
-    await ref.read(collectionRepositoryProvider).deleteFolder(folder.id);
-    await ref.read(collectionControllerProvider.notifier).load();
-    if (!mounted) return;
-    setState(() {
-      if (_selectedFolder == folder.id) {
-        _selectedFolder = _unfiledFolder;
-      }
-    });
-    await _loadFolders();
+    if (mode == null || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref
+          .read(collectionRepositoryProvider)
+          .deleteFolder(folder.id, mode: mode);
+      await ref.read(collectionControllerProvider.notifier).load();
+      if (!mounted) return;
+      setState(() {
+        if (_selectedFolder == folder.id) {
+          _selectedFolder =
+              mode == CollectionFolderDeletionMode.moveCardsToUnfiled
+              ? _unfiledFolder
+              : _allFolders;
+        }
+      });
+      await _loadFolders();
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            mode == CollectionFolderDeletionMode.deleteCards
+                ? 'Pasta e cartas exclu\u00eddas.'
+                : 'Pasta exclu\u00edda. As cartas foram enviadas para Sem pasta.',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('N\u00e3o foi poss\u00edvel excluir a pasta.'),
+        ),
+      );
+    }
   }
 
   Future<void> _addFolderToMarketplace(
