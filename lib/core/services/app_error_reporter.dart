@@ -60,7 +60,7 @@ class AppErrorReporter {
               'context': context,
               'error': error,
               'stackTrace': stackTrace,
-              'path': Uri.base.path,
+              'path': Uri.base.toString(),
               'platform': defaultTargetPlatform.name,
             }),
           )

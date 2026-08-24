@@ -53,7 +53,7 @@ void main() {
     final worker = File('web/pwa_service_worker.js').readAsStringSync();
     final index = File('web/index.html').readAsStringSync();
 
-    expect(worker, contains("CACHE_NAME = 'optcg-shell-v7'"));
+    expect(worker, contains("CACHE_NAME = 'optcg-shell-v8'"));
     expect(index, isNot(contains('optcg_cache_reset_version')));
   });
 }

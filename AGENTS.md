@@ -2495,3 +2495,21 @@ git diff --stat
   e ao identificador exato da pasta antes de excluir a propria pasta.
 - Validacao: 230 testes Flutter aprovados, analise estatica limpa e build web
   concluido.
+
+### 24/08/2026 - Estabilidade de sessao no celular
+
+- O service worker deixou de usar `skipWaiting` e `clients.claim`. Uma versao
+  nova agora aguarda o encerramento das abas antigas antes de assumir o app,
+  impedindo a mistura entre o bundle principal antigo e modulos adiados de um
+  deploy novo durante a navegacao.
+- A instalacao do worker `optcg-shell-v8` nao baixa uma segunda copia do bundle
+  principal logo apos o primeiro frame. O registro tambem deixou de forcar uma
+  verificacao de atualizacao em toda abertura da pagina.
+- No navegador movel, o cache de imagens decodificadas caiu para 48 entradas e
+  20 MB. O cache e liberado quando a aba fica oculta, pausada ou recebe aviso de
+  pressao de memoria, diminuindo o risco de o sistema encerrar a pagina.
+- Erros JavaScript, rejeicoes assincronas e sessoes encerradas sem `pagehide`
+  passam a ser enviados ao endpoint de diagnostico, inclusive antes de o
+  Flutter iniciar. O caminho completo com a rota hash tambem entra no relatorio.
+- Validacao: 233 testes Flutter e 28 testes Node aprovados, analise estatica
+  limpa, build web concluido e smoke test em viewport de iPhone sem erros.

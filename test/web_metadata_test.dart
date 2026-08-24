@@ -45,7 +45,7 @@ void main() {
     final worker = File('web/pwa_service_worker.js').readAsStringSync();
     final bootstrap = File('web/flutter_bootstrap.js').readAsStringSync();
 
-    expect(worker, contains("const CACHE_NAME = 'optcg-shell-v7'"));
+    expect(worker, contains("const CACHE_NAME = 'optcg-shell-v8'"));
     expect(worker, contains('const NETWORK_FIRST_ASSETS = new Set(['));
     expect(worker, contains("fetch(request, { cache: 'no-cache' })"));
     expect(worker, contains("url.pathname.startsWith('/api/')"));

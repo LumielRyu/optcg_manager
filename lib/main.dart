@@ -25,8 +25,11 @@ Future<void> main() async {
 
   if (kIsWeb) {
     final imageCache = PaintingBinding.instance.imageCache;
-    imageCache.maximumSize = 120;
-    imageCache.maximumSizeBytes = 48 * 1024 * 1024;
+    final mobileWeb =
+        defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+    imageCache.maximumSize = mobileWeb ? 48 : 120;
+    imageCache.maximumSizeBytes = (mobileWeb ? 20 : 48) * 1024 * 1024;
   }
 
   final supabaseUrl = _supabaseUrl.trim();
@@ -52,10 +55,24 @@ Future<void> main() async {
 }
 
 class _AppMemoryPressureObserver extends WidgetsBindingObserver {
-  @override
-  void didHaveMemoryPressure() {
+  void _releaseDecodedImages() {
     final imageCache = PaintingBinding.instance.imageCache;
     imageCache.clear();
     imageCache.clearLiveImages();
+  }
+
+  @override
+  void didHaveMemoryPressure() {
+    _releaseDecodedImages();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!kIsWeb) return;
+    if (state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _releaseDecodedImages();
+    }
   }
 }

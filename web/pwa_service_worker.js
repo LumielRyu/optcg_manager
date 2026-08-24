@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'optcg-shell-v7';
+const CACHE_NAME = 'optcg-shell-v8';
 const NETWORK_FIRST_ASSETS = new Set([
   '/',
   '/index.html',
@@ -16,16 +16,10 @@ const CORE_ASSETS = [
   '/',
   '/index.html',
   '/flutter_bootstrap.js',
-  '/main.dart.js',
   '/manifest.json',
   '/favicon.png',
   '/icons/Icon-192.png',
   '/icons/Icon-512.png',
-  '/assets/AssetManifest.bin.json',
-  '/assets/FontManifest.json',
-  '/assets/fonts/MaterialIcons-Regular.otf',
-  '/assets/packages/cupertino_icons/assets/CupertinoIcons.ttf',
-  '/assets/assets/editorial/scanner_card_stack.webp',
 ];
 
 self.addEventListener('install', (event) => {
@@ -41,7 +35,9 @@ self.addEventListener('install', (event) => {
           }
         }),
       );
-      await self.skipWaiting();
+      // Never replace the worker controlling an open Flutter session. The app
+      // loads route modules lazily, so mixing an old main bundle with assets
+      // from a new deployment can break navigation on mobile browsers.
     }),
   );
 });
@@ -57,7 +53,8 @@ self.addEventListener('activate', (event) => {
             .map((name) => caches.delete(name)),
         ),
       )
-      .then(() => self.clients.claim()),
+      // Activation happens naturally after every tab using the previous
+      // version has closed. The next navigation is then fully version-aligned.
   );
 });
 

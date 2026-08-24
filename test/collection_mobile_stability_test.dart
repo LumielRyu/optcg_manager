@@ -147,8 +147,10 @@ void main() {
   test('web image cache has a conservative memory ceiling', () {
     final source = File('lib/main.dart').readAsStringSync();
 
-    expect(source, contains('imageCache.maximumSize = 120'));
-    expect(source, contains('imageCache.maximumSizeBytes = 48 * 1024 * 1024'));
+    expect(source, contains('imageCache.maximumSize = mobileWeb ? 48 : 120'));
+    expect(source, contains('(mobileWeb ? 20 : 48) * 1024 * 1024'));
+    expect(source, contains('AppLifecycleState.hidden'));
+    expect(source, contains('_releaseDecodedImages();'));
   });
 
   test('library import accepts either card code or card name', () {

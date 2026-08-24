@@ -203,9 +203,6 @@
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker
           .register('pwa_service_worker.js', { updateViaCache: 'none' })
-          .then(function (registration) {
-            return registration.update();
-          })
           .catch(function (error) {
             console.warn('Unable to register the app service worker.', error);
           });
@@ -297,6 +294,100 @@
       window.addEventListener('hashchange', updatePageMetadata);
       window.addEventListener('flutter-first-frame', updatePageMetadata);
       updatePageMetadata();
+    }());
+  </script>
+
+  <script>
+    (function () {
+      const healthKey = 'tcgbh-session-health-v1';
+      const reportKey = 'tcgbh-last-client-report-v1';
+
+      function referenceId() {
+        return ('WEB' + Date.now().toString(36)).toUpperCase();
+      }
+
+      function reportClientFailure(context, error, stackTrace) {
+        try {
+          const now = Date.now();
+          const lastReport = Number(sessionStorage.getItem(reportKey) || 0);
+          if (now - lastReport < 5000) return;
+          sessionStorage.setItem(reportKey, String(now));
+
+          const payload = JSON.stringify({
+            referenceId: referenceId(),
+            context: String(context || 'web-client').slice(0, 120),
+            error: String(error || 'Unknown browser failure').slice(0, 1200),
+            stackTrace: String(stackTrace || '').slice(0, 5000),
+            path: (location.pathname + location.search + location.hash).slice(0, 300),
+            platform: innerWidth <= 700 ? 'web-mobile' : 'web-desktop'
+          });
+          const body = new Blob([payload], { type: 'application/json' });
+          if (!navigator.sendBeacon('/api/client-errors', body)) {
+            fetch('/api/client-errors', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: payload,
+              keepalive: true
+            }).catch(function () {});
+          }
+        } catch (_) {}
+      }
+
+      window.addEventListener('error', function (event) {
+        reportClientFailure(
+          'window-error',
+          event.message || 'Browser resource error',
+          event.error && event.error.stack
+        );
+      });
+      window.addEventListener('unhandledrejection', function (event) {
+        const reason = event.reason;
+        reportClientFailure(
+          'unhandled-rejection',
+          reason && reason.message ? reason.message : reason,
+          reason && reason.stack
+        );
+      });
+
+      try {
+        const previous = JSON.parse(localStorage.getItem(healthKey) || 'null');
+        if (
+          previous &&
+          previous.active === true &&
+          Date.now() - Number(previous.updatedAt || 0) < 12 * 60 * 60 * 1000
+        ) {
+          reportClientFailure(
+            'previous-session-interrupted',
+            'A sessao anterior terminou sem pagehide; possivel encerramento por memoria.',
+            ''
+          );
+        }
+      } catch (_) {}
+
+      function markSession(active) {
+        try {
+          localStorage.setItem(
+            healthKey,
+            JSON.stringify({
+              active: active,
+              updatedAt: Date.now(),
+              path: (location.pathname + location.hash).slice(0, 300)
+            })
+          );
+        } catch (_) {}
+      }
+
+      markSession(true);
+      const healthTimer = window.setInterval(function () {
+        markSession(true);
+      }, 20000);
+      window.addEventListener('pageshow', function () {
+        markSession(true);
+      });
+      window.addEventListener('pagehide', function () {
+        window.clearInterval(healthTimer);
+        markSession(false);
+      });
     }());
   </script>
 

@@ -66,8 +66,43 @@ void main() {
 
     expect(entrypoint, contains('loadFlutter();'));
     expect(entrypoint, isNot(contains('resetStaleCaches().finally')));
-    expect(entrypoint, isNot(contains('navigator.serviceWorker.getRegistrations')));
+    expect(
+      entrypoint,
+      isNot(contains('navigator.serviceWorker.getRegistrations')),
+    );
     expect(entrypoint, isNot(contains('window.caches.keys')));
+  });
+
+  test('service worker never replaces an active Flutter session', () {
+    final serviceWorker = File('web/pwa_service_worker.js').readAsStringSync();
+    final entrypoint = File('web/index.html').readAsStringSync();
+
+    expect(serviceWorker, contains("CACHE_NAME = 'optcg-shell-v8'"));
+    expect(serviceWorker, isNot(contains('self.skipWaiting()')));
+    expect(serviceWorker, isNot(contains('self.clients.claim()')));
+    expect(entrypoint, isNot(contains('registration.update()')));
+  });
+
+  test('service worker install avoids a second main bundle download', () {
+    final serviceWorker = File('web/pwa_service_worker.js').readAsStringSync();
+    final coreAssets = serviceWorker.substring(
+      serviceWorker.indexOf('const CORE_ASSETS'),
+      serviceWorker.indexOf('self.addEventListener'),
+    );
+
+    expect(coreAssets, isNot(contains("'/main.dart.js'")));
+  });
+
+  test('web shell reports browser failures and interrupted sessions', () {
+    final entrypoint = File('web/index.html').readAsStringSync();
+
+    expect(entrypoint, contains("window.addEventListener('error'"));
+    expect(
+      entrypoint,
+      contains("window.addEventListener('unhandledrejection'"),
+    );
+    expect(entrypoint, contains('previous-session-interrupted'));
+    expect(entrypoint, contains("navigator.sendBeacon('/api/client-errors'"));
   });
 
   test('marketplace keeps automatic carousels outside the LCP window', () {
