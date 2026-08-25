@@ -27,6 +27,7 @@ import '../../core/widgets/primary_bottom_navigation.dart';
 import 'collection_controller.dart';
 import 'collection_bulk_sale_import.dart';
 import 'collection_sale_import.dart';
+import 'collection_showcase_layout.dart';
 import 'deck_details_dialog.dart';
 import 'manual_add_dialog.dart';
 import '../../core/widgets/home_navigation_button.dart';
@@ -202,6 +203,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
               onRename: _renameFolder,
               onDelete: _deleteFolder,
               onSell: _addFolderToMarketplace,
+              onShowcase: _openFolderShowcase,
               selling: _bulkSaleBusy,
             ),
           ),
@@ -312,6 +314,20 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
       context: context,
       builder: (_) =>
           ManualAddDialog(folders: _folders, initialFolderId: initialFolderId),
+    );
+  }
+
+  Future<void> _openFolderShowcase(
+    String folderName,
+    List<CardRecord> items,
+  ) async {
+    if (items.isEmpty) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) =>
+            CollectionShowcaseScreen(folderName: folderName, items: items),
+      ),
     );
   }
 
@@ -1205,6 +1221,7 @@ class _CollectionFoldersSection extends StatefulWidget {
   final ValueChanged<CollectionFolder> onRename;
   final ValueChanged<CollectionFolder> onDelete;
   final Future<void> Function(String name, List<CardRecord> items) onSell;
+  final Future<void> Function(String name, List<CardRecord> items) onShowcase;
   final bool selling;
 
   const _CollectionFoldersSection({
@@ -1217,6 +1234,7 @@ class _CollectionFoldersSection extends StatefulWidget {
     required this.onRename,
     required this.onDelete,
     required this.onSell,
+    required this.onShowcase,
     required this.selling,
   });
 
@@ -1313,6 +1331,7 @@ class _CollectionFoldersSectionState extends State<_CollectionFoldersSection> {
     final onRename = widget.onRename;
     final onDelete = widget.onDelete;
     final onSell = widget.onSell;
+    final onShowcase = widget.onShowcase;
     final selling = widget.selling;
     final unfiled = items
         .where((item) => (item.folderId ?? '').isEmpty)
@@ -1373,22 +1392,40 @@ class _CollectionFoldersSectionState extends State<_CollectionFoldersSection> {
           else ...[
             Align(
               alignment: Alignment.centerRight,
-              child: FilledButton.icon(
-                onPressed: selling || selectedEntry.items.isEmpty
-                    ? null
-                    : () => onSell(selectedEntry.name, selectedEntry.items),
-                icon: selling
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.storefront_outlined),
-                label: Text(
-                  selectedEntry.id == '__all__'
-                      ? 'Vender toda a coleção'
-                      : 'Vender esta pasta',
-                ),
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilledButton.tonalIcon(
+                    key: const Key('collection-folder-showcase'),
+                    onPressed: selectedEntry.items.isEmpty
+                        ? null
+                        : () => onShowcase(
+                            selectedEntry.name,
+                            selectedEntry.items,
+                          ),
+                    icon: const Icon(Icons.grid_view_rounded),
+                    label: const Text('Modo para print'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: selling || selectedEntry.items.isEmpty
+                        ? null
+                        : () => onSell(selectedEntry.name, selectedEntry.items),
+                    icon: selling
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.storefront_outlined),
+                    label: Text(
+                      selectedEntry.id == '__all__'
+                          ? 'Vender toda a coleção'
+                          : 'Vender esta pasta',
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 10),
@@ -2249,12 +2286,320 @@ class _VirtualizedDeckLibraryView extends StatelessWidget {
   }
 }
 
+class CollectionShowcaseScreen extends StatefulWidget {
+  final String folderName;
+  final List<CardRecord> items;
+
+  const CollectionShowcaseScreen({
+    super.key,
+    required this.folderName,
+    required this.items,
+  });
+
+  @override
+  State<CollectionShowcaseScreen> createState() =>
+      _CollectionShowcaseScreenState();
+}
+
+class _CollectionShowcaseScreenState extends State<CollectionShowcaseScreen> {
+  static const double _cardAspectRatio = 0.714;
+  bool _controlsVisible = true;
+
+  late final List<CardRecord> _items = [...widget.items]
+    ..sort((a, b) {
+      final codeComparison = a.cardCode.toLowerCase().compareTo(
+        b.cardCode.toLowerCase(),
+      );
+      if (codeComparison != 0) return codeComparison;
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
+
+  @override
+  Widget build(BuildContext context) {
+    final totalCards = _items.fold<int>(0, (sum, item) => sum + item.quantity);
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF02070D),
+      appBar: _controlsVisible
+          ? AppBar(
+              backgroundColor: const Color(0xFF07131C),
+              foregroundColor: Colors.white,
+              leading: IconButton(
+                tooltip: 'Fechar modo para print',
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close),
+              ),
+              title: const Text('Visualização para print'),
+              actions: [
+                IconButton(
+                  key: const Key('collection-showcase-clean-view'),
+                  tooltip: 'Ocultar controles para o print',
+                  onPressed: () => setState(() => _controlsVisible = false),
+                  icon: const Icon(Icons.fullscreen_rounded),
+                ),
+              ],
+            )
+          : null,
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _controlsVisible
+            ? null
+            : () => setState(() => _controlsVisible = true),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _CollectionShowcaseHeader(
+                  folderName: widget.folderName,
+                  uniqueCards: _items.length,
+                  totalCards: totalCards,
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final layout = calculateCollectionShowcaseLayout(
+                        width: constraints.maxWidth,
+                        height: constraints.maxHeight,
+                        itemCount: _items.length,
+                        cardAspectRatio: _cardAspectRatio,
+                      );
+                      final rows = (_items.length / layout.columns).ceil();
+                      final gridWidth =
+                          (layout.cardWidth * layout.columns) +
+                          (layout.spacing * (layout.columns - 1));
+                      final gridHeight =
+                          (layout.cardHeight * rows) +
+                          (layout.spacing * (rows - 1));
+
+                      return Center(
+                        child: SizedBox(
+                          width: gridWidth,
+                          height: gridHeight,
+                          child: GridView.builder(
+                            key: const Key('collection-showcase-grid'),
+                            padding: EdgeInsets.zero,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: layout.columns,
+                                  crossAxisSpacing: layout.spacing,
+                                  mainAxisSpacing: layout.spacing,
+                                  childAspectRatio: _cardAspectRatio,
+                                ),
+                            itemCount: _items.length,
+                            itemBuilder: (context, index) =>
+                                _CollectionShowcaseCard(
+                                  item: _items[index],
+                                  cardWidth: layout.cardWidth,
+                                ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CollectionShowcaseHeader extends StatelessWidget {
+  final String folderName;
+  final int uniqueCards;
+  final int totalCards;
+
+  const _CollectionShowcaseHeader({
+    required this.folderName,
+    required this.uniqueCards,
+    required this.totalCards,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const brand = _CollectionShowcaseBrand();
+    final folder = Text(
+      folderName,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 18,
+        fontWeight: FontWeight.w900,
+      ),
+    );
+    final totals = Text(
+      '$uniqueCards diferentes • $totalCards cartas',
+      style: const TextStyle(
+        color: Color(0xFFB8D4DE),
+        fontWeight: FontWeight.w700,
+      ),
+    );
+
+    return Container(
+      key: const Key('collection-showcase-header'),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B202B),
+        border: Border.all(
+          color: const Color(0xFF13C8D8).withValues(alpha: .5),
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth < 560) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    brand,
+                    const SizedBox(width: 10),
+                    Expanded(child: folder),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                totals,
+              ],
+            );
+          }
+          return Row(
+            children: [
+              brand,
+              const SizedBox(width: 10),
+              Expanded(child: folder),
+              const SizedBox(width: 8),
+              totals,
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _CollectionShowcaseBrand extends StatelessWidget {
+  const _CollectionShowcaseBrand();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFF13C8D8),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Text(
+        'TCG BH',
+        style: TextStyle(
+          color: Color(0xFF021116),
+          fontWeight: FontWeight.w900,
+          letterSpacing: .7,
+        ),
+      ),
+    );
+  }
+}
+
+class _CollectionShowcaseCard extends StatelessWidget {
+  final CardRecord item;
+  final double cardWidth;
+
+  const _CollectionShowcaseCard({required this.item, required this.cardWidth});
+
+  @override
+  Widget build(BuildContext context) {
+    final compact = cardWidth < 72;
+    return Semantics(
+      key: ValueKey('collection-showcase-card-${item.id}'),
+      label: '${item.name}, ${item.cardCode}, ${item.quantity} cópias',
+      image: true,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(compact ? 3 : 7),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            ColoredBox(
+              color: const Color(0xFF0B202B),
+              child: _CollectionCardImage(
+                imageUrl: item.imageUrl,
+                cardCode: item.cardCode,
+                cardName: item.name,
+                setName: item.setName,
+                fit: BoxFit.contain,
+                logicalDecodeWidth: cardWidth,
+              ),
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: compact ? 2 : 5,
+                  vertical: compact ? 1 : 3,
+                ),
+                color: Colors.black.withValues(alpha: .78),
+                child: Text(
+                  item.cardCode,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: compact ? 7 : 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+            if (item.quantity > 1)
+              Positioned(
+                top: compact ? 2 : 5,
+                right: compact ? 2 : 5,
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: compact ? 3 : 6,
+                    vertical: compact ? 1 : 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF13C8D8),
+                    borderRadius: BorderRadius.circular(999),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black54, blurRadius: 4),
+                    ],
+                  ),
+                  child: Text(
+                    '${item.quantity}x',
+                    style: TextStyle(
+                      color: const Color(0xFF021116),
+                      fontSize: compact ? 8 : 11,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _CollectionCardImage extends StatefulWidget {
   final String imageUrl;
   final String cardCode;
   final String cardName;
   final String setName;
   final BoxFit fit;
+  final double? logicalDecodeWidth;
 
   const _CollectionCardImage({
     super.key,
@@ -2263,6 +2608,7 @@ class _CollectionCardImage extends StatefulWidget {
     required this.cardName,
     required this.setName,
     this.fit = BoxFit.contain,
+    this.logicalDecodeWidth,
   });
 
   @override
@@ -2291,7 +2637,8 @@ class _CollectionCardImageState extends State<_CollectionCardImage> {
     if (oldWidget.imageUrl != widget.imageUrl ||
         oldWidget.cardCode != widget.cardCode ||
         oldWidget.cardName != widget.cardName ||
-        oldWidget.setName != widget.setName) {
+        oldWidget.setName != widget.setName ||
+        oldWidget.logicalDecodeWidth != widget.logicalDecodeWidth) {
       _retryTimer?.cancel();
       _retryTimer = null;
       _attempt = 0;
@@ -2341,9 +2688,11 @@ class _CollectionCardImageState extends State<_CollectionCardImage> {
     }
 
     final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
-    final logicalWidth = MediaQuery.sizeOf(context).width < 600 ? 180.0 : 240.0;
+    final logicalWidth =
+        widget.logicalDecodeWidth ??
+        (MediaQuery.sizeOf(context).width < 600 ? 180.0 : 240.0);
     final decodeWidth = (logicalWidth * devicePixelRatio).round().clamp(
-      180,
+      80,
       720,
     );
 

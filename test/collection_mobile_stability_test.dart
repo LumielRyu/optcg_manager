@@ -66,6 +66,20 @@ void main() {
     },
   );
 
+  test('collection folders expose a full-screen print showcase', () {
+    final source = File(
+      'lib/features/collection/collection_screen.dart',
+    ).readAsStringSync();
+
+    expect(source, contains("Key('collection-folder-showcase')"));
+    expect(source, contains("const Text('Modo para print')"));
+    expect(source, contains('class CollectionShowcaseScreen'));
+    expect(source, contains("Key('collection-showcase-grid')"));
+    expect(source, contains('NeverScrollableScrollPhysics'));
+    expect(source, contains("Key('collection-showcase-clean-view')"));
+    expect(source, contains('logicalDecodeWidth: cardWidth'));
+  });
+
   test('collection distinguishes initial loading from an empty result', () {
     final source = File(
       'lib/features/collection/collection_screen.dart',

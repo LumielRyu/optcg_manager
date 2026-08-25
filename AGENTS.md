@@ -2513,3 +2513,22 @@ git diff --stat
   Flutter iniciar. O caminho completo com a rota hash tambem entra no relatorio.
 - Validacao: 233 testes Flutter e 28 testes Node aprovados, analise estatica
   limpa, build web concluido e smoke test em viewport de iPhone sem erros.
+
+### 25/08/2026 - Modo de exposicao da pasta para print
+
+- A pasta selecionada na colecao ganhou a acao `Modo para print`, disponivel
+  tambem nas visoes `Todas as cartas` e `Sem pasta` quando possuem itens.
+- A tela dedicada remove busca, precos, filtros e acoes de edicao. Ela ordena
+  as impressoes por codigo e usa toda a largura e altura disponiveis para
+  mostrar a pasta como uma grade de artes.
+- O calculo responsivo escolhe simultaneamente linhas, colunas e tamanho das
+  cartas para que todas caibam na mesma captura, tanto em tela vertical quanto
+  horizontal. Uma unica carta tambem fica centralizada sem extrapolar a tela.
+- Cada arte mostra o codigo e, quando houver mais de uma copia, um selo de
+  quantidade. O cabecalho identifica TCG BH, nome da pasta, cartas diferentes
+  e total de copias.
+- A acao de tela limpa oculta a barra de controles antes do print; tocar em
+  qualquer parte da exposicao restaura os controles. As imagens sao
+  decodificadas conforme o tamanho real calculado para limitar memoria movel.
+- Validacao: 239 testes Flutter e 28 testes Node aprovados, analise estatica
+  limpa e build web concluido.
