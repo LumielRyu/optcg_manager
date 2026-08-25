@@ -2541,3 +2541,22 @@ git diff --stat
 - A captura respeita a pasta selecionada, ignora filtros de busca temporarios
   e mostra codigo e quantidade em todas as cartas, inclusive `1x`.
 - O recurso foi habilitado tanto para One Piece quanto para os demais TCGs.
+
+### 25/08/2026 - Estabilidade da primeira carga e logs duraveis
+
+- A verificacao dos deploys e do endpoint de saude nao encontrou falha de
+  infraestrutura. O ponto fragil localizado foi a sequencia de leituras do
+  Marketplace: uma oscilacao curta do Supabase, inclusive na consulta
+  secundaria de vendedores, substituia todos os anuncios pela tela de erro.
+- As leituras publicas do Marketplace agora possuem repeticao curta e limitada.
+  A consulta de nomes passou a ser complementar: se falhar apos as tentativas,
+  os anuncios continuam visiveis e a falha e reportada para diagnostico.
+- O coletor do navegador inclui estado de rede, visibilidade, viewport e tipo de
+  conexao. O alerta de sessao interrompida caiu de 12 horas para 90 segundos,
+  evitando classificar uma reabertura normal como possivel falta de memoria.
+- O endpoint `/api/client-errors` ganhou persistencia opcional e segura na tabela
+  `client_error_events`, correlacionada com request, deploy e commit. A ativacao
+  exige executar `sql/client_error_events.sql` e cadastrar
+  `SUPABASE_SERVICE_ROLE_KEY` somente na Vercel.
+- O plano completo, incluindo painel administrativo, metricas de duracao,
+  alertas e retencao, esta em `docs/observability_plan.md`.

@@ -10,6 +10,7 @@ const {
   resetRateLimitsForTests,
 } = require('../server/api-security');
 const clientErrorsHandler = require('../api/client-errors');
+const {normalizePayload} = clientErrorsHandler;
 
 function responseDouble() {
   return {
@@ -104,4 +105,26 @@ test('client error endpoint rejects foreign origins', async () => {
   );
   assert.equal(res.statusCode, 403);
   assert.deepEqual(res.body, {error: 'Origin not allowed'});
+});
+
+test('client error endpoint normalizes safe browser diagnostics', () => {
+  const payload = normalizePayload({
+    referenceId: 'WEBABC123',
+    context: 'marketplace.load',
+    error: 'Failed to fetch',
+    diagnostics: {
+      online: true,
+      visibility: 'visible',
+      viewport: '390x844',
+      connection: '4g',
+      ignored: 'not persisted',
+    },
+  });
+
+  assert.deepEqual(payload.diagnostics, {
+    online: true,
+    visibility: 'visible',
+    viewport: '390x844',
+    connection: '4g',
+  });
 });

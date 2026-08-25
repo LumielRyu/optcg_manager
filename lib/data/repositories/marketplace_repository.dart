@@ -1,6 +1,10 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/services/app_error_reporter.dart';
 import '../models/marketplace_listing.dart';
 import '../models/op_card.dart';
 import '../services/liga_one_piece_service.dart';
@@ -418,18 +422,20 @@ class MarketplaceRepository {
           .toList();
     }
 
-    try {
-      return await run(selectColumns, filterExpiration: true);
-    } on PostgrestException catch (error) {
-      if (!_looksLikeMissingOptionalListingSchema(error)) rethrow;
-      var fallbackColumns = selectColumns.replaceAll(
-        ', $_dynamicPricingColumns',
-        '',
-      );
-      fallbackColumns = fallbackColumns.replaceAll(', sale_expires_at', '');
-      fallbackColumns = fallbackColumns.replaceAll(', sale_folder_id', '');
-      return run(fallbackColumns, filterExpiration: false);
-    }
+    return _retryRemoteRead(() async {
+      try {
+        return await run(selectColumns, filterExpiration: true);
+      } on PostgrestException catch (error) {
+        if (!_looksLikeMissingOptionalListingSchema(error)) rethrow;
+        var fallbackColumns = selectColumns.replaceAll(
+          ', $_dynamicPricingColumns',
+          '',
+        );
+        fallbackColumns = fallbackColumns.replaceAll(', sale_expires_at', '');
+        fallbackColumns = fallbackColumns.replaceAll(', sale_folder_id', '');
+        return run(fallbackColumns, filterExpiration: false);
+      }
+    });
   }
 
   Future<List<Map<String, dynamic>>> _refreshDynamicPricesIfNeeded(
@@ -550,10 +556,25 @@ class MarketplaceRepository {
 
     if (missingUserIds.isEmpty) return;
 
-    final response = await _client.rpc(
-      'get_public_seller_profiles',
-      params: {'user_ids': missingUserIds},
-    );
+    dynamic response;
+    try {
+      response = await _retryRemoteRead(
+        () => _client.rpc(
+          'get_public_seller_profiles',
+          params: {'user_ids': missingUserIds},
+        ),
+      );
+    } catch (error, stackTrace) {
+      // Seller labels are supplementary. A temporary RPC failure must not
+      // replace an otherwise valid marketplace/store page with a retry screen.
+      AppErrorReporter.report(
+        error,
+        stackTrace,
+        context: 'marketplace.load-seller-profiles',
+      );
+      debugPrint('[marketplace] Seller profiles unavailable; using labels.');
+      return;
+    }
 
     for (final raw in (response as List)) {
       final row = Map<String, dynamic>.from(raw);
@@ -565,6 +586,54 @@ class MarketplaceRepository {
     for (final id in missingUserIds) {
       _sellerNameCache.putIfAbsent(id, () => '');
     }
+  }
+
+  Future<T> _retryRemoteRead<T>(Future<T> Function() read) async {
+    const delays = <Duration>[
+      Duration.zero,
+      Duration(milliseconds: 300),
+      Duration(milliseconds: 900),
+    ];
+    Object? lastError;
+    StackTrace? lastStackTrace;
+
+    for (var attempt = 0; attempt < delays.length; attempt++) {
+      if (delays[attempt] > Duration.zero) {
+        await Future<void>.delayed(delays[attempt]);
+      }
+      try {
+        return await read().timeout(const Duration(seconds: 12));
+      } catch (error, stackTrace) {
+        lastError = error;
+        lastStackTrace = stackTrace;
+        if (attempt == delays.length - 1 || !_canRetryRead(error)) {
+          Error.throwWithStackTrace(error, stackTrace);
+        }
+      }
+    }
+
+    Error.throwWithStackTrace(lastError!, lastStackTrace!);
+  }
+
+  bool _canRetryRead(Object error) {
+    if (error is TimeoutException) return true;
+    if (error is PostgrestException) {
+      final code = (error.code ?? '').toUpperCase();
+      final message = '${error.message} ${error.details} ${error.hint}'
+          .toLowerCase();
+      if (code == '401' ||
+          code == '403' ||
+          code == '42501' ||
+          message.contains('jwt') ||
+          message.contains('permission denied')) {
+        return false;
+      }
+    }
+
+    // All operations using this helper are idempotent reads. Browser network
+    // errors vary by engine, so a bounded retry is safer than matching only a
+    // small set of implementation-specific exception types.
+    return true;
   }
 
   MarketplaceListing _mapRowToListing(Map<String, dynamic> map) {

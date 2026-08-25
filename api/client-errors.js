@@ -9,6 +9,7 @@ const {
   rejectUntrustedOrigin,
 } = require('../server/api-security');
 const {observeRequest, writeLog} = require('../server/api-observability');
+const {persistClientError} = require('../server/client-error-store');
 
 module.exports = async (req, res) => {
   const observation = observeRequest(req, res, '/api/client-errors');
@@ -46,6 +47,25 @@ module.exports = async (req, res) => {
     requestId: observation.requestId,
     ...payload,
   });
+  try {
+    const persistence = await Promise.race([
+      persistClientError(payload, {
+        requestId: observation.requestId,
+        userAgent: req.headers['user-agent'],
+      }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Client error persistence timeout')), 4000),
+      ),
+    ]);
+    observation.event(
+      persistence.stored
+        ? 'client_error_persisted'
+        : 'client_error_persistence_unavailable',
+      {referenceId: payload.referenceId, reason: persistence.reason},
+    );
+  } catch (error) {
+    observation.error(error, 'client_error_persistence_failed');
+  }
   return res.status(202).json({accepted: true, referenceId: payload.referenceId});
 };
 
@@ -75,7 +95,18 @@ function normalizePayload(body) {
     stackTrace: clean(value.stackTrace, 5000),
     path: clean(value.path, 300),
     platform: clean(value.platform, 40),
+    diagnostics: normalizeDiagnostics(value.diagnostics),
     receivedAt: new Date().toISOString(),
+  };
+}
+
+function normalizeDiagnostics(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return {
+    online: value.online === true,
+    visibility: clean(value.visibility, 30),
+    viewport: clean(value.viewport, 30),
+    connection: clean(value.connection, 30),
   };
 }
 
@@ -92,3 +123,5 @@ function redact(value) {
     .replace(/\b[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\b/g, '[token]')
     .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[email]');
 }
+
+module.exports.normalizePayload = normalizePayload;

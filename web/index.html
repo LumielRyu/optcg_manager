@@ -319,7 +319,15 @@
             error: String(error || 'Unknown browser failure').slice(0, 1200),
             stackTrace: String(stackTrace || '').slice(0, 5000),
             path: (location.pathname + location.search + location.hash).slice(0, 300),
-            platform: innerWidth <= 700 ? 'web-mobile' : 'web-desktop'
+            platform: innerWidth <= 700 ? 'web-mobile' : 'web-desktop',
+            diagnostics: {
+              online: navigator.onLine,
+              visibility: document.visibilityState,
+              viewport: innerWidth + 'x' + innerHeight,
+              connection: navigator.connection && navigator.connection.effectiveType
+                ? navigator.connection.effectiveType
+                : ''
+            }
           });
           const body = new Blob([payload], { type: 'application/json' });
           if (!navigator.sendBeacon('/api/client-errors', body)) {
@@ -354,11 +362,12 @@
         if (
           previous &&
           previous.active === true &&
-          Date.now() - Number(previous.updatedAt || 0) < 12 * 60 * 60 * 1000
+          Date.now() - Number(previous.updatedAt || 0) < 90 * 1000
         ) {
           reportClientFailure(
             'previous-session-interrupted',
-            'A sessao anterior terminou sem pagehide; possivel encerramento por memoria.',
+            'A sessao anterior terminou sem pagehide ha menos de 90 segundos; caminho: ' +
+              String(previous.path || 'desconhecido'),
             ''
           );
         }
