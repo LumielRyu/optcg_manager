@@ -18,6 +18,7 @@ import '../../core/widgets/catalog_grid_card.dart';
 import '../../core/widgets/catalog_list_card.dart';
 import '../../core/widgets/summary_stat_card.dart';
 import '../../data/models/marketplace_listing.dart';
+import '../../data/models/card_record.dart';
 import '../../data/models/marketplace_order.dart';
 import '../../data/models/sale_folder.dart';
 import '../../data/repositories/marketplace_repository.dart';
@@ -27,6 +28,7 @@ import '../../data/services/liga_one_piece_service.dart';
 import '../../data/services/op_api_service.dart';
 import '../../data/services/translation_service.dart';
 import '../collection/manual_add_dialog.dart';
+import '../collection/collection_screen.dart';
 import '../../core/widgets/home_navigation_button.dart';
 import '../../core/widgets/primary_bottom_navigation.dart';
 import 'widgets/sale_folders_section.dart';
@@ -94,6 +96,63 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     return ref
         .read(marketplaceOrderRepositoryProvider)
         .getSellerOrders(gameSlug: 'one-piece');
+  }
+
+  List<MarketplaceListing> _itemsInSelectedSaleFolder(
+    List<MarketplaceListing> items,
+  ) {
+    return items
+        .where((item) {
+          if (_selectedSaleFolder == saleUnfiledFolder) {
+            return (item.saleFolderId ?? '').isEmpty;
+          }
+          if (_selectedSaleFolder == saleAllFolders) return true;
+          return item.saleFolderId == _selectedSaleFolder;
+        })
+        .toList(growable: false);
+  }
+
+  String get _selectedSaleFolderName {
+    if (_selectedSaleFolder == saleAllFolders) return 'Todas as vendas';
+    if (_selectedSaleFolder == saleUnfiledFolder) return 'Vendas sem pasta';
+    return _saleFolders
+            .where((folder) => folder.id == _selectedSaleFolder)
+            .map((folder) => folder.name)
+            .firstOrNull ??
+        'Cartas à venda';
+  }
+
+  void _openSalesShowcase(List<MarketplaceListing> allItems) {
+    final items = _itemsInSelectedSaleFolder(allItems);
+    if (items.isEmpty) return;
+
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CollectionShowcaseScreen(
+          folderName: _selectedSaleFolderName,
+          items: items
+              .map(
+                (item) => CardRecord(
+                  id: 'sale-${item.id}',
+                  cardCode: item.cardCode,
+                  name: item.name,
+                  imageUrl: item.imageUrl,
+                  dateAddedUtc: item.dateAddedUtc,
+                  setName: item.setName,
+                  rarity: item.rarity,
+                  color: item.color,
+                  type: item.type,
+                  text: item.text,
+                  attribute: item.attribute,
+                  quantity: item.quantity,
+                  collectionType: CollectionTypes.forSale,
+                  folderId: item.saleFolderId,
+                ),
+              )
+              .toList(growable: false),
+        ),
+      ),
+    );
   }
 
   void _updateSalesDerivedData(List<MarketplaceListing> allItems) {
@@ -580,6 +639,9 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                   onSelect: (value) =>
                       setState(() => _selectedSaleFolder = value),
                   onCreate: _createSaleFolder,
+                  onShowcase: _itemsInSelectedSaleFolder(allItems).isEmpty
+                      ? null
+                      : () => _openSalesShowcase(allItems),
                   onRename: _renameSaleFolder,
                   onDelete: _deleteSaleFolder,
                 ),

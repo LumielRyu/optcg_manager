@@ -32,6 +32,7 @@ class SaleFoldersSection extends StatelessWidget {
   final Map<String, SaleFolderMetrics> folderMetrics;
   final ValueChanged<String> onSelect;
   final VoidCallback onCreate;
+  final VoidCallback? onShowcase;
   final ValueChanged<SaleFolder> onRename;
   final ValueChanged<SaleFolder> onDelete;
 
@@ -45,6 +46,7 @@ class SaleFoldersSection extends StatelessWidget {
     required this.folderMetrics,
     required this.onSelect,
     required this.onCreate,
+    this.onShowcase,
     required this.onRename,
     required this.onDelete,
   });
@@ -72,18 +74,33 @@ class SaleFoldersSection extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (compact)
+                  if (compact) ...[
+                    IconButton.filledTonal(
+                      key: const Key('sale-folder-showcase'),
+                      tooltip: 'Modo para print',
+                      onPressed: loading ? null : onShowcase,
+                      icon: const Icon(Icons.photo_library_outlined),
+                    ),
+                    const SizedBox(width: 6),
                     IconButton.filledTonal(
                       tooltip: 'Nova pasta',
                       onPressed: loading ? null : onCreate,
                       icon: const Icon(Icons.create_new_folder_outlined),
-                    )
-                  else
+                    ),
+                  ] else ...[
+                    OutlinedButton.icon(
+                      key: const Key('sale-folder-showcase'),
+                      onPressed: loading ? null : onShowcase,
+                      icon: const Icon(Icons.photo_library_outlined),
+                      label: const Text('Modo para print'),
+                    ),
+                    const SizedBox(width: 8),
                     FilledButton.tonalIcon(
                       onPressed: loading ? null : onCreate,
                       icon: const Icon(Icons.create_new_folder_outlined),
                       label: const Text('Nova pasta'),
                     ),
+                  ],
                 ],
               ),
               const SizedBox(height: 4),

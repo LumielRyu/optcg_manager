@@ -41,6 +41,7 @@ void main() {
   ) async {
     String? selected;
     var created = false;
+    var openedShowcase = false;
     final folder = SaleFolder(
       id: 'folder-1',
       userId: 'user-1',
@@ -71,6 +72,7 @@ void main() {
             },
             onSelect: (value) => selected = value,
             onCreate: () => created = true,
+            onShowcase: () => openedShowcase = true,
             onRename: (_) {},
             onDelete: (_) {},
           ),
@@ -86,5 +88,7 @@ void main() {
     expect(selected, 'folder-1');
     await tester.tap(find.text('Nova pasta'));
     expect(created, isTrue);
+    await tester.tap(find.text('Modo para print'));
+    expect(openedShowcase, isTrue);
   });
 }

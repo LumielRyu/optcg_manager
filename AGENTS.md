@@ -2533,3 +2533,11 @@ git diff --stat
   decodificadas conforme o tamanho real calculado para limitar memoria movel.
 - Validacao: 239 testes Flutter e 28 testes Node aprovados, analise estatica
   limpa e build web concluido.
+
+### 25/08/2026 - Modo para print nas cartas a venda
+
+- A area `Cartas a venda` ganhou a mesma exposicao em tela cheia usada na
+  colecao, acessivel pelo botao `Modo para print` nas pastas de vendas.
+- A captura respeita a pasta selecionada, ignora filtros de busca temporarios
+  e mostra codigo e quantidade em todas as cartas, inclusive `1x`.
+- O recurso foi habilitado tanto para One Piece quanto para os demais TCGs.

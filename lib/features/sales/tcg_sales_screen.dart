@@ -5,15 +5,18 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/tcg/tcg_game.dart';
+import '../../core/constants/collection_types.dart';
 import '../../core/widgets/catalog_grid_card.dart';
 import '../../core/widgets/home_navigation_button.dart';
 import '../../data/models/tcg_marketplace_listing.dart';
+import '../../data/models/card_record.dart';
 import '../../data/models/marketplace_order.dart';
 import '../../data/models/sale_folder.dart';
 import '../../data/repositories/marketplace_order_repository.dart';
 import '../../data/repositories/sale_folder_repository.dart';
 import '../../data/repositories/tcg_marketplace_repository.dart';
 import 'widgets/sale_folders_section.dart';
+import '../collection/collection_screen.dart';
 
 class TcgSalesScreen extends ConsumerStatefulWidget {
   final TcgGame game;
@@ -86,6 +89,47 @@ class _TcgSalesScreenState extends ConsumerState<TcgSalesScreen> {
       ),
     );
     if (changed == true) await _load();
+  }
+
+  String get _selectedFolderName {
+    if (_selectedFolder == saleAllFolders) return 'Todas as vendas';
+    if (_selectedFolder == saleUnfiledFolder) return 'Vendas sem pasta';
+    return _folders
+            .where((folder) => folder.id == _selectedFolder)
+            .map((folder) => folder.name)
+            .firstOrNull ??
+        'Cartas à venda';
+  }
+
+  void _openSalesShowcase(List<TcgMarketplaceListing> items) {
+    if (items.isEmpty) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CollectionShowcaseScreen(
+          folderName: '${widget.game.label} • $_selectedFolderName',
+          items: items
+              .map(
+                (item) => CardRecord(
+                  id: 'tcg-sale-${item.id}',
+                  cardCode: _displayCode(item.cardCode),
+                  name: item.name,
+                  imageUrl: item.imageUrl,
+                  dateAddedUtc: item.createdAt,
+                  setName: item.setName,
+                  rarity: item.rarity,
+                  color: item.color,
+                  type: item.type,
+                  text: item.text,
+                  attribute: item.attribute,
+                  quantity: item.quantity,
+                  collectionType: CollectionTypes.forSale,
+                  folderId: item.saleFolderId,
+                ),
+              )
+              .toList(growable: false),
+        ),
+      ),
+    );
   }
 
   Future<void> _resolveOrder(
@@ -457,6 +501,9 @@ class _TcgSalesScreenState extends ConsumerState<TcgSalesScreen> {
                   },
                   onSelect: (value) => setState(() => _selectedFolder = value),
                   onCreate: _createFolder,
+                  onShowcase: items.isEmpty
+                      ? null
+                      : () => _openSalesShowcase(items),
                   onRename: _renameFolder,
                   onDelete: _deleteFolder,
                 ),
