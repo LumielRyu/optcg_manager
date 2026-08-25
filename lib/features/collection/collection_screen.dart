@@ -2560,32 +2560,32 @@ class _CollectionShowcaseCard extends StatelessWidget {
                 ),
               ),
             ),
-            if (item.quantity > 1)
-              Positioned(
-                top: compact ? 2 : 5,
-                right: compact ? 2 : 5,
-                child: Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: compact ? 3 : 6,
-                    vertical: compact ? 1 : 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF13C8D8),
-                    borderRadius: BorderRadius.circular(999),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black54, blurRadius: 4),
-                    ],
-                  ),
-                  child: Text(
-                    '${item.quantity}x',
-                    style: TextStyle(
-                      color: const Color(0xFF021116),
-                      fontSize: compact ? 8 : 11,
-                      fontWeight: FontWeight.w900,
-                    ),
+            Positioned(
+              top: compact ? 2 : 5,
+              right: compact ? 2 : 5,
+              child: Container(
+                key: ValueKey('collection-showcase-quantity-${item.id}'),
+                padding: EdgeInsets.symmetric(
+                  horizontal: compact ? 3 : 6,
+                  vertical: compact ? 1 : 3,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF13C8D8),
+                  borderRadius: BorderRadius.circular(999),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black54, blurRadius: 4),
+                  ],
+                ),
+                child: Text(
+                  '${item.quantity}x',
+                  style: TextStyle(
+                    color: const Color(0xFF021116),
+                    fontSize: compact ? 8 : 11,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
+            ),
           ],
         ),
       ),

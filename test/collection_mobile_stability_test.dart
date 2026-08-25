@@ -75,6 +75,7 @@ void main() {
     expect(source, contains("const Text('Modo para print')"));
     expect(source, contains('class CollectionShowcaseScreen'));
     expect(source, contains("Key('collection-showcase-grid')"));
+    expect(source, contains("'collection-showcase-quantity-\${item.id}'"));
     expect(source, contains('NeverScrollableScrollPhysics'));
     expect(source, contains("Key('collection-showcase-clean-view')"));
     expect(source, contains('logicalDecodeWidth: cardWidth'));

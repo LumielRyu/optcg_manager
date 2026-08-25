@@ -2524,8 +2524,9 @@ git diff --stat
 - O calculo responsivo escolhe simultaneamente linhas, colunas e tamanho das
   cartas para que todas caibam na mesma captura, tanto em tela vertical quanto
   horizontal. Uma unica carta tambem fica centralizada sem extrapolar a tela.
-- Cada arte mostra o codigo e, quando houver mais de uma copia, um selo de
-  quantidade. O cabecalho identifica TCG BH, nome da pasta, cartas diferentes
+- Cada arte mostra o codigo e um selo de quantidade, inclusive para `1x`, para
+  que essa informacao esteja sempre presente no print. O cabecalho identifica
+  TCG BH, nome da pasta, cartas diferentes
   e total de copias.
 - A acao de tela limpa oculta a barra de controles antes do print; tocar em
   qualquer parte da exposicao restaura os controles. As imagens sao

@@ -49,6 +49,10 @@ void main() {
         find.byKey(ValueKey('collection-showcase-card-${card.id}')),
         findsOneWidget,
       );
+      expect(
+        find.byKey(ValueKey('collection-showcase-quantity-${card.id}')),
+        findsOneWidget,
+      );
     }
 
     await tester.tap(find.byKey(const Key('collection-showcase-clean-view')));
