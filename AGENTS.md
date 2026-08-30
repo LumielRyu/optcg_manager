@@ -2560,3 +2560,12 @@ git diff --stat
   `SUPABASE_SERVICE_ROLE_KEY` somente na Vercel.
 - O plano completo, incluindo painel administrativo, metricas de duracao,
   alertas e retencao, esta em `docs/observability_plan.md`.
+
+### 30/08/2026 - Novo administrador dos semanais
+
+- A conta `stoptcgbh@hotmail.com` recebeu no Supabase o metadado protegido
+  `is_weekly_admin: true`.
+- A permissao habilita o painel administrativo dos semanais, inclusive o de
+  Pokemon, e as operacoes protegidas pelas politicas do banco.
+- Para receber a nova permissao no JWT, a conta precisa sair completamente do
+  TCG BH e entrar novamente.
