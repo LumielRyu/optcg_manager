@@ -10,9 +10,9 @@
     "build:web": "python scripts/build_web_public_env.py"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.101.1"
+    "@supabase/supabase-js": "^2.112.4"
   },
   "devDependencies": {
-    "puppeteer-core": "^25.7.0"
+    "puppeteer-core": "^25.9.0"
   }
 }
